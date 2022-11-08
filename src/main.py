@@ -269,35 +269,43 @@ def create_database(cur, db_name):
 # to manipualte_data()
 # One multi-channel task has been used, as multiple tasks (at different
 # sampling rates) would require multiple clocks.
-def get_data(p_live0, p_time0):
+def get_data(p_live, p_time):
     try:    
-        with nidaqmx.Task() as task0:
+        with nidaqmx.Task() as task_in, nidaqmx.Task() as task_out:
+            
+            task_out.ao_channels.add_ao_voltage_chan("Dev1/ao0")
+            task_out.ao_channels.all.ao_max = 10.0 #max_voltage
+            task_out.ao_channels.all.ao_min = -10.0 #min_voltage
+            task_out.write(4.0)
+            
+            
+            
             
             ## Configure tasks
             ## Task 0 (Dev1/ai0, Dev1/ai1)
-            num_channels0 = 3
-            rate0 = 500
-            num_samples0 = 100#* 2 # 500000 # per channel
-            task0.ai_channels.add_ai_voltage_chan("Dev1/ai0")
-            task0.ai_channels.add_ai_voltage_chan("Dev1/ai1")
-            task0.ai_channels.add_ai_voltage_chan("Dev1/ai3")
-            task0.ai_channels.all.ai_max = 10.0 #max_voltage
-            task0.ai_channels.all.ai_min = -10.0 #min_voltage
+            num_channels_in = 3
+            rate_in = 500
+            num_samples_in = 100#* 2 # 500000 # per channel
+            task_in.ai_channels.add_ai_voltage_chan("Dev1/ai0")
+            task_in.ai_channels.add_ai_voltage_chan("Dev1/ai1")
+            task_in.ai_channels.add_ai_voltage_chan("Dev1/ai3")
+            task_in.ai_channels.all.ai_max = 10.0 #max_voltage
+            task_in.ai_channels.all.ai_min = -10.0 #min_voltage
             
-            task0.timing.cfg_samp_clk_timing(rate0, sample_mode=constants.AcquisitionType.CONTINUOUS)
+            task_in.timing.cfg_samp_clk_timing(rate_in, sample_mode=constants.AcquisitionType.CONTINUOUS)
             
-            reader0 = AnalogMultiChannelReader(task0.in_stream)
-            buffer0 = np.zeros((num_channels0, num_samples0), dtype=np.float64)
+            reader_in = AnalogMultiChannelReader(task_in.in_stream)
+            buffer_in = np.zeros((num_channels_in, num_samples_in), dtype=np.float64)
             
             
             while True:
                 try:
-                    time_start0 = time.time()
-                    reader0.read_many_sample(buffer0, num_samples0, timeout=constants.WAIT_INFINITELY)
-                    time_end0 = time.time()
-                    times = [time_start0, time_end0]
+                    time_start = time.time()
+                    reader_in.read_many_sample(buffer_in, num_samples_in, timeout=constants.WAIT_INFINITELY)
+                    time_end = time.time()
+                    times = [time_start, time_end]
                     
-                    data_live0 = buffer0.T.astype(np.float32)
+                    data_live_in = buffer_in.T.astype(np.float32)
                     #data_live0 = buffer0.T.astype(np.float64)
                     
                     # Tested for a buffer size of 5e6
@@ -307,12 +315,13 @@ def get_data(p_live0, p_time0):
                     # quicker for the aforementioned buffer size. This is
                     # because two pipes require less data manipulation
                     
-                    p_live0.send(data_live0)
-                    p_time0.send(times)
+                    p_live.send(data_live_in)
+                    p_time.send(times)
                     pipe_end = time.time()
                     
                 except nidaqmx.errors.DaqError as err:
-                    task0.close()
+                    task_in.close()
+                    task_out.close
                     print(err)
                     logging.error(err)
                     break
@@ -366,92 +375,17 @@ def manipulate_data(p_live, p_time, p_manip, p_plot):
         logging.warning("Data manipulation stopped via keyboard interruption")
     finally:
         pass
-"""
-def update(val):
-    global curve, ptr, Xm    
-    Xm[:-1] = Xm[1:]                      # shift data in the temporal mean 1 sample left
-    #value = ser.readline()                # read line (single value) from the serial port
-#    Xm[-1] = float(value)                 # vector containing the instantaneous values  
-    Xm[-1] = val
-    
-    ptr += 1                              # update x position for displaying the curve
-    curve.setData(Xm)                     # set the curve with this data
-    curve.setPos(ptr,0)                   # set x position in the graph to 0
-    QtGui.QApplication.processEvents()    # you MUST process the plot now
-
-"""
 
 
 
 
 
 def plot_live_data(p_plot):
-    #app = QtGui.QApplication([])
-    #win = pg.GraphicsWindow(title="Window Title")
-    #p = win.addPlot(title="Plot Title")
-    #fig = p.plot()
-    
-    #windowWidth = 500
-    #time_plot = np.linspace(0,0,windowWidth)
-    #ai0_plot = np.linspace(0,0,windowWidth)
-    #ptr = -windowWidth
-    
     app = QtWidgets.QApplication(sys.argv)
     w = MainWindow(p_plot)
     w.show()
-#    w.add_pipe(p_plot)
     sys.exit(app.exec_())
-    """
-    counter = 0
-    try:
-        while True:
-           # time_plot[:-1] = time_plot[1:]
-           # ai0_plot[:-1] = ai0_plot[1:]
-            
-            # Recieve data
-            data = p_plot.recv()
-            if counter == 0:
-                time_start = data[0]
-                counter = 1
-            
-            elapsed_time = data[0] - time_start
-            ai0 = data[1]
-            ai1 = data[2]
-            ai3 = data[3]
-            
-            print("alk")
-            w.data_line.setData(elapsed_time, ai0)
-           # time_plot[-1] = elapsed_time
-           # ai0_plot[-1] = ai0
-            
-
-            #w.update_plot_data(elapsed_time, ai0)
-            #w.x.append(elapsed_time)
-            #w.y.append(ai0)
-            
-           # Xm[-1] = ai0
-          #  ptr += 1
-           # fig.setData(time_plot, ai0_plot)
-           # fig.setPos(ptr,0)
-           # QtGui.QApplication.processEvents()
-           
-            
-            
-    except:
-        pass
-        #pg.QtGui.QApplication.exec_()
-        
-    """
-    """        
-        # update
-        plt.scatter(timestamp, ai0)
-        plt.scatter(timestamp, ai1)
-        #plt.pause(0.05)
-        
-        plt.show()
-        plt.pause(0.005)
-    """
-        
+    
         
 
 
