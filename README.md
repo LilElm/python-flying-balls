@@ -23,9 +23,11 @@
  * Code:
 
    - [X] Implement parallel processing
+   - [ ] Send trigger signal to power supply unit
    - [X] Acquire live data
    - [X] Pipe live data to new process
    - [ ] Manipulate data
+   - [ ] Plot data
    - [X] Pipe manipulated data to new process
    - [X] Store manipulated data in a MySQL database
 
@@ -42,5 +44,13 @@
  **03-Nov-22**
 
   * Created GitHub repository and uploaded previous work
+
+ **08-Nov-22**
+
+ * Multiple tasks (which would have allowed multiple sample rates) didn't work due to single clock
+
+   * Multiple channels within single task added
+
+ * Real-time plot added using pyqt package
 
 </sub>
