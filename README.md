@@ -8,11 +8,13 @@
 #### Aims
 <sub>
 
- * To acquire real-time data from a DAQ board
+ * To send signals via a DAQ board to manipulate the position of the levitating sphere
+
+ * To acquire real-time data from the DAQ board
 
  * To physically interpret this data
 
- * To store this data is a MySQL database
+ * To store this data in a MySQL database
 
 
 </sub>
@@ -52,5 +54,7 @@
    * Multiple channels within single task added
 
  * Real-time plot added using pyqt package
+
+ * Output signal added
 
 </sub>

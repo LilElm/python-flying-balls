@@ -42,14 +42,14 @@ class MainWindow(QtWidgets.QMainWindow):
         self.elapsed_time = []
         
         self.graphWidget.addLegend()
-        self.line_ai0 =  self.graphWidget.plot(self.elapsed_time, self.ai0, name="ai0", pen=pg.mkPen('b'))
-        self.line_ai1 =  self.graphWidget.plot(self.elapsed_time, self.ai1, name="ai1", pen=pg.mkPen('r'))
-        self.line_ai3 =  self.graphWidget.plot(self.elapsed_time, self.ai3, name="ai3", pen=pg.mkPen('y'))
+        self.line_ai0 = self.graphWidget.plot(self.elapsed_time, self.ai0, name="ai0", pen=pg.mkPen('b'))
+        self.line_ai1 = self.graphWidget.plot(self.elapsed_time, self.ai1, name="ai1", pen=pg.mkPen('r'))
+        self.line_ai3 = self.graphWidget.plot(self.elapsed_time, self.ai3, name="ai3", pen=pg.mkPen('y'))
         
         self.counter = 0
         self.timer = QtCore.QTimer()
-        self.timer.setInterval(50)
-        self.timer.timeout.connect(self.update_plot)#_data)
+        self.timer.setInterval(4) # 4 ms = 250 refreshes per sec
+        self.timer.timeout.connect(self.update_plot)
         self.timer.start()
         self.update_plot()
     
@@ -71,7 +71,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.ai1.append(ai1)
                 self.ai3.append(ai3)
                 
-                if len(self.ai0) > 200:
+                if len(self.ai0) > 2000: # 100 data points per sec -> 2000 data points = 20 sec
                     self.elapsed_time = self.elapsed_time[1:]
                     self.ai0 = self.ai0[1:]
                     self.ai1 = self.ai1[1:]
@@ -208,7 +208,6 @@ def main():
         p_manip_dev1_1, p_manip_dev1_2 = Pipe()
         p_plot_dev1_1, p_plot_dev1_2 = Pipe()
         
-        
         msg = "Running"
         processlist = []
         processlist.append(Process(target=get_data, args=(p_live_dev1_1, p_time0_1, )))
@@ -265,9 +264,17 @@ def create_database(cur, db_name):
 
 
 
-def force_profile(buffer):
+def force_profile(buffer, sampling_rate):
+    
+    lim = sampling_rate 
+    
     for i in range(len(buffer[0])):
-        buffer[0,i] = np.sin(i/10) * 7.0
+        if i < lim * 2:
+            buffer[0,i] = 2.0
+        elif i < lim * 10:
+            buffer[0,i] = np.sin(i) * 7.0
+        else:
+            buffer[0,i] = 0
     return buffer
     
     
@@ -280,37 +287,47 @@ def force_profile(buffer):
 def get_data(p_live, p_time):
     try:    
         with nidaqmx.Task() as task0, nidaqmx.Task() as task1:
+            sampling_rate = 50000
             
             ## Configure tasks
             ## Task 0 (Dev1/ao0)
             num_channels0 = 1
-            num_samples0 = 10000000#* 2 # 500000 # per channel
+            num_samples0 = sampling_rate * 20 # 20 sec of data output
+            
             task0.ao_channels.add_ao_voltage_chan("Dev1/ao0")
             task0.ao_channels.all.ao_max = 10.0 #max_voltage
             task0.ao_channels.all.ao_min = -10.0 #min_voltage
-            task0.timing.cfg_samp_clk_timing(20, sample_mode=nidaqmx.constants.AcquisitionType.FINITE)#sample_mode=constants.AcquisitionType.CONTINUOUS)
+            task0.timing.cfg_samp_clk_timing(sampling_rate, sample_mode=nidaqmx.constants.AcquisitionType.FINITE, samps_per_chan=num_samples0)
             
             writer0 = AnalogMultiChannelWriter(task0.out_stream, auto_start=False)
             buffer0 = np.zeros((num_channels0, num_samples0), dtype=np.float64)
-            buffer0 = force_profile(buffer0)
-            writer0.write_many_sample(buffer0, timeout=60)
-            task0.start()
+            buffer0 = force_profile(buffer0, sampling_rate)
             
+            #print(str(buffer0))
+            writer0.write_many_sample(buffer0, timeout=60)
+            #task0.start()
             
             ## Task 1 (Dev1/ai0, Dev1/ai1, Dev1/ai3)
             num_channels1 = 3
-            rate1 = 500
-            num_samples1 = 100#* 2 # 500000 # per channel
+            num_samples1 = 250 # buffer size per channel
+            
             task1.ai_channels.add_ai_voltage_chan("Dev1/ai0")
             task1.ai_channels.add_ai_voltage_chan("Dev1/ai1")
             task1.ai_channels.add_ai_voltage_chan("Dev1/ai3")
             task1.ai_channels.all.ai_max = 10.0 #max_voltage
             task1.ai_channels.all.ai_min = -10.0 #min_voltage
-            task1.timing.cfg_samp_clk_timing(rate1, sample_mode=constants.AcquisitionType.CONTINUOUS)
-            
+            task1.timing.cfg_samp_clk_timing(sampling_rate, sample_mode=constants.AcquisitionType.FINITE, samps_per_chan=num_samples1)
             
             reader1 = AnalogMultiChannelReader(task1.in_stream)
             buffer1 = np.zeros((num_channels1, num_samples1), dtype=np.float64)
+            
+            # Trigger causes task0 to wait for task1 to begin
+            task0.triggers.start_trigger.cfg_dig_edge_start_trig(task1.triggers.start_trigger.term)
+            task0.start()
+            
+            ## Trigger causes task1 to stop once task0 has finished
+           # task1.triggers.cfg_dig_edge_ref_trig(task0.triggers)#.start_trigger.term)
+            
             
             while True:
                 try:
@@ -320,7 +337,6 @@ def get_data(p_live, p_time):
                     times = [time_start, time_end]
                     
                     data_live1 = buffer1.T.astype(np.float32)
-                    #data_live0 = buffer0.T.astype(np.float64)
                     
                     # Tested for a buffer size of 5e6
                     # One pipe took ~0.081 s
@@ -338,22 +354,20 @@ def get_data(p_live, p_time):
                     task0.close
                     print(err)
                     logging.error(err)
+                    #time.sleep(50)
                     break
     except KeyboardInterrupt:
         logging.warning("Data acquisition stopped via keyboard interruption")
     finally:
         pass
-    
-
-
 
 
 # Function recieves buffered data from get_data(), restructures it and pipes
 # it to store_manipulated_data()
 def manipulate_data(p_live, p_time, p_manip, p_plot):
     try:  
-        buffer_rate = 0.1
-        time_next = time.time() - buffer_rate
+        buffer_rate = 0.01 #100 data points per channel per sec
+        counter = 0
         while True:
             try:
                 # Unpackage the data
@@ -365,6 +379,11 @@ def manipulate_data(p_live, p_time, p_manip, p_plot):
                 
                 time_start = time_data[0]
                 time_end = time_data[1]
+                
+                if counter == 0:
+                    counter = 1
+                    time_next = time_start
+                
                 
                 # Restructure the data
                 data_manipulated = []
