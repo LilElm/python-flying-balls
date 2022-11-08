@@ -16,6 +16,7 @@ import sys
 import nidaqmx
 import nidaqmx.system
 from nidaqmx.stream_readers import AnalogMultiChannelReader
+from nidaqmx.stream_writers import AnalogMultiChannelWriter
 from nidaqmx import constants
 import logging
 from PyQt5 import QtWidgets, QtCore
@@ -182,7 +183,7 @@ def main():
                     logging.error(err.msg)
         
         
-        """
+       # """
         # Reset device
         system = nidaqmx.system.System.local()
         for device in system.devices:
@@ -194,7 +195,7 @@ def main():
             except:
                 print("Device {} failed to reset".format(device))
                 logging.warning("Device {} failed to reset".format(device))
-        """
+       # """
                 
 
         # Queues are built on top of pipes
@@ -264,6 +265,13 @@ def create_database(cur, db_name):
 
 
 
+def force_profile(buffer):
+    for i in range(len(buffer[0])):
+        buffer[0,i] = np.sin(i/10) * 7.0
+    return buffer
+    
+    
+
 
 # Function acquires and buffers live data from DAQ board and pipes it
 # to manipualte_data()
@@ -271,41 +279,47 @@ def create_database(cur, db_name):
 # sampling rates) would require multiple clocks.
 def get_data(p_live, p_time):
     try:    
-        with nidaqmx.Task() as task_in, nidaqmx.Task() as task_out:
-            
-            task_out.ao_channels.add_ao_voltage_chan("Dev1/ao0")
-            task_out.ao_channels.all.ao_max = 10.0 #max_voltage
-            task_out.ao_channels.all.ao_min = -10.0 #min_voltage
-            task_out.write(4.0)
-            
-            
-            
+        with nidaqmx.Task() as task0, nidaqmx.Task() as task1:
             
             ## Configure tasks
-            ## Task 0 (Dev1/ai0, Dev1/ai1)
-            num_channels_in = 3
-            rate_in = 500
-            num_samples_in = 100#* 2 # 500000 # per channel
-            task_in.ai_channels.add_ai_voltage_chan("Dev1/ai0")
-            task_in.ai_channels.add_ai_voltage_chan("Dev1/ai1")
-            task_in.ai_channels.add_ai_voltage_chan("Dev1/ai3")
-            task_in.ai_channels.all.ai_max = 10.0 #max_voltage
-            task_in.ai_channels.all.ai_min = -10.0 #min_voltage
+            ## Task 0 (Dev1/ao0)
+            num_channels0 = 1
+            num_samples0 = 10000000#* 2 # 500000 # per channel
+            task0.ao_channels.add_ao_voltage_chan("Dev1/ao0")
+            task0.ao_channels.all.ao_max = 10.0 #max_voltage
+            task0.ao_channels.all.ao_min = -10.0 #min_voltage
+            task0.timing.cfg_samp_clk_timing(20, sample_mode=nidaqmx.constants.AcquisitionType.FINITE)#sample_mode=constants.AcquisitionType.CONTINUOUS)
             
-            task_in.timing.cfg_samp_clk_timing(rate_in, sample_mode=constants.AcquisitionType.CONTINUOUS)
+            writer0 = AnalogMultiChannelWriter(task0.out_stream, auto_start=False)
+            buffer0 = np.zeros((num_channels0, num_samples0), dtype=np.float64)
+            buffer0 = force_profile(buffer0)
+            writer0.write_many_sample(buffer0, timeout=60)
+            task0.start()
             
-            reader_in = AnalogMultiChannelReader(task_in.in_stream)
-            buffer_in = np.zeros((num_channels_in, num_samples_in), dtype=np.float64)
             
+            ## Task 1 (Dev1/ai0, Dev1/ai1, Dev1/ai3)
+            num_channels1 = 3
+            rate1 = 500
+            num_samples1 = 100#* 2 # 500000 # per channel
+            task1.ai_channels.add_ai_voltage_chan("Dev1/ai0")
+            task1.ai_channels.add_ai_voltage_chan("Dev1/ai1")
+            task1.ai_channels.add_ai_voltage_chan("Dev1/ai3")
+            task1.ai_channels.all.ai_max = 10.0 #max_voltage
+            task1.ai_channels.all.ai_min = -10.0 #min_voltage
+            task1.timing.cfg_samp_clk_timing(rate1, sample_mode=constants.AcquisitionType.CONTINUOUS)
+            
+            
+            reader1 = AnalogMultiChannelReader(task1.in_stream)
+            buffer1 = np.zeros((num_channels1, num_samples1), dtype=np.float64)
             
             while True:
                 try:
                     time_start = time.time()
-                    reader_in.read_many_sample(buffer_in, num_samples_in, timeout=constants.WAIT_INFINITELY)
+                    reader1.read_many_sample(buffer1, num_samples1, timeout=constants.WAIT_INFINITELY)
                     time_end = time.time()
                     times = [time_start, time_end]
                     
-                    data_live_in = buffer_in.T.astype(np.float32)
+                    data_live1 = buffer1.T.astype(np.float32)
                     #data_live0 = buffer0.T.astype(np.float64)
                     
                     # Tested for a buffer size of 5e6
@@ -315,13 +329,13 @@ def get_data(p_live, p_time):
                     # quicker for the aforementioned buffer size. This is
                     # because two pipes require less data manipulation
                     
-                    p_live.send(data_live_in)
+                    p_live.send(data_live1)
                     p_time.send(times)
                     pipe_end = time.time()
                     
                 except nidaqmx.errors.DaqError as err:
-                    task_in.close()
-                    task_out.close
+                    task1.close()
+                    task0.close
                     print(err)
                     logging.error(err)
                     break
