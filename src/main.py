@@ -25,18 +25,14 @@ import pyqtgraph as pg
 """Flying balls"""
 
 
-
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self, pipe, *args, **kwargs):
         self.pipe = pipe
         super(MainWindow, self).__init__(*args, **kwargs)
 
         self.graphWidget = pg.PlotWidget()
-        self.graphWidget.setLabel('left', 'Voltage (V)')#, **styles)
-        self.graphWidget.setLabel('bottom', 'Elapsed Time (s)')#, **styles)
-        
-
-        
+        self.graphWidget.setLabel('left', 'Voltage (V)')
+        self.graphWidget.setLabel('bottom', 'Elapsed Time (s)')
         self.setCentralWidget(self.graphWidget)
 
         self.ai0 = []
@@ -44,27 +40,20 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ai3 = []
         self.elapsed_time = []
         
-        #pen = pg.mkPen(color=(255, 0, 0), width=15, style=QtCore.Qt.DashLine)
         self.graphWidget.addLegend()
-        self.line_ai0 =  self.graphWidget.plot(self.elapsed_time, self.ai0, name="ai0")#, pen=pen)#, symbol='+', symbolSize=30, symbolBrush=('b'))
-        self.line_ai1 =  self.graphWidget.plot(self.elapsed_time, self.ai1, name="ai1")#, symbol='+', symbolSize=30, symbolBrush=('b'))
-        self.line_ai3 =  self.graphWidget.plot(self.elapsed_time, self.ai3, name="ai3")#, symbol='+', symbolSize=30, symbolBrush=('b'))
-
-        
+        self.line_ai0 =  self.graphWidget.plot(self.elapsed_time, self.ai0, name="ai0", pen=pg.mkPen('b'))
+        self.line_ai1 =  self.graphWidget.plot(self.elapsed_time, self.ai1, name="ai1", pen=pg.mkPen('r'))
+        self.line_ai3 =  self.graphWidget.plot(self.elapsed_time, self.ai3, name="ai3", pen=pg.mkPen('y'))
         
         self.counter = 0
-        
         self.timer = QtCore.QTimer()
         self.timer.setInterval(50)
         self.timer.timeout.connect(self.update_plot)#_data)
         self.timer.start()
         self.update_plot()
-        
     
-
     def update_plot(self):
         try:
-            #while True:
             if True:
                 data = self.pipe.recv()
                 if self.counter == 0:
@@ -86,21 +75,14 @@ class MainWindow(QtWidgets.QMainWindow):
                     self.ai0 = self.ai0[1:]
                     self.ai1 = self.ai1[1:]
                     self.ai3 = self.ai3[1:]
-                 
                 
                 self.line_ai0.setData(self.elapsed_time, self.ai0)
                 self.line_ai1.setData(self.elapsed_time, self.ai1)
                 self.line_ai3.setData(self.elapsed_time, self.ai3)
-                
             
         except:
             print("err")
             
-            
-    
-    
-            
-
 
 def main():
 
