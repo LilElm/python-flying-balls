@@ -57,4 +57,8 @@
 
  * Output signal added
 
+ * Acquisition type changed to finite
+
+   * Still allows for continuous acquisition, but with much higher sample rates
+
 </sub>
