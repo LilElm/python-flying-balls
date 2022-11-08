@@ -156,7 +156,7 @@ def main():
         
 
 
-        # Drop tables ------------- this should only be temporary
+        # Drop tables ------------- this should only be temporary!!
         query = "DROP TABLE IF EXISTS {};"
         for table_name in TABLES:
             try:
@@ -182,34 +182,7 @@ def main():
                     logging.error(err.msg)
         
         
-    
-    
-        # Queues are built on top of pipes
-        # Queues can handle multiple endpoints, but are consequently slower
-        # Pipes can only handle two endpoints, but are faster
-        # p_live handles live data
-        # p_manip handles manipulated data
-        p_live_dev1_1, p_live_dev1_2 = Pipe()
-        p_time0_1, p_time0_2 = Pipe()
-        p_manip_dev1_1, p_manip_dev1_2 = Pipe()
-        p_plot_dev1_1, p_plot_dev1_2 = Pipe()
-        
-                              
-        #print(str(cur))       
-        #print(str(con))
-        
-        msg = "Running"
-        processlist = []
-        
-        
-        # Add channel number, num_samples, rate
-        #"Dev1/ai0"
-        
-        # Maybe create a task disctionary?
-        
-        #channels = ["Dev1/ai0", "Dev1/ai1"]
-        
-        #taskDict = {task for channel in channels}
+        """
         # Reset device
         system = nidaqmx.system.System.local()
         for device in system.devices:
@@ -221,33 +194,26 @@ def main():
             except:
                 print("Device {} failed to reset".format(device))
                 logging.warning("Device {} failed to reset".format(device))
-                
-        
-            
-        ###### Cannot import tasks into processes - same error as with importing con and cur
-                # I think the only option left is to have the two tasks within the same function
-                # Define the task parameters in an object and import the object into the function
-                
+        """
                 
 
-       
+        # Queues are built on top of pipes
+        # Queues can handle multiple endpoints, but are consequently slower
+        # Pipes can only handle two endpoints, but are faster
+        # p_live handles live data
+        # p_manip handles manipulated data
+        p_live_dev1_1, p_live_dev1_2 = Pipe()
+        p_time0_1, p_time0_2 = Pipe()
+        p_manip_dev1_1, p_manip_dev1_2 = Pipe()
+        p_plot_dev1_1, p_plot_dev1_2 = Pipe()
         
+        
+        msg = "Running"
+        processlist = []
         processlist.append(Process(target=get_data, args=(p_live_dev1_1, p_time0_1, )))
         processlist.append(Process(target=manipulate_data, args=(p_live_dev1_2, p_time0_2, p_manip_dev1_1, p_plot_dev1_1, )))
         processlist.append(Process(target=store_manipulated_data, args=(p_manip_dev1_2, user, password, db_name, "livedata", )))
-       
-        
-       
-        # Process to plot livedata
-        
         processlist.append(Process(target=plot_live_data, args=(p_plot_dev1_2, )))
-
-
-        
-        
-        
-        
-
         processlist.append(Process(target=loading, args=(msg, )))
         
         
@@ -301,6 +267,8 @@ def create_database(cur, db_name):
 
 # Function acquires and buffers live data from DAQ board and pipes it
 # to manipualte_data()
+# One multi-channel task has been used, as multiple tasks (at different
+# sampling rates) would require multiple clocks.
 def get_data(p_live0, p_time0):
     try:    
         with nidaqmx.Task() as task0:
