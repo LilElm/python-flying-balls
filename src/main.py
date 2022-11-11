@@ -22,6 +22,7 @@ import logging
 from PyQt5 import QtWidgets, QtCore
 from pyqtgraph import PlotWidget, plot
 import pyqtgraph as pg
+from force_profile import eval_force
 
 """Flying balls"""
 
@@ -154,6 +155,10 @@ def main():
                             ai3 DOUBLE,
                             ao0 DOUBLE
                             ) ENGINE=InnoDB""")
+        TABLES['force_profile'] = ("""CREATE TABLE force_profile (
+                            seconds DOUBLE NOT NULL,
+                            profile DOUBLE NOT NULL
+                            ) ENGINE=InnoDB""")
         
 
 
@@ -181,6 +186,43 @@ def main():
                 else:
                     print(err.msg)
                     logging.error(err.msg)
+        
+        
+        #### Evalute the force profile
+        buffer_size = 1000
+        sampling_rate = 100
+        #times, force = eval_force(buffer_size, sampling_rate)
+        values = np.array(eval_force(buffer_size, sampling_rate))
+        print(str(values))
+        
+        
+        
+        ## Insert force profile into database
+        print("hsadhslk")
+        input()
+
+        
+        
+        try:
+            query = "INSERT INTO force_profile(seconds, profile) VALUES (%s, %s);"
+           # values = times, force
+            cur.executemany(query, values)
+            con.commit()
+        except mysql.connector.Error as err:
+            print("hfaha")
+            print(err)
+            input()
+            
+        
+        
+        
+        print("fhkjfhdask")
+        input()
+        #print(str(force))
+        #print(type(force))
+        #input()
+        
+        
         
         
        # """
@@ -265,17 +307,19 @@ def create_database(cur, db_name):
 
 
 def force_profile(buffer, sampling_rate):
-    
+    pass
+    """
     lim = sampling_rate 
     
     for i in range(len(buffer[0])):
         if i < lim * 2:
             buffer[0,i] = 2.0
         elif i < lim * 10:
-            buffer[0,i] = np.sin(i) * 7.0
+            buffer[0,i] = np.sin(i/5000) * 7.0
         else:
             buffer[0,i] = 0
     return buffer
+    """
     
     
 
@@ -292,20 +336,30 @@ def get_data(p_live, p_time):
             ## Configure tasks
             ## Task 0 (Dev1/ao0)
             num_channels0 = 1
-            num_samples0 = sampling_rate * 20 # 20 sec of data output
+            num_samples0 = int(sampling_rate * 0.5)#20 # 20 sec of data output
+            print(str(num_samples0))
             
             task0.ao_channels.add_ao_voltage_chan("Dev1/ao0")
             task0.ao_channels.all.ao_max = 10.0 #max_voltage
             task0.ao_channels.all.ao_min = -10.0 #min_voltage
-            task0.timing.cfg_samp_clk_timing(sampling_rate, sample_mode=nidaqmx.constants.AcquisitionType.FINITE, samps_per_chan=num_samples0)
+            task0.timing.cfg_samp_clk_timing(sampling_rate,
+                                             active_edge=nidaqmx.constants.Edge.RISING,
+                                             sample_mode=nidaqmx.constants.AcquisitionType.FINITE,
+                                             samps_per_chan=num_samples0)
             
             writer0 = AnalogMultiChannelWriter(task0.out_stream, auto_start=False)
             buffer0 = np.zeros((num_channels0, num_samples0), dtype=np.float64)
-            buffer0 = force_profile(buffer0, sampling_rate)
+            #buffer0 = force_profile(buffer0, sampling_rate)
+            buffer0 = calc(num_samples0, sampling_rate)
+            # Program should write evaluated output (and supposed timestamp) to database for comparison
             
-            #print(str(buffer0))
+            
+           # print(str((buffer0.shape())))
+           # input()
             writer0.write_many_sample(buffer0, timeout=60)
-            #task0.start()
+
+
+
             
             ## Task 1 (Dev1/ai0, Dev1/ai1, Dev1/ai3)
             num_channels1 = 3
@@ -316,7 +370,11 @@ def get_data(p_live, p_time):
             task1.ai_channels.add_ai_voltage_chan("Dev1/ai3")
             task1.ai_channels.all.ai_max = 10.0 #max_voltage
             task1.ai_channels.all.ai_min = -10.0 #min_voltage
-            task1.timing.cfg_samp_clk_timing(sampling_rate, sample_mode=constants.AcquisitionType.FINITE, samps_per_chan=num_samples1)
+            task1.timing.cfg_samp_clk_timing(sampling_rate,
+                                             active_edge=nidaqmx.constants.Edge.RISING,
+                                             sample_mode=constants.AcquisitionType.FINITE,
+                                             samps_per_chan=num_samples1)
+            
             
             reader1 = AnalogMultiChannelReader(task1.in_stream)
             buffer1 = np.zeros((num_channels1, num_samples1), dtype=np.float64)
@@ -324,6 +382,10 @@ def get_data(p_live, p_time):
             # Trigger causes task0 to wait for task1 to begin
             task0.triggers.start_trigger.cfg_dig_edge_start_trig(task1.triggers.start_trigger.term)
             task0.start()
+            
+            
+            #task1.triggers.reference_trigger.cfg_anlg_edge_ref_trig("Dev1/ai3", pretrigger_samples=2, trigger_slope=nidaqmx.constants.Slope.FALLING, trigger_level = 4)
+    
             
             ## Trigger causes task1 to stop once task0 has finished
            # task1.triggers.cfg_dig_edge_ref_trig(task0.triggers)#.start_trigger.term)
@@ -349,9 +411,16 @@ def get_data(p_live, p_time):
                     p_time.send(times)
                     pipe_end = time.time()
                     
+                    if task0.is_task_done():
+                        task0.close()
+                        task1.close()
+                        print("Tasks completed successfully and closed.")
+                        #break
+                    
                 except nidaqmx.errors.DaqError as err:
-                    task1.close()
                     task0.close
+                    time.sleep(1.0)
+                    task1.close()
                     print(err)
                     logging.error(err)
                     #time.sleep(50)
