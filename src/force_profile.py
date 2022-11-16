@@ -6,12 +6,24 @@ import numpy as np
 import sys
 from decimal import Decimal
 import matplotlib.pyplot as plt
+import datetime
+import logging
+import os
+import shutil
 
-def eval_force(time_idle=1.0, time_acc=0.05, time_ramp=0.2, sampling_rate=10000):   
+def eval_force(time_idle=1.0, time_acc=0.05, time_ramp=0.2, sampling_rate=10000):    
+    logfolder = "../log/"
+    outfolder = "../out/"
+    os.makedirs(outfolder, exist_ok=True)
+    os.makedirs(logfolder, exist_ok=True)
+    currentDT = datetime.datetime.now()
+    logging.basicConfig(filename = logfolder + "force_profile.log", encoding='utf-8', level=logging.DEBUG)
+    logging.info(currentDT.strftime("%d/%m/%Y, %H:%M:%S"))  
+    
     dt = 1.0 / sampling_rate
     velocity = 1.0 #mm/s?
     df = 0.019 # FWHM I think
-    f0 = 4#8.026 # Resonant frequency I think
+    f0 = 4.0#8.026 # Resonant frequency I think
     k = 0.825 # Spring constant I think
     
     # Modulo, whether via % of math.fmod() is completely broken
@@ -105,9 +117,13 @@ def eval_force(time_idle=1.0, time_acc=0.05, time_ramp=0.2, sampling_rate=10000)
     ax = fig.add_subplot(1,1,1)
     ax.plot(times_tot, profile)
     ax.plot(times_tot, xs_tot)
-    plt.show()
-    input()
+    #plt.show()
+    path = outfolder + "force_profile.png"
+    fig.savefig(path, bbox_inches="tight", dpi=900)
+    #input()
 
+    #np.ravel(times_tot)
+    #np.ravel(profile)
 
     return times_tot, profile
 

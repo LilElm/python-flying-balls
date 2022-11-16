@@ -61,4 +61,11 @@
 
    * Still allows for continuous acquisition, but with much higher sample rates
 
+ **16-Nov-22**
+
+ * Increased multiprocessing.connection.BUFSIZE to allow large pipe 'queue'
+
+   * Need to wait until after data acquisition for MySQL database to be fully updated
+
+
 </sub>

@@ -5,6 +5,8 @@ import os
 from dotenv import load_dotenv
 import mysql.connector
 from mysql.connector import errorcode
+import multiprocessing.connection
+multiprocessing.connection.BUFSIZE = 2**32-1 # This is the absolute limit for this PC
 from multiprocessing import Process, Pipe
 import datetime
 import time
@@ -189,43 +191,33 @@ def main():
         
         
         #### Evalute the force profile
-        buffer_size = 1000
-        sampling_rate = 100
-        #times, force = eval_force(buffer_size, sampling_rate)
-        values = np.array(eval_force(buffer_size, sampling_rate))
-        print(str(values))
+        print("Evaluating force profile")
+        time_idle = 4.0
+        time_acc=0.05
+        time_ramp=0.2
+        sampling_rate=50000
+        force_profile_times, force_profile_force = eval_force(time_idle, time_acc, time_ramp, sampling_rate)
         
+        force_profile_force = force_profile_force * 20.0
         
+        values = []
+        for i in range(len(force_profile_times)):
+            values.append([str(force_profile_times[i]), str(force_profile_force[i])])
         
         ## Insert force profile into database
-        print("hsadhslk")
-        input()
-
-        
-        
         try:
             query = "INSERT INTO force_profile(seconds, profile) VALUES (%s, %s);"
-           # values = times, force
+            #values = times, force
             cur.executemany(query, values)
             con.commit()
         except mysql.connector.Error as err:
-            print("hfaha")
             print(err)
             input()
             
         
         
         
-        print("fhkjfhdask")
-        input()
-        #print(str(force))
-        #print(type(force))
-        #input()
-        
-        
-        
-        
-       # """
+        # """ measure to be used in case of DAQ malfunction
         # Reset device
         system = nidaqmx.system.System.local()
         for device in system.devices:
@@ -245,20 +237,36 @@ def main():
         # Pipes can only handle two endpoints, but are faster
         # p_live handles live data
         # p_manip handles manipulated data
+        #multiprocessing.connection.BUFSIZE()
+        #multiprocessing.connection.BUFSIZE(65536)
+        
+        """
         p_live_dev1_1, p_live_dev1_2 = Pipe()
         p_time0_1, p_time0_2 = Pipe()
         p_manip_dev1_1, p_manip_dev1_2 = Pipe()
         p_plot_dev1_1, p_plot_dev1_2 = Pipe()
+        """
+        
+        
+        
+        p_live_dev1_2, p_live_dev1_1 = Pipe(duplex=False)
+        p_time0_2, p_time0_1 = Pipe(duplex=False)
+        p_manip_dev1_2, p_manip_dev1_1 = Pipe(duplex=False)
+        p_plot_dev1_2, p_plot_dev1_1 = Pipe(duplex=False)
+        
+        
+        
+        
         
         msg = "Running"
         processlist = []
-        processlist.append(Process(target=get_data, args=(p_live_dev1_1, p_time0_1, )))
+        processlist.append(Process(target=get_data, args=(p_live_dev1_1, p_time0_1, sampling_rate, force_profile_force, )))
         processlist.append(Process(target=manipulate_data, args=(p_live_dev1_2, p_time0_2, p_manip_dev1_1, p_plot_dev1_1, )))
         processlist.append(Process(target=store_manipulated_data, args=(p_manip_dev1_2, user, password, db_name, "livedata", )))
         processlist.append(Process(target=plot_live_data, args=(p_plot_dev1_2, )))
         processlist.append(Process(target=loading, args=(msg, )))
         
-        
+        # Maybe change this to a pool or some sort of management system
         for p in processlist:
             try:
                 logging.info("Starting process {}".format(p))
@@ -268,7 +276,7 @@ def main():
                 print("Error starting {}".format(p))
                 logging.error("Error starting {}".format(p))
             
-        
+        # If get_data has ended, end all
         try:
             input("Press RETURN to stop data acquisition\n")
             pass
@@ -303,24 +311,6 @@ def create_database(cur, db_name):
         logging.error("Failed creating database: {}".format(err))
         exit(1)
 
-
-
-
-def force_profile(buffer, sampling_rate):
-    pass
-    """
-    lim = sampling_rate 
-    
-    for i in range(len(buffer[0])):
-        if i < lim * 2:
-            buffer[0,i] = 2.0
-        elif i < lim * 10:
-            buffer[0,i] = np.sin(i/5000) * 7.0
-        else:
-            buffer[0,i] = 0
-    return buffer
-    """
-    
     
 
 
@@ -328,16 +318,14 @@ def force_profile(buffer, sampling_rate):
 # to manipualte_data()
 # One multi-channel task has been used, as multiple tasks (at different
 # sampling rates) would require multiple clocks.
-def get_data(p_live, p_time):
+def get_data(p_live, p_time, sampling_rate, force_profile_force):
     try:    
         with nidaqmx.Task() as task0, nidaqmx.Task() as task1:
-            sampling_rate = 50000
             
             ## Configure tasks
             ## Task 0 (Dev1/ao0)
             num_channels0 = 1
-            num_samples0 = int(sampling_rate * 0.5)#20 # 20 sec of data output
-            print(str(num_samples0))
+            num_samples0 = np.size(force_profile_force)
             
             task0.ao_channels.add_ao_voltage_chan("Dev1/ao0")
             task0.ao_channels.all.ao_max = 10.0 #max_voltage
@@ -348,14 +336,7 @@ def get_data(p_live, p_time):
                                              samps_per_chan=num_samples0)
             
             writer0 = AnalogMultiChannelWriter(task0.out_stream, auto_start=False)
-            buffer0 = np.zeros((num_channels0, num_samples0), dtype=np.float64)
-            #buffer0 = force_profile(buffer0, sampling_rate)
-            buffer0 = calc(num_samples0, sampling_rate)
-            # Program should write evaluated output (and supposed timestamp) to database for comparison
-            
-            
-           # print(str((buffer0.shape())))
-           # input()
+            buffer0 = np.reshape(force_profile_force, (1, num_samples0))
             writer0.write_many_sample(buffer0, timeout=60)
 
 
@@ -363,7 +344,7 @@ def get_data(p_live, p_time):
             
             ## Task 1 (Dev1/ai0, Dev1/ai1, Dev1/ai3)
             num_channels1 = 3
-            num_samples1 = 250 # buffer size per channel
+            num_samples1 = 100000 # Buffer size per channel
             
             task1.ai_channels.add_ai_voltage_chan("Dev1/ai0")
             task1.ai_channels.add_ai_voltage_chan("Dev1/ai1")
@@ -380,7 +361,7 @@ def get_data(p_live, p_time):
             buffer1 = np.zeros((num_channels1, num_samples1), dtype=np.float64)
             
             # Trigger causes task0 to wait for task1 to begin
-            task0.triggers.start_trigger.cfg_dig_edge_start_trig(task1.triggers.start_trigger.term)
+            #task0.triggers.start_trigger.cfg_dig_edge_start_trig(task1.triggers.start_trigger.term)
             task0.start()
             
             
@@ -409,21 +390,36 @@ def get_data(p_live, p_time):
                     
                     p_live.send(data_live1)
                     p_time.send(times)
-                    pipe_end = time.time()
                     
                     if task0.is_task_done():
-                        task0.close()
-                        task1.close()
-                        print("Tasks completed successfully and closed.")
-                        #break
+                        time.sleep(10)
+                        break
                     
+                    
+                    """
+                    if task0.is_task_done():
+                        print("adajo")
+                        empty = multiprocessing.connection.wait([p_live, p_time])
+                        print(str(empty))
+                        while p_live and p_time not in empty:
+                            empty = multiprocessing.connection.wait([p_live, p_time])
+                            print(str(empty))
+                        if p_live and p_time in empty:
+                            if task0:
+                                task0.close()
+                            if task1:
+                                task1.close()
+                            print("Tasks completed successfully and closed.")
+                            logging.info("Tasks completed successfully and closed.")
+                            break
+                    """
                 except nidaqmx.errors.DaqError as err:
-                    task0.close
-                    time.sleep(1.0)
-                    task1.close()
                     print(err)
                     logging.error(err)
-                    #time.sleep(50)
+                    if task0:
+                        task0.close()
+                    if task1:
+                        task1.close()
                     break
     except KeyboardInterrupt:
         logging.warning("Data acquisition stopped via keyboard interruption")
@@ -436,6 +432,7 @@ def get_data(p_live, p_time):
 def manipulate_data(p_live, p_time, p_manip, p_plot):
     try:  
         buffer_rate = 0.01 #100 data points per channel per sec
+        #buffer_rate = 0.05 #20 data points per channel per sec
         counter = 0
         while True:
             try:
@@ -522,11 +519,22 @@ def store_manipulated_data(p_manip, user, password, db_name, table_name):
         query = "INSERT INTO {} (timestamp, ai0, ai1, ai3) VALUES (%s, %s, %s, %s);".format(table_name)
         while True:
             try:
+                
+                
+                
                 data_manipulated = p_manip.recv()
                 values = data_manipulated
                 
                 cur.executemany(query, values)
                 con.commit()
+                
+                ## Check if pipe is empty ==================================== work out how to do this
+                ready_connections = multiprocessing.connection.wait([p_manip])
+                if p_manip not in ready_connections:
+                    print("Done")
+                else:
+                    print("fhfhdlk")
+                
             except mysql.connector.Error as err:
                 print(err)
     except KeyboardInterrupt:
