@@ -125,7 +125,7 @@ def eval_force(time_idle=1.0, time_acc=0.05, time_ramp=0.2, sampling_rate=10000)
     #np.ravel(times_tot)
     #np.ravel(profile)
 
-    return times_tot, profile
+    return times_tot, profile, xs_tot
 
 
 

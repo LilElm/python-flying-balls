@@ -25,11 +25,12 @@
  * Code:
 
    - [X] Implement parallel processing
-   - [ ] Send trigger signal to power supply unit
+   - [X] Send force profile to power supply unit
    - [X] Acquire live data
    - [X] Pipe live data to new process
-   - [ ] Manipulate data
-   - [ ] Plot data
+   - [ ] Evaluate position from data
+   - [X] Plot real-time data using Qt
+   - [ ] Plot stored data using Pyplot
    - [X] Pipe manipulated data to new process
    - [X] Store manipulated data in a MySQL database
 
@@ -66,6 +67,8 @@
  * Increased multiprocessing.connection.BUFSIZE to allow large pipe 'queue'
 
    * Need to wait until after data acquisition for MySQL database to be fully updated
+
+ * Program successfully closes when store_data() recieves no more data to store
 
 
 </sub>

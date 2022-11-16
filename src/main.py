@@ -11,10 +11,8 @@ from multiprocessing import Process, Pipe
 import datetime
 import time
 import numpy as np
-#import pandas as pd
 from itertools import cycle
 import sys
-#import pyvisa
 import nidaqmx
 import nidaqmx.system
 from nidaqmx.stream_readers import AnalogMultiChannelReader
@@ -22,9 +20,9 @@ from nidaqmx.stream_writers import AnalogMultiChannelWriter
 from nidaqmx import constants
 import logging
 from PyQt5 import QtWidgets, QtCore
-from pyqtgraph import PlotWidget, plot
 import pyqtgraph as pg
 from force_profile import eval_force
+import msvcrt
 
 """Flying balls"""
 
@@ -89,7 +87,6 @@ class MainWindow(QtWidgets.QMainWindow):
             
 
 def main():
-
     currentDT = datetime.datetime.now()
     logfolder = "../log/"
     os.makedirs(logfolder, exist_ok=True)
@@ -102,8 +99,7 @@ def main():
     user = os.environ.get('USERN')
     password = os.environ.get('PASSWORD')
     db_name = os.environ.get('DB_NAME')
-    
-    
+
 
     # Try to connect to the server
     try:
@@ -128,7 +124,7 @@ def main():
               exit(1)
     
     
-    # Outer loop handles databse connection
+    # Outer loop handles database connection
     try:
         # Try to connect to the database
         # If the database does not exist, try to create it
@@ -146,25 +142,25 @@ def main():
                 logging.error(err)
                 exit(1)
                 
-                
 
-        # Define table 'livedata'
+        # Define tables
         TABLES = {}
         TABLES['livedata'] = ("""CREATE TABLE livedata (
+                            run INTEGER NOT NULL,
                             timestamp DOUBLE NOT NULL,
                             ai0 DOUBLE NOT NULL,
                             ai1 DOUBLE NOT NULL,
-                            ai3 DOUBLE,
-                            ao0 DOUBLE
+                            ai3 DOUBLE
                             ) ENGINE=InnoDB""")
         TABLES['force_profile'] = ("""CREATE TABLE force_profile (
                             seconds DOUBLE NOT NULL,
-                            profile DOUBLE NOT NULL
+                            profile DOUBLE NOT NULL,
+                            position DOUBLE NOT NULL
                             ) ENGINE=InnoDB""")
         
-
-
-        # Drop tables ------------- this should only be temporary!!
+        
+        # Drop all tables. This will wipe all saved data
+        """
         query = "DROP TABLE IF EXISTS {};"
         for table_name in TABLES:
             try:
@@ -172,8 +168,9 @@ def main():
                 logging.info("Table {} dropped".format(table_name))
             except mysql.connector.Error as err:
                 logging.warning(err)
-      
+      """
         
+      
         # Create tables if they do not exist
         for table_name in TABLES:
             table_description = TABLES[table_name]
@@ -190,24 +187,36 @@ def main():
                     logging.error(err.msg)
         
         
-        #### Evalute the force profile
+        # Evaluate 'run' number
+        query = "SELECT MAX(run) FROM livedata;"
+        try:
+            cur.execute(query)
+            ans = cur.fetchone()
+            if ans[0] is None:
+                run = 1
+            else:
+                run = ans[0] + 1
+        except:
+            print("Error in fetching run number from database")
+            logging.error("Error in fetching run number from database")
+            pass
+        
+        
+        # Evalute the force profile
         print("Evaluating force profile")
         time_idle = 4.0
         time_acc=0.05
         time_ramp=0.2
         sampling_rate=50000
-        force_profile_times, force_profile_force = eval_force(time_idle, time_acc, time_ramp, sampling_rate)
-        
-        force_profile_force = force_profile_force * 20.0
-        
+        force_profile_times, force_profile_force, force_profile_x = eval_force(time_idle, time_acc, time_ramp, sampling_rate)
         values = []
         for i in range(len(force_profile_times)):
-            values.append([str(force_profile_times[i]), str(force_profile_force[i])])
+            values.append([str(force_profile_times[i]), str(force_profile_force[i]), str(force_profile_x[i])])
         
-        ## Insert force profile into database
+        
+        # Insert force profile into database
         try:
-            query = "INSERT INTO force_profile(seconds, profile) VALUES (%s, %s);"
-            #values = times, force
+            query = "INSERT INTO force_profile(seconds, profile, position) VALUES (%s, %s, %s);"
             cur.executemany(query, values)
             con.commit()
         except mysql.connector.Error as err:
@@ -215,10 +224,8 @@ def main():
             input()
             
         
-        
-        
-        # """ measure to be used in case of DAQ malfunction
-        # Reset device
+        # Reset device in case of DAQ malfunction
+        """
         system = nidaqmx.system.System.local()
         for device in system.devices:
             print("Resetting device {}".format(device))
@@ -229,44 +236,26 @@ def main():
             except:
                 print("Device {} failed to reset".format(device))
                 logging.warning("Device {} failed to reset".format(device))
-       # """
-                
+        """        
 
-        # Queues are built on top of pipes
-        # Queues can handle multiple endpoints, but are consequently slower
-        # Pipes can only handle two endpoints, but are faster
-        # p_live handles live data
-        # p_manip handles manipulated data
-        #multiprocessing.connection.BUFSIZE()
-        #multiprocessing.connection.BUFSIZE(65536)
-        
-        """
-        p_live_dev1_1, p_live_dev1_2 = Pipe()
-        p_time0_1, p_time0_2 = Pipe()
-        p_manip_dev1_1, p_manip_dev1_2 = Pipe()
-        p_plot_dev1_1, p_plot_dev1_2 = Pipe()
-        """
-        
-        
-        
+
+        # Create pipes to send data between processes
         p_live_dev1_2, p_live_dev1_1 = Pipe(duplex=False)
         p_time0_2, p_time0_1 = Pipe(duplex=False)
         p_manip_dev1_2, p_manip_dev1_1 = Pipe(duplex=False)
         p_plot_dev1_2, p_plot_dev1_1 = Pipe(duplex=False)
+        p_kill_2, p_kill_1 = Pipe(duplex=False)
         
-        
-        
-        
-        
+
+        # Create processes
         msg = "Running"
         processlist = []
         processlist.append(Process(target=get_data, args=(p_live_dev1_1, p_time0_1, sampling_rate, force_profile_force, )))
         processlist.append(Process(target=manipulate_data, args=(p_live_dev1_2, p_time0_2, p_manip_dev1_1, p_plot_dev1_1, )))
-        processlist.append(Process(target=store_manipulated_data, args=(p_manip_dev1_2, user, password, db_name, "livedata", )))
-        processlist.append(Process(target=plot_live_data, args=(p_plot_dev1_2, )))
+        processlist.append(Process(target=store_data, args=(p_manip_dev1_2, p_kill_1, user, password, db_name, "livedata", run, )))
+        processlist.append(Process(target=plot_data, args=(p_plot_dev1_2, )))
         processlist.append(Process(target=loading, args=(msg, )))
         
-        # Maybe change this to a pool or some sort of management system
         for p in processlist:
             try:
                 logging.info("Starting process {}".format(p))
@@ -276,32 +265,48 @@ def main():
                 print("Error starting {}".format(p))
                 logging.error("Error starting {}".format(p))
             
-        # If get_data has ended, end all
+            
+        # If store_data() has ended, end all
+        # Nota bene, this method will only work with Windows
+        print("Press RETURN to stop data acquisition\n")
         try:
-            input("Press RETURN to stop data acquisition\n")
-            pass
+            while True:
+                if msvcrt.kbhit():
+                    if msvcrt.getch()==b'\r':
+                        print("Data acquisition stopped via keyboard interruption")
+                        logging.warning("Data acquisition stopped via keyboard interruption")
+                        break
+                if p_kill_2.poll():
+                    print("Data acquisition stopped via store_data()")
+                    logging.warning("Data acquisition stopped via store_data()")
+                    break
+                
         except KeyboardInterrupt:
             logging.warning("Data acquisition stopped via keyboard interruption")
-            #for p in processlist:
-            #    p.kill()
+            print("Data acquisition stopped via keyboard interruption")
             pass
         finally:
             for p in processlist:
                 logging.info("Killing process {}".format(p))
                 p.kill()
          
-    
-        # Close database
+        
+        # Close the database and terminate the program    
+        input("Program completed successfully")
     except:
         pass
     finally:
-        con.close()
-
+        try:
+            con.close()
+            print("main() SQL connection successfully closed")
+            logging.info("main() SQL connection successfully closed")
+        except:
+            print("main() SQL failed to close")
+            logging.error("main() SQL failed to close")
+            
     
     
- 
-    
-
+# Function does as it says on the tin
 def create_database(cur, db_name):
     try:
         cur.execute(
@@ -313,11 +318,8 @@ def create_database(cur, db_name):
 
     
 
-
 # Function acquires and buffers live data from DAQ board and pipes it
 # to manipualte_data()
-# One multi-channel task has been used, as multiple tasks (at different
-# sampling rates) would require multiple clocks.
 def get_data(p_live, p_time, sampling_rate, force_profile_force):
     try:    
         with nidaqmx.Task() as task0, nidaqmx.Task() as task1:
@@ -338,13 +340,10 @@ def get_data(p_live, p_time, sampling_rate, force_profile_force):
             writer0 = AnalogMultiChannelWriter(task0.out_stream, auto_start=False)
             buffer0 = np.reshape(force_profile_force, (1, num_samples0))
             writer0.write_many_sample(buffer0, timeout=60)
-
-
-
             
             ## Task 1 (Dev1/ai0, Dev1/ai1, Dev1/ai3)
             num_channels1 = 3
-            num_samples1 = 100000 # Buffer size per channel
+            num_samples1 = 50000 # Buffer size per channel
             
             task1.ai_channels.add_ai_voltage_chan("Dev1/ai0")
             task1.ai_channels.add_ai_voltage_chan("Dev1/ai1")
@@ -356,21 +355,12 @@ def get_data(p_live, p_time, sampling_rate, force_profile_force):
                                              sample_mode=constants.AcquisitionType.FINITE,
                                              samps_per_chan=num_samples1)
             
-            
             reader1 = AnalogMultiChannelReader(task1.in_stream)
             buffer1 = np.zeros((num_channels1, num_samples1), dtype=np.float64)
             
             # Trigger causes task0 to wait for task1 to begin
-            #task0.triggers.start_trigger.cfg_dig_edge_start_trig(task1.triggers.start_trigger.term)
+            task0.triggers.start_trigger.cfg_dig_edge_start_trig(task1.triggers.start_trigger.term)
             task0.start()
-            
-            
-            #task1.triggers.reference_trigger.cfg_anlg_edge_ref_trig("Dev1/ai3", pretrigger_samples=2, trigger_slope=nidaqmx.constants.Slope.FALLING, trigger_level = 4)
-    
-            
-            ## Trigger causes task1 to stop once task0 has finished
-           # task1.triggers.cfg_dig_edge_ref_trig(task0.triggers)#.start_trigger.term)
-            
             
             while True:
                 try:
@@ -380,14 +370,6 @@ def get_data(p_live, p_time, sampling_rate, force_profile_force):
                     times = [time_start, time_end]
                     
                     data_live1 = buffer1.T.astype(np.float32)
-                    
-                    # Tested for a buffer size of 5e6
-                    # One pipe took ~0.081 s
-                    # Two pipes took ~0.076 s
-                    # Hence two pipes are about 5 one-thousandths of a second
-                    # quicker for the aforementioned buffer size. This is
-                    # because two pipes require less data manipulation
-                    
                     p_live.send(data_live1)
                     p_time.send(times)
                     
@@ -395,24 +377,6 @@ def get_data(p_live, p_time, sampling_rate, force_profile_force):
                         time.sleep(10)
                         break
                     
-                    
-                    """
-                    if task0.is_task_done():
-                        print("adajo")
-                        empty = multiprocessing.connection.wait([p_live, p_time])
-                        print(str(empty))
-                        while p_live and p_time not in empty:
-                            empty = multiprocessing.connection.wait([p_live, p_time])
-                            print(str(empty))
-                        if p_live and p_time in empty:
-                            if task0:
-                                task0.close()
-                            if task1:
-                                task1.close()
-                            print("Tasks completed successfully and closed.")
-                            logging.info("Tasks completed successfully and closed.")
-                            break
-                    """
                 except nidaqmx.errors.DaqError as err:
                     print(err)
                     logging.error(err)
@@ -427,12 +391,12 @@ def get_data(p_live, p_time, sampling_rate, force_profile_force):
         pass
 
 
+
 # Function recieves buffered data from get_data(), restructures it and pipes
-# it to store_manipulated_data()
+# it to store_data()
 def manipulate_data(p_live, p_time, p_manip, p_plot):
     try:  
         buffer_rate = 0.01 #100 data points per channel per sec
-        #buffer_rate = 0.05 #20 data points per channel per sec
         counter = 0
         while True:
             try:
@@ -477,20 +441,18 @@ def manipulate_data(p_live, p_time, p_manip, p_plot):
 
 
 
-
-
-def plot_live_data(p_plot):
+# Function calls Qt MainWindow (defined at top of program) to plot data
+def plot_data(p_plot):
     app = QtWidgets.QApplication(sys.argv)
     w = MainWindow(p_plot)
     w.show()
     sys.exit(app.exec_())
     
-        
 
 
-# Function connects to the server, recieves manipualted data from 
+# Function connects to the server, recieves manipualted data from
 # manipulated_data() and inserts it in the database
-def store_manipulated_data(p_manip, user, password, db_name, table_name):
+def store_data(p_manip, p_kill, user, password, db_name, table_name, run):
     # Try to connect to the server
     try:
         con = mysql.connector.connect(
@@ -515,25 +477,18 @@ def store_manipulated_data(p_manip, user, password, db_name, table_name):
             exit(1)
     
     try:
-        #query = "INSERT INTO livedata (timestamp, value) VALUES (%s, %s);"
-        query = "INSERT INTO {} (timestamp, ai0, ai1, ai3) VALUES (%s, %s, %s, %s);".format(table_name)
+        query = "INSERT INTO {} (run, timestamp, ai0, ai1, ai3) VALUES ({}, %s, %s, %s, %s);".format(table_name, run)
         while True:
             try:
-                
-                
-                
-                data_manipulated = p_manip.recv()
-                values = data_manipulated
-                
+                values = p_manip.recv()
                 cur.executemany(query, values)
                 con.commit()
                 
-                ## Check if pipe is empty ==================================== work out how to do this
-                ready_connections = multiprocessing.connection.wait([p_manip])
-                if p_manip not in ready_connections:
-                    print("Done")
-                else:
-                    print("fhfhdlk")
+                # Exit if pipe is empty
+                # Send kill signal
+                if p_manip.poll() is False:
+                    p_kill.send(True)
+                    break
                 
             except mysql.connector.Error as err:
                 print(err)
@@ -543,13 +498,13 @@ def store_manipulated_data(p_manip, user, password, db_name, table_name):
     finally:
         try:
             con.close()
-            print("store_manipulated_data() SQL connection successfully closed")
-            logging.info("store_manipulated_data() SQL connection successfully closed")
+            print("store_data() SQL connection successfully closed")
+            logging.info("store_data() SQL connection successfully closed")
         except:
-            print("store_manipulated_data() SQL failed to close")
-            logging.error("store_manipulated_data() SQL failed to close")
- 
-
+            print("store_data() SQL failed to close")
+            logging.error("store_data() SQL failed to close")
+        p_kill.send(True)
+        logging.info("Process kill signal sent from store_data()")
 
 
 
@@ -566,12 +521,6 @@ def loading(msg):
         except KeyboardInterrupt:
             logging.warning("Pinwheel stopped via keyboard interruption")
     
-
-
-
-
-
-
 
 
 # Run
