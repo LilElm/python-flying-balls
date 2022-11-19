@@ -46,6 +46,7 @@
  * Process 3:
 
    - [X] Store manipulated data in a MySQL database
+     - [ ] Investigate MySQL bottleneck
    - [X] Send signal to main program once finished
 
  * Process 4:
@@ -104,5 +105,6 @@
 
    * Writing same data to MySQL database takes ~95.2 seconds via .executemany() statement
 
+   * Perhaps print to .CSV during acquisition, then database post-acquisition?
 
 </sub>
