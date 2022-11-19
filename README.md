@@ -22,7 +22,7 @@
 #### To Do
 <sub>
 
-  * Main Program:
+ * Main Program:
 
    - [X] Evaluate force profile (via force_profile.py)
    - [X] Store force profile in MySQL database
