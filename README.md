@@ -1,6 +1,6 @@
 ### python-flying-balls
 <sub>
-  A Python program to analyse real-time data from a DAQ board in order to process information on levitating spheres of superconducting indium.
+  A Python program to control, measure and analyse levitating spheres of superconducting indium submerged in superfluid helium in real-time.
 
 
 </sub>
@@ -22,17 +22,35 @@
 #### To Do
 <sub>
 
- * Code:
+  * Main Program:
 
-   - [X] Implement parallel processing
-   - [X] Send force profile to power supply unit
-   - [X] Acquire live data
-   - [X] Pipe live data to new process
-   - [ ] Evaluate position from data
-   - [X] Plot real-time data using Qt
-   - [ ] Plot stored data using Pyplot
-   - [X] Pipe manipulated data to new process
+   - [X] Evaluate force profile (via force_profile.py)
+   - [X] Store force profile in MySQL database
+   - [X] Implement multiprocessing
+   - [X] Listen to user input and Process 3 for kill signal
+
+ * Process 1:
+
+   - [X] Output force profile
+   - [X] Acquire live data from relevant channels
+   - [ ] Synchronise output and input
+   - [X] Pipe live data to Process 2 for manipulation
+ 
+ * Process 2:
+
+   - [X] Manipualte data for storage
+   - [ ] Evaluate position of sphere
+   - [X] Pipe unbuffered data to Process 3 for storing
+   - [X] Pipe buffered data to Process 4 for plotting
+
+  * Process 3:
+
    - [X] Store manipulated data in a MySQL database
+   - [X] Send signal to main program once finished
+
+  * Process 4:
+   
+   - [X] Plot real-time data using Qt  
 
 
 </sub>

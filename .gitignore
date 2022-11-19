@@ -2,3 +2,5 @@
 /out
 /log
 .env
+force_profile
+position
