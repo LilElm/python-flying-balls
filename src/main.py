@@ -210,13 +210,19 @@ def main():
         time_idle = 4.0
         time_acc=0.05
         time_ramp=0.2
-        sampling_rate=10000
+        sampling_rate=100000
+        
+        time0 = time.time()
+        
         force_profile_times, force_profile_force, force_profile_x = eval_force(time_idle, time_acc, time_ramp, sampling_rate)
         values = []
+        
+        time1 = time.time()
+        
         for i in range(len(force_profile_times)):
             values.append([str(force_profile_times[i]), str(force_profile_force[i]), str(force_profile_x[i])])
         
-        
+        time2 = time.time()
         # Insert force profile into database
         try:
             query = "INSERT INTO force_profile(run, seconds, profile, position) VALUES ({}, %s, %s, %s);".format(run)
@@ -225,7 +231,18 @@ def main():
         except mysql.connector.Error as err:
             print(err)
             input()
-            
+        
+        time3 = time.time()
+        
+        time01 = time1 - time0
+        time12 = time2 - time1
+        time23 = time3 - time2
+        
+        
+        print("time01 = " + str(time01))
+        print("time12 = " + str(time12))
+        print("time23 = " + str(time23))
+        input()
         
         # Reset device in case of DAQ malfunction
         """

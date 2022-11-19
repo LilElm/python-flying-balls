@@ -98,5 +98,11 @@
 
    * Reduced delay (~0.009 sec) between output and measured signals without trigger
 
+ * MySQL database INSERT statements found to be bottleneck
+
+   * Entire force_profile.py script takes ~5.4 seconds including writing all data to text file
+
+   * Writing same data to MySQL database found to take ~95.2 seconds via .executemany() statement
+
 
 </sub>
