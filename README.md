@@ -43,12 +43,12 @@
    - [X] Pipe unbuffered data to Process 3 for storing
    - [X] Pipe buffered data to Process 4 for plotting
 
-  * Process 3:
+ * Process 3:
 
    - [X] Store manipulated data in a MySQL database
    - [X] Send signal to main program once finished
 
-  * Process 4:
+ * Process 4:
    
    - [X] Plot real-time data using Qt  
 
