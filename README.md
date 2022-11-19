@@ -70,5 +70,15 @@
 
  * Program successfully closes when store_data() recieves no more data to store
 
+ **19-Nov-22**
+
+ * Plotted stored data using Pyplot
+
+   * MySQL query selects every nth row (method will be deprecated in future release)
+
+   * Significant delay (~0.025 sec) between output and measured signals with trigger
+
+   * Reduced delay (~0.009 sec) between output and measured signals without trigger
+
 
 </sub>

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Flopper ramp current - Python translation of flying balls
+Flopper ramp current - Python translation for flying balls
 """
 import numpy as np
 import sys
@@ -11,7 +11,7 @@ import logging
 import os
 import shutil
 
-def eval_force(time_idle=1.0, time_acc=0.05, time_ramp=0.2, sampling_rate=10000):    
+def eval_force(time_idle=1.0, time_acc=0.05, time_ramp=0.2, sampling_rate=1000):
     logfolder = "../log/"
     outfolder = "../out/"
     os.makedirs(outfolder, exist_ok=True)
@@ -48,22 +48,27 @@ def eval_force(time_idle=1.0, time_acc=0.05, time_ramp=0.2, sampling_rate=10000)
     times_idle = np.arange(0.0, time_idle+dt, dt)
     times_acc = np.arange(0.0, time_acc+dt, dt)
     times_ramp = np.arange(0.0, time_ramp+dt, dt)
-    times_dec = np.arange(0.0, time_acc+dt, dt)
-    times_rest = np.arange(0.0, time_idle+dt, dt)
+    times_dec = times_acc
+    times_rest = times_idle
+    
+    len_times_idle = len(times_idle)
+    len_times_acc = len(times_acc)
+    len_times_ramp = len(times_ramp)
+    
     
     # x is the evaluated position of equilibrium, x = F / (mw^2)    
-    xs_idle = np.zeros(len(times_idle))
-    xs_acc = np.zeros(len(times_acc))
-    xs_ramp = np.zeros(len(times_ramp))
-    xs_dec = np.zeros(len(times_dec))
-    xs_rest = np.zeros(len(times_rest))
+    xs_idle = np.zeros(len_times_idle)
+    xs_acc = np.zeros(len_times_acc)
+    xs_ramp = np.zeros(len_times_ramp)
+    xs_dec = xs_acc
+    xs_rest = xs_idle
     
       
-    for i in range(len(times_acc)):
+    for i in range(len_times_acc):
         val = velocity * time_acc * (1.0 - times_acc[i] / (time_acc * 2.0)) * (times_acc[i] / time_acc)**3.0
         xs_acc[i] = val
         
-    for i in range(len(times_ramp)):
+    for i in range(len_times_ramp):
         xs_ramp[i] = velocity * times_ramp[i]
         
     xs_dec = xs_acc[::-1]

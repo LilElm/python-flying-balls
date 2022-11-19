@@ -38,13 +38,13 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setCentralWidget(self.graphWidget)
 
         self.ai0 = []
-        self.ai1 = []
+        self.ai19 = []
         self.ai3 = []
         self.elapsed_time = []
         
         self.graphWidget.addLegend()
         self.line_ai0 = self.graphWidget.plot(self.elapsed_time, self.ai0, name="ai0", pen=pg.mkPen('b'))
-        self.line_ai1 = self.graphWidget.plot(self.elapsed_time, self.ai1, name="ai1", pen=pg.mkPen('r'))
+        self.line_ai19 = self.graphWidget.plot(self.elapsed_time, self.ai19, name="ai19", pen=pg.mkPen('r'))
         self.line_ai3 = self.graphWidget.plot(self.elapsed_time, self.ai3, name="ai3", pen=pg.mkPen('y'))
         
         self.counter = 0
@@ -64,22 +64,22 @@ class MainWindow(QtWidgets.QMainWindow):
                 
                 elapsed_time = data[0] - self.time_start
                 ai0 = data[1]
-                ai1 = data[2]
+                ai19 = data[2]
                 ai3 = data[3]
                 
                 self.elapsed_time.append(elapsed_time)
                 self.ai0.append(ai0)
-                self.ai1.append(ai1)
+                self.ai19.append(ai19)
                 self.ai3.append(ai3)
                 
                 if len(self.ai0) > 2000: # 100 data points per sec -> 2000 data points = 20 sec
                     self.elapsed_time = self.elapsed_time[1:]
                     self.ai0 = self.ai0[1:]
-                    self.ai1 = self.ai1[1:]
+                    self.ai19 = self.ai19[1:]
                     self.ai3 = self.ai3[1:]
                 
                 self.line_ai0.setData(self.elapsed_time, self.ai0)
-                self.line_ai1.setData(self.elapsed_time, self.ai1)
+                self.line_ai19.setData(self.elapsed_time, self.ai19)
                 self.line_ai3.setData(self.elapsed_time, self.ai3)
             
         except:
@@ -130,6 +130,8 @@ def main():
         # If the database does not exist, try to create it
         try:
             cur.execute("USE {};".format(db_name))
+            print("Successfully connected to database {}".format(db_name))
+            logging.info("Successfully connected to database {}".format(db_name))
         except mysql.connector.Error as err:
             print("Database {} does not exists".format(db_name))
             logging.warning("Database {} does not exists".format(db_name))
@@ -149,10 +151,11 @@ def main():
                             run INTEGER NOT NULL,
                             timestamp DOUBLE NOT NULL,
                             ai0 DOUBLE NOT NULL,
-                            ai1 DOUBLE NOT NULL,
+                            ai19 DOUBLE NOT NULL,
                             ai3 DOUBLE
                             ) ENGINE=InnoDB""")
         TABLES['force_profile'] = ("""CREATE TABLE force_profile (
+                            run INTEGER NOT NULL,
                             seconds DOUBLE NOT NULL,
                             profile DOUBLE NOT NULL,
                             position DOUBLE NOT NULL
@@ -168,7 +171,7 @@ def main():
                 logging.info("Table {} dropped".format(table_name))
             except mysql.connector.Error as err:
                 logging.warning(err)
-      """
+        """
         
       
         # Create tables if they do not exist
@@ -207,7 +210,7 @@ def main():
         time_idle = 4.0
         time_acc=0.05
         time_ramp=0.2
-        sampling_rate=50000
+        sampling_rate=10000
         force_profile_times, force_profile_force, force_profile_x = eval_force(time_idle, time_acc, time_ramp, sampling_rate)
         values = []
         for i in range(len(force_profile_times)):
@@ -216,7 +219,7 @@ def main():
         
         # Insert force profile into database
         try:
-            query = "INSERT INTO force_profile(seconds, profile, position) VALUES (%s, %s, %s);"
+            query = "INSERT INTO force_profile(run, seconds, profile, position) VALUES ({}, %s, %s, %s);".format(run)
             cur.executemany(query, values)
             con.commit()
         except mysql.connector.Error as err:
@@ -341,12 +344,12 @@ def get_data(p_live, p_time, sampling_rate, force_profile_force):
             buffer0 = np.reshape(force_profile_force, (1, num_samples0))
             writer0.write_many_sample(buffer0, timeout=60)
             
-            ## Task 1 (Dev1/ai0, Dev1/ai1, Dev1/ai3)
+            ## Task 1 (Dev1/ai0, Dev1/ai19, Dev1/ai3)
             num_channels1 = 3
-            num_samples1 = 50000 # Buffer size per channel
+            num_samples1 = 10000 # Buffer size per channel
             
             task1.ai_channels.add_ai_voltage_chan("Dev1/ai0")
-            task1.ai_channels.add_ai_voltage_chan("Dev1/ai1")
+            task1.ai_channels.add_ai_voltage_chan("Dev1/ai19") # Current pressure
             task1.ai_channels.add_ai_voltage_chan("Dev1/ai3")
             task1.ai_channels.all.ai_max = 10.0 #max_voltage
             task1.ai_channels.all.ai_min = -10.0 #min_voltage
@@ -355,12 +358,27 @@ def get_data(p_live, p_time, sampling_rate, force_profile_force):
                                              sample_mode=constants.AcquisitionType.FINITE,
                                              samps_per_chan=num_samples1)
             
+            
+                                             
+            
             reader1 = AnalogMultiChannelReader(task1.in_stream)
             buffer1 = np.zeros((num_channels1, num_samples1), dtype=np.float64)
             
             # Trigger causes task0 to wait for task1 to begin
+            # Smaller delay without trigger
+            
             task0.triggers.start_trigger.cfg_dig_edge_start_trig(task1.triggers.start_trigger.term)
+            
+            #task0.triggers.start_trigger.cfg_dig_edge_start_trig(task1.triggers.start_trigger.term)
+            #task0.triggers.start_trigger.cfg_anlg_edge_start_trig(trigger_source='Dev1/ai/StartTrigger', trigger_slope=nidaqmx.constants.Slope.RISING) # Setting the trigger on the analog input
+            #task0.triggers.start_trigger.cfg_anlg_edge_start_trig(trigger_source='APFI1', trigger_slope=nidaqmx.constants.Slope.RISING) # Setting the trigger on the analog input
             task0.start()
+
+            # Attempt at reversal of trigger
+            #task1.triggers.start_trigger.cfg_dig_edge_start_trig(task0.triggers.start_trigger.term)### Data acquisition doesn't start
+            
+            #task1.start()
+            #task0.start()
             
             while True:
                 try:
@@ -404,7 +422,7 @@ def manipulate_data(p_live, p_time, p_manip, p_plot):
                 data_live = p_live.recv()
                 time_data = p_time.recv()
                 data_live_ai0 = data_live[:,0]
-                data_live_ai1 = data_live[:,1]                
+                data_live_ai19 = data_live[:,1]                
                 data_live_ai3 = data_live[:,2]
                 
                 time_start = time_data[0]
@@ -423,7 +441,7 @@ def manipulate_data(p_live, p_time, p_manip, p_plot):
                
                 for i in range(size):
                     time_eval = time_start + time_int * i
-                    data_manipulated.append([time_eval, float(data_live_ai0[i]), float(data_live_ai1[i]), float(data_live_ai3[i])])
+                    data_manipulated.append([time_eval, float(data_live_ai0[i]), float(data_live_ai19[i]), float(data_live_ai3[i])])
                     
                     if time_eval >= time_next:
                         time_next = time_next + buffer_rate
@@ -477,7 +495,7 @@ def store_data(p_manip, p_kill, user, password, db_name, table_name, run):
             exit(1)
     
     try:
-        query = "INSERT INTO {} (run, timestamp, ai0, ai1, ai3) VALUES ({}, %s, %s, %s, %s);".format(table_name, run)
+        query = "INSERT INTO {} (run, timestamp, ai0, ai19, ai3) VALUES ({}, %s, %s, %s, %s);".format(table_name, run)
         while True:
             try:
                 values = p_manip.recv()
