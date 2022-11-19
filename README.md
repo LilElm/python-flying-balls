@@ -100,7 +100,7 @@
 
  * MySQL database INSERT statements found to be bottleneck
 
-   * Entire force_profile.py script takes ~5.4 seconds including writing all data to text file
+   * Entire force_profile.py script takes ~5.4 seconds including writing all data to text file for 100k sampling rate
 
    * Writing same data to MySQL database found to take ~95.2 seconds via .executemany() statement
 
