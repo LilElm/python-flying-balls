@@ -102,7 +102,7 @@
 
    * Entire force_profile.py script takes ~5.4 seconds including writing all data to text file for 100k sampling rate
 
-   * Writing same data to MySQL database found to take ~95.2 seconds via .executemany() statement
+   * Writing same data to MySQL database takes ~95.2 seconds via .executemany() statement
 
 
 </sub>
