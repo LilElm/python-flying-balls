@@ -109,6 +109,6 @@
 
  **22-Nov-22**
 
- * Simple Morse code implemented in 'led_test.py' and 'morse.py'
+ * Morse code implemented in 'led_test.py' and 'morse.py'
 
 </sub>
