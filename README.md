@@ -111,4 +111,12 @@
 
  * Morse code implemented in 'led_test.py' and 'morse.py'
 
+ * makefile.bat added
+
+ * MySQL bottleneck researched
+
+   * Current insert method (cur.executemany()) is already optimal for real-time 
+
+   * To optimise further, data can be output to .CSV and imported into MySQL post-acquisition
+
 </sub>
