@@ -119,4 +119,6 @@
 
    * To optimise further, data can be output to .CSV and imported into MySQL post-acquisition
 
+ * New branch 'csv-output' created
+
 </sub>
