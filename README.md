@@ -121,4 +121,8 @@
 
  * New branch 'csv-output' created
 
+ * .CSVs created
+
+ * Data uploaded to MySQL database post-acquisition
+
 </sub>

@@ -145,6 +145,21 @@ def main():
             logging.error("Error in fetching run number from database")
             pass
         
+        msg = "Running"
+        processlist = []
+        processlist.append(Process(target=loading, args=(msg, )))
+        for p in processlist:
+            try:
+                logging.info("Starting process {}".format(p))
+                p.start()
+                print(str(p))
+            except:
+                print("Error starting {}".format(p))
+                logging.error("Error starting {}".format(p))
+                
+        
+        
+        
         
         # Define force_profile file path
         dir_path = os.path.dirname(os.getcwd())
@@ -194,7 +209,9 @@ def main():
             input()
             
         
-    
+        for p in processlist:
+            logging.info("Killing process {}".format(p))
+            p.kill()
         
         
         # Close the database and terminate the program    
@@ -222,6 +239,29 @@ def create_database(cur, db_name):
         print("Failed creating database: {}".format(err))
         logging.error("Failed creating database: {}".format(err))
         exit(1)
+
+
+
+
+# Function shows a pretty pinwheel
+def loading(msg):
+    time.sleep(1)
+    while True:
+        try:
+            for frame in cycle(["|","/","-","\\"]):
+                sys.stdout.write("\r" + msg + " " + frame)
+                sys.stdout.flush()
+                time.sleep(0.15)
+            sys.stdout.write("\r")
+        except KeyboardInterrupt:
+            logging.warning("Pinwheel stopped via keyboard interruption")
+    
+
+
+
+
+
+
 
 
 # Run

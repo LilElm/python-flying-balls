@@ -2,9 +2,6 @@
 
 # Import libraries
 import os
-#from dotenv import load_dotenv
-#import mysql.connector
-#from mysql.connector import errorcode
 import multiprocessing.connection
 multiprocessing.connection.BUFSIZE = 2**32-1 # This is the absolute limit for this PC
 from multiprocessing import Process, Pipe
@@ -93,22 +90,14 @@ def main():
     logging.basicConfig(filename = logfolder + "main.log", encoding='utf-8', level=logging.DEBUG)
     logging.info(currentDT.strftime("%d/%m/%Y, %H:%M:%S"))    
 
-
-    
     
     # Evalute the force profile
     time_idle = 4.0
     time_acc=0.05
     time_ramp=0.2
     sampling_rate=50000
-    
     force_profile_times, force_profile_force, force_profile_x = eval_force(time_idle, time_acc, time_ramp, sampling_rate)
-   # values = []
-    #for i in range(len(force_profile_times)):
-     #   values.append([str(force_profile_times[i]), str(force_profile_force[i]), str(force_profile_x[i])])
-    
-  
-    
+
     
     # Reset device in case of DAQ malfunction
     """
@@ -153,7 +142,7 @@ def main():
             
             
     # If store_data() has ended, end all
-    # Nota bene, this method will only work with Windows
+    # Nota bene, the 'msvcrt' method will only work with Windows
     print("Press RETURN to stop data acquisition\n")
     try:
         while True:
@@ -178,7 +167,8 @@ def main():
      
     
     # Close the database and terminate the program    
-    input("Program completed successfully")
+    print("Program completed successfully")
+#    input("Program completed successfully")
 
             
     
@@ -286,8 +276,7 @@ def manipulate_data(p_live, p_time, p_manip, p_plot):
                 data_manipulated = []
                 size = len(data_live)
                 
-                time_int = (time_end - time_start) / size
-               
+                time_int = (time_end - time_start) / size  
                 for i in range(size):
                     time_eval = time_start + time_int * i
                     data_manipulated.append([time_eval, float(data_live_ai0[i]), float(data_live_ai19[i]), float(data_live_ai3[i])])
