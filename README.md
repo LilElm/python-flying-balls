@@ -107,4 +107,8 @@
 
    * Perhaps print to .CSV during acquisition, then database post-acquisition?
 
+ **22-Nov-22**
+
+ * Simple Morse code implemented in 'led_test.py' and 'morse.py'
+
 </sub>
