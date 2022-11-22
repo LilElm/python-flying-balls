@@ -126,13 +126,11 @@ def eval_force(time_idle=1.0, time_acc=0.05, time_ramp=0.2, sampling_rate=100000
  #   print("time12"+str(time12))
     
     # Print to file
-    with open((tmpfolder + "position"), "w") as f:
-        for i in range(len(xs_tot)):
-            f.write(str(times_tot[i]) + ", " + str(xs_tot[i]) + "\n")
 
-    with open((tmpfolder + "force_profile"), "w") as f:
+    with open((tmpfolder + "force_profile.csv"), "w") as f:
+        f.write("Seconds, Profile, Position\n")
         for i in range(len(profile)):
-            f.write(str(times_tot[i]) + ", " + str(profile[i]) + "\n")
+            f.write(str(times_tot[i]) + ", " + str(profile[i])+ ", " + str(xs_tot[i]) + "\n")
 
     time13 = time.time()
     

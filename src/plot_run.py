@@ -137,7 +137,7 @@ def main():
                        WHERE (
                            run=%s)
                        ) filtered 
-                   WHERE rownum % 5=0;
+                   WHERE rownum % 1=0;
                 """
         values = run,
 

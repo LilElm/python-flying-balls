@@ -2,9 +2,9 @@
 
 # Import libraries
 import os
-from dotenv import load_dotenv
-import mysql.connector
-from mysql.connector import errorcode
+#from dotenv import load_dotenv
+#import mysql.connector
+#from mysql.connector import errorcode
 import multiprocessing.connection
 multiprocessing.connection.BUFSIZE = 2**32-1 # This is the absolute limit for this PC
 from multiprocessing import Process, Pipe
@@ -94,248 +94,93 @@ def main():
     logging.info(currentDT.strftime("%d/%m/%Y, %H:%M:%S"))    
 
 
-    # Load in environmental parameters
-    load_dotenv()
-    user = os.environ.get('USERN')
-    password = os.environ.get('PASSWORD')
-    db_name = os.environ.get('DB_NAME')
-
-
-    # Try to connect to the server
-    try:
-        con = mysql.connector.connect(
-            #host="localhost",
-            user=user,
-            password=password,
-            #database=db_name,
-            raise_on_warnings=True)
-        cur = con.cursor()
-        print("Successfully connected to MySQL server")
-        logging.info("Successfully connected to MySQL server")
-    except mysql.connector.Error as err:
-          if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
-            print("Something is wrong with your user name or password")
-            logging.error("Something is wrong with your user name or password")
-          elif err.errno == errorcode.ER_BAD_DB_ERROR:
-            print("Server cannot be found")
-            logging.error("Server cannot be found")
-          else:
-              print(err)
-              exit(1)
     
     
-    # Outer loop handles database connection
-    try:
-        # Try to connect to the database
-        # If the database does not exist, try to create it
+    # Evalute the force profile
+    time_idle = 4.0
+    time_acc=0.05
+    time_ramp=0.2
+    sampling_rate=50000
+    
+    force_profile_times, force_profile_force, force_profile_x = eval_force(time_idle, time_acc, time_ramp, sampling_rate)
+   # values = []
+    #for i in range(len(force_profile_times)):
+     #   values.append([str(force_profile_times[i]), str(force_profile_force[i]), str(force_profile_x[i])])
+    
+  
+    
+    
+    # Reset device in case of DAQ malfunction
+    """
+    system = nidaqmx.system.System.local()
+    for device in system.devices:
+        print("Resetting device {}".format(device))
+        logging.info("Resetting device {}".format(device))
         try:
-            cur.execute("USE {};".format(db_name))
-            print("Successfully connected to database {}".format(db_name))
-            logging.info("Successfully connected to database {}".format(db_name))
-        except mysql.connector.Error as err:
-            print("Database {} does not exists".format(db_name))
-            logging.warning("Database {} does not exists".format(db_name))
-            if err.errno == errorcode.ER_BAD_DB_ERROR:
-                create_database(cur, db_name)
-                print("Database {} created successfully".format(db_name))
-                logging.error("Database {} created successfully".format(db_name))
-            else:
-                print(err)
-                logging.error(err)
-                exit(1)
-                
-
-        # Define tables
-        TABLES = {}
-        TABLES['livedata'] = ("""CREATE TABLE livedata (
-                            run INTEGER NOT NULL,
-                            timestamp DOUBLE NOT NULL,
-                            ai0 DOUBLE NOT NULL,
-                            ai19 DOUBLE NOT NULL,
-                            ai3 DOUBLE
-                            ) ENGINE=InnoDB""")
-        TABLES['force_profile'] = ("""CREATE TABLE force_profile (
-                            run INTEGER NOT NULL,
-                            seconds DOUBLE NOT NULL,
-                            profile DOUBLE NOT NULL,
-                            position DOUBLE NOT NULL
-                            ) ENGINE=InnoDB""")
-        
-        
-        # Drop all tables. This will wipe all saved data
-        """
-        query = "DROP TABLE IF EXISTS {};"
-        for table_name in TABLES:
-            try:
-                cur.execute(query.format(table_name))
-                logging.info("Table {} dropped".format(table_name))
-            except mysql.connector.Error as err:
-                logging.warning(err)
-        """
-        
-      
-        # Create tables if they do not exist
-        for table_name in TABLES:
-            table_description = TABLES[table_name]
-            try:
-                print("Creating table {}: ".format(table_name))
-                logging.info("Creating table {}: ".format(table_name))
-                cur.execute(table_description)
-            except mysql.connector.Error as err:
-                if err.errno == errorcode.ER_TABLE_EXISTS_ERROR:
-                    print("Table already exists")
-                    logging.info("Table already exists")
-                else:
-                    print(err.msg)
-                    logging.error(err.msg)
-        
-        
-        # Evaluate 'run' number
-        query = "SELECT MAX(run) FROM livedata;"
-        try:
-            cur.execute(query)
-            ans = cur.fetchone()
-            if ans[0] is None:
-                run = 1
-            else:
-                run = ans[0] + 1
+            device.reset_device()
+            logging.info("Device {} successfully reset".format(device))
         except:
-            print("Error in fetching run number from database")
-            logging.error("Error in fetching run number from database")
-            pass
-        
-        
-        # Evalute the force profile
-        print("Evaluating force profile")
-        time_idle = 4.0
-        time_acc=0.05
-        time_ramp=0.2
-        sampling_rate=100000
-        
-        time0 = time.time()
-        
-        force_profile_times, force_profile_force, force_profile_x = eval_force(time_idle, time_acc, time_ramp, sampling_rate)
-        values = []
-        
-        time1 = time.time()
-        
-        for i in range(len(force_profile_times)):
-            values.append([str(force_profile_times[i]), str(force_profile_force[i]), str(force_profile_x[i])])
-        
-        time2 = time.time()
-        # Insert force profile into database
+            print("Device {} failed to reset".format(device))
+            logging.warning("Device {} failed to reset".format(device))
+    """        
+
+
+    # Create pipes to send data between processes
+    p_live_dev1_2, p_live_dev1_1 = Pipe(duplex=False)
+    p_time0_2, p_time0_1 = Pipe(duplex=False)
+    p_manip_dev1_2, p_manip_dev1_1 = Pipe(duplex=False)
+    p_plot_dev1_2, p_plot_dev1_1 = Pipe(duplex=False)
+    p_kill_2, p_kill_1 = Pipe(duplex=False)
+    
+
+    # Create processes
+    msg = "Running"
+    processlist = []
+    processlist.append(Process(target=get_data, args=(p_live_dev1_1, p_time0_1, sampling_rate, force_profile_force, )))
+    processlist.append(Process(target=manipulate_data, args=(p_live_dev1_2, p_time0_2, p_manip_dev1_1, p_plot_dev1_1, )))
+    processlist.append(Process(target=store_data, args=(p_manip_dev1_2, p_kill_1, )))
+    processlist.append(Process(target=plot_data, args=(p_plot_dev1_2, )))
+    processlist.append(Process(target=loading, args=(msg, )))
+    
+    for p in processlist:
         try:
-            query = "INSERT INTO force_profile(run, seconds, profile, position) VALUES ({}, %s, %s, %s);".format(run)
-            cur.executemany(query, values)
-            con.commit()
-        except mysql.connector.Error as err:
-            print(err)
-            input()
-        
-        time3 = time.time()
-        
-        time01 = time1 - time0
-        time12 = time2 - time1
-        time23 = time3 - time2
-        
-        
-        print("time01 = " + str(time01))
-        print("time12 = " + str(time12))
-        print("time23 = " + str(time23))
-        input()
-        
-        # Reset device in case of DAQ malfunction
-        """
-        system = nidaqmx.system.System.local()
-        for device in system.devices:
-            print("Resetting device {}".format(device))
-            logging.info("Resetting device {}".format(device))
-            try:
-                device.reset_device()
-                logging.info("Device {} successfully reset".format(device))
-            except:
-                print("Device {} failed to reset".format(device))
-                logging.warning("Device {} failed to reset".format(device))
-        """        
-
-
-        # Create pipes to send data between processes
-        p_live_dev1_2, p_live_dev1_1 = Pipe(duplex=False)
-        p_time0_2, p_time0_1 = Pipe(duplex=False)
-        p_manip_dev1_2, p_manip_dev1_1 = Pipe(duplex=False)
-        p_plot_dev1_2, p_plot_dev1_1 = Pipe(duplex=False)
-        p_kill_2, p_kill_1 = Pipe(duplex=False)
-        
-
-        # Create processes
-        msg = "Running"
-        processlist = []
-        processlist.append(Process(target=get_data, args=(p_live_dev1_1, p_time0_1, sampling_rate, force_profile_force, )))
-        processlist.append(Process(target=manipulate_data, args=(p_live_dev1_2, p_time0_2, p_manip_dev1_1, p_plot_dev1_1, )))
-        processlist.append(Process(target=store_data, args=(p_manip_dev1_2, p_kill_1, user, password, db_name, "livedata", run, )))
-        processlist.append(Process(target=plot_data, args=(p_plot_dev1_2, )))
-        processlist.append(Process(target=loading, args=(msg, )))
-        
-        for p in processlist:
-            try:
-                logging.info("Starting process {}".format(p))
-                p.start()
-                print(str(p))
-            except:
-                print("Error starting {}".format(p))
-                logging.error("Error starting {}".format(p))
+            logging.info("Starting process {}".format(p))
+            p.start()
+            print(str(p))
+        except:
+            print("Error starting {}".format(p))
+            logging.error("Error starting {}".format(p))
             
             
-        # If store_data() has ended, end all
-        # Nota bene, this method will only work with Windows
-        print("Press RETURN to stop data acquisition\n")
-        try:
-            while True:
-                if msvcrt.kbhit():
-                    if msvcrt.getch()==b'\r':
-                        print("Data acquisition stopped via keyboard interruption")
-                        logging.warning("Data acquisition stopped via keyboard interruption")
-                        break
-                if p_kill_2.poll():
-                    print("Data acquisition stopped via store_data()")
-                    logging.warning("Data acquisition stopped via store_data()")
+    # If store_data() has ended, end all
+    # Nota bene, this method will only work with Windows
+    print("Press RETURN to stop data acquisition\n")
+    try:
+        while True:
+            if msvcrt.kbhit():
+                if msvcrt.getch()==b'\r':
+                    print("Data acquisition stopped via keyboard interruption")
+                    logging.warning("Data acquisition stopped via keyboard interruption")
                     break
-                
-        except KeyboardInterrupt:
-            logging.warning("Data acquisition stopped via keyboard interruption")
-            print("Data acquisition stopped via keyboard interruption")
-            pass
-        finally:
-            for p in processlist:
-                logging.info("Killing process {}".format(p))
-                p.kill()
-         
-        
-        # Close the database and terminate the program    
-        input("Program completed successfully")
-    except:
+            if p_kill_2.poll():
+                print("Data acquisition stopped via store_data()")
+                logging.warning("Data acquisition stopped via store_data()")
+                break
+            
+    except KeyboardInterrupt:
+        logging.warning("Data acquisition stopped via keyboard interruption")
+        print("Data acquisition stopped via keyboard interruption")
         pass
     finally:
-        try:
-            con.close()
-            print("main() SQL connection successfully closed")
-            logging.info("main() SQL connection successfully closed")
-        except:
-            print("main() SQL failed to close")
-            logging.error("main() SQL failed to close")
-            
+        for p in processlist:
+            logging.info("Killing process {}".format(p))
+            p.kill()
+     
     
-    
-# Function does as it says on the tin
-def create_database(cur, db_name):
-    try:
-        cur.execute(
-            "CREATE DATABASE {} DEFAULT CHARACTER SET 'UTF8MB4'".format(db_name))
-    except mysql.connector.Error as err:
-        print("Failed creating database: {}".format(err))
-        logging.error("Failed creating database: {}".format(err))
-        exit(1)
+    # Close the database and terminate the program    
+    input("Program completed successfully")
 
+            
     
 
 # Function acquires and buffers live data from DAQ board and pipes it
@@ -374,28 +219,15 @@ def get_data(p_live, p_time, sampling_rate, force_profile_force):
                                              active_edge=nidaqmx.constants.Edge.RISING,
                                              sample_mode=constants.AcquisitionType.FINITE,
                                              samps_per_chan=num_samples1)
-            
-            
-                                             
+                 
             
             reader1 = AnalogMultiChannelReader(task1.in_stream)
             buffer1 = np.zeros((num_channels1, num_samples1), dtype=np.float64)
             
             # Trigger causes task0 to wait for task1 to begin
             # Smaller delay without trigger
-            
             task0.triggers.start_trigger.cfg_dig_edge_start_trig(task1.triggers.start_trigger.term)
-            
-            #task0.triggers.start_trigger.cfg_dig_edge_start_trig(task1.triggers.start_trigger.term)
-            #task0.triggers.start_trigger.cfg_anlg_edge_start_trig(trigger_source='Dev1/ai/StartTrigger', trigger_slope=nidaqmx.constants.Slope.RISING) # Setting the trigger on the analog input
-            #task0.triggers.start_trigger.cfg_anlg_edge_start_trig(trigger_source='APFI1', trigger_slope=nidaqmx.constants.Slope.RISING) # Setting the trigger on the analog input
             task0.start()
-
-            # Attempt at reversal of trigger
-            #task1.triggers.start_trigger.cfg_dig_edge_start_trig(task0.triggers.start_trigger.term)### Data acquisition doesn't start
-            
-            #task1.start()
-            #task0.start()
             
             while True:
                 try:
@@ -487,57 +319,32 @@ def plot_data(p_plot):
 
 # Function connects to the server, recieves manipualted data from
 # manipulated_data() and inserts it in the database
-def store_data(p_manip, p_kill, user, password, db_name, table_name, run):
-    # Try to connect to the server
+def store_data(p_manip, p_kill):
     try:
-        con = mysql.connector.connect(
-            #host="localhost",
-            user=user,
-            password=password,
-            database=db_name,
-            raise_on_warnings=True)
-        cur = con.cursor()
-        print("Successfully connected to MySQL server")
-        logging.info("Successfully connected to MySQL server")
-    except mysql.connector.Error as err:
-        if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
-          print("Something is wrong with your user name or password")
-          logging.error("Something is wrong with your user name or password")
-        elif err.errno == errorcode.ER_BAD_DB_ERROR:
-          print("Server cannot be found")
-          logging.error("Server cannot be found")
-        else:
-            print(err)
-            logging.error(err)
-            exit(1)
-    
-    try:
-        query = "INSERT INTO {} (run, timestamp, ai0, ai19, ai3) VALUES ({}, %s, %s, %s, %s);".format(table_name, run)
-        while True:
-            try:
+        tmpfolder = '../tmp/'
+        with open((tmpfolder + "data.csv"), "w") as f:
+            f.write("Time, ai0, ai19, ai3\n")
+            while True:
+
                 values = p_manip.recv()
-                cur.executemany(query, values)
-                con.commit()
+                
+                for i in range(len(values)):
+                    f.write(', '.join(map(str, values[i])) + "\n")
                 
                 # Exit if pipe is empty
                 # Send kill signal
+                # This is not an elegant solution. Consider revising
                 if p_manip.poll() is False:
+                    time.sleep(2)
+                if p_manip.poll() is False:                    
                     p_kill.send(True)
                     break
                 
-            except mysql.connector.Error as err:
-                print(err)
     except KeyboardInterrupt:
         logging.warning("Data storage stopped via keyboard interruption")
         pass
     finally:
-        try:
-            con.close()
-            print("store_data() SQL connection successfully closed")
-            logging.info("store_data() SQL connection successfully closed")
-        except:
-            print("store_data() SQL failed to close")
-            logging.error("store_data() SQL failed to close")
+        
         p_kill.send(True)
         logging.info("Process kill signal sent from store_data()")
 
