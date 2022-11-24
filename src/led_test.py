@@ -24,9 +24,9 @@ import pyqtgraph as pg
 from force_profile import eval_force
 import msvcrt
 
-"""Flying balls"""
+"""Send Morse code to LEDs via DAQ board"""
 
-#from morse import *
+
 import morse
 
 def main():

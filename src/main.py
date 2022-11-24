@@ -24,26 +24,32 @@ import msvcrt
 """Flying balls"""
 
 
+class InputChannel:
+    def __init__(self, channel):
+        self.channel = channel
+
+
 class MainWindow(QtWidgets.QMainWindow):
-    def __init__(self, pipe, *args, **kwargs):
+    def __init__(self, pipe, channelDict, *args, **kwargs):
         self.pipe = pipe
+        self.channelDict = channelDict
         super(MainWindow, self).__init__(*args, **kwargs)
 
         self.graphWidget = pg.PlotWidget()
         self.graphWidget.setLabel('left', 'Voltage (V)')
         self.graphWidget.setLabel('bottom', 'Elapsed Time (s)')
         self.setCentralWidget(self.graphWidget)
-
-        self.ai0 = []
-        self.ai19 = []
-        self.ai3 = []
-        self.elapsed_time = []
-        
         self.graphWidget.addLegend()
-        self.line_ai0 = self.graphWidget.plot(self.elapsed_time, self.ai0, name="ai0", pen=pg.mkPen('b'))
-        self.line_ai19 = self.graphWidget.plot(self.elapsed_time, self.ai19, name="ai19", pen=pg.mkPen('r'))
-        self.line_ai3 = self.graphWidget.plot(self.elapsed_time, self.ai3, name="ai3", pen=pg.mkPen('y'))
         
+        self.elapsed_time = []
+        index = 0
+        for channel in self.channelDict:
+            index = index + 1
+            self.channelDict[channel].index = index
+            self.channelDict[channel].data = []
+            #self.channelDict[channel].line = self.graphWidget.plot(self.elapsed_time, self.channelDict[channel].data, name=channel, pen=pg.mkPen(self.channelDict[channel].index - 95))
+            self.channelDict[channel].line = self.graphWidget.plot(self.elapsed_time, self.channelDict[channel].data, name=self.channelDict[channel].name, pen=pg.mkPen(self.channelDict[channel].index - 95))
+    
         self.counter = 0
         self.timer = QtCore.QTimer()
         self.timer.setInterval(4) # 4 ms = 250 refreshes per sec
@@ -58,29 +64,18 @@ class MainWindow(QtWidgets.QMainWindow):
                 if self.counter == 0:
                     self.time_start = data[0]
                     self.counter = 1
-                
+
                 elapsed_time = data[0] - self.time_start
-                ai0 = data[1]
-                ai19 = data[2]
-                ai3 = data[3]
-                
                 self.elapsed_time.append(elapsed_time)
-                self.ai0.append(ai0)
-                self.ai19.append(ai19)
-                self.ai3.append(ai3)
-                
-                if len(self.ai0) > 2000: # 100 data points per sec -> 2000 data points = 20 sec
-                    self.elapsed_time = self.elapsed_time[1:]
-                    self.ai0 = self.ai0[1:]
-                    self.ai19 = self.ai19[1:]
-                    self.ai3 = self.ai3[1:]
-                
-                self.line_ai0.setData(self.elapsed_time, self.ai0)
-                self.line_ai19.setData(self.elapsed_time, self.ai19)
-                self.line_ai3.setData(self.elapsed_time, self.ai3)
-            
+                        
+                for channel in self.channelDict:    
+                    self.channelDict[channel].data.append(data[self.channelDict[channel].index])
+                    if len(self.channelDict[channel].data) > 2000: # 100 data points per sec -> 2000 data points = 20 sec
+                        self.elapsed_time = self.elapsed_time[1:]
+                        self.channelDict[channel].data = self.channelDict[channel].data[1:]
+                    self.channelDict[channel].line.setData(self.elapsed_time, self.channelDict[channel].data)
         except:
-            print("err")
+            print("Error in update_plot()")
             
 
 def main():
@@ -90,7 +85,13 @@ def main():
     logging.basicConfig(filename = logfolder + "main.log", encoding='utf-8', level=logging.DEBUG)
     logging.info(currentDT.strftime("%d/%m/%Y, %H:%M:%S"))    
 
-    
+    msg = "Evaluating force profile"
+    processlist = []
+    processlist.append(Process(target=loading, args=(msg, )))
+    for p in processlist:
+        p.start()
+
+
     # Evalute the force profile
     time_idle = 4.0
     time_acc=0.05
@@ -98,6 +99,8 @@ def main():
     sampling_rate=50000
     force_profile_times, force_profile_force, force_profile_x = eval_force(time_idle, time_acc, time_ramp, sampling_rate)
 
+    for p in processlist:
+        p.kill()
     
     # Reset device in case of DAQ malfunction
     """
@@ -121,14 +124,24 @@ def main():
     p_plot_dev1_2, p_plot_dev1_1 = Pipe(duplex=False)
     p_kill_2, p_kill_1 = Pipe(duplex=False)
     
+    
+    # Define all input channels
+    input_channels = ["Dev1/ai0", "Dev1/ai19", "Dev1/ai3", "Dev1/ai13"]
+    channel_names = ["ai0", "ai19", "ai3", "ai13"]
+    channelDict = {channel: InputChannel(channel=channel) for channel in input_channels}
+    index = 0
+    for channel in channelDict:
+        channelDict[channel].name = channel_names[index]
+        index = index + 1
+        channelDict[channel].index = index
 
     # Create processes
     msg = "Running"
     processlist = []
-    processlist.append(Process(target=get_data, args=(p_live_dev1_1, p_time0_1, sampling_rate, force_profile_force, )))
-    processlist.append(Process(target=manipulate_data, args=(p_live_dev1_2, p_time0_2, p_manip_dev1_1, p_plot_dev1_1, )))
+    processlist.append(Process(target=get_data, args=(p_live_dev1_1, p_time0_1, input_channels, sampling_rate, force_profile_force, )))
+    processlist.append(Process(target=manipulate_data, args=(p_live_dev1_2, p_time0_2, p_manip_dev1_1, p_plot_dev1_1, channelDict, )))
     processlist.append(Process(target=store_data, args=(p_manip_dev1_2, p_kill_1, )))
-    processlist.append(Process(target=plot_data, args=(p_plot_dev1_2, )))
+    processlist.append(Process(target=plot_data, args=(p_plot_dev1_2, channelDict, )))
     processlist.append(Process(target=loading, args=(msg, )))
     
     for p in processlist:
@@ -166,16 +179,14 @@ def main():
             p.kill()
      
     
-    # Close the database and terminate the program    
     print("Program completed successfully")
 #    input("Program completed successfully")
 
             
-    
 
 # Function acquires and buffers live data from DAQ board and pipes it
 # to manipualte_data()
-def get_data(p_live, p_time, sampling_rate, force_profile_force):
+def get_data(p_live, p_time, input_channels, sampling_rate, force_profile_force):
     try:    
         with nidaqmx.Task() as task0, nidaqmx.Task() as task1:
             
@@ -197,12 +208,12 @@ def get_data(p_live, p_time, sampling_rate, force_profile_force):
             writer0.write_many_sample(buffer0, timeout=60)
             
             ## Task 1 (Dev1/ai0, Dev1/ai19, Dev1/ai3)
-            num_channels1 = 3
+            num_channels1 = len(input_channels)
             num_samples1 = 10000 # Buffer size per channel
             
-            task1.ai_channels.add_ai_voltage_chan("Dev1/ai0")
-            task1.ai_channels.add_ai_voltage_chan("Dev1/ai19") # Current pressure
-            task1.ai_channels.add_ai_voltage_chan("Dev1/ai3")
+            for channel in input_channels:
+                task1.ai_channels.add_ai_voltage_chan(channel)
+            
             task1.ai_channels.all.ai_max = 10.0 #max_voltage
             task1.ai_channels.all.ai_min = -10.0 #min_voltage
             task1.timing.cfg_samp_clk_timing(sampling_rate,
@@ -251,7 +262,7 @@ def get_data(p_live, p_time, sampling_rate, force_profile_force):
 
 # Function recieves buffered data from get_data(), restructures it and pipes
 # it to store_data()
-def manipulate_data(p_live, p_time, p_manip, p_plot):
+def manipulate_data(p_live, p_time, p_manip, p_plot, channelDict):
     try:  
         buffer_rate = 0.01 #100 data points per channel per sec
         counter = 0
@@ -260,9 +271,9 @@ def manipulate_data(p_live, p_time, p_manip, p_plot):
                 # Unpackage the data
                 data_live = p_live.recv()
                 time_data = p_time.recv()
-                data_live_ai0 = data_live[:,0]
-                data_live_ai19 = data_live[:,1]                
-                data_live_ai3 = data_live[:,2]
+                
+                for channel in channelDict:
+                    channelDict[channel].dat = data_live[:,channelDict[channel].index - 1]
                 
                 time_start = time_data[0]
                 time_end = time_data[1]
@@ -275,12 +286,17 @@ def manipulate_data(p_live, p_time, p_manip, p_plot):
                 # Restructure the data
                 data_manipulated = []
                 size = len(data_live)
-                
                 time_int = (time_end - time_start) / size  
+                
+                
                 for i in range(size):
                     time_eval = time_start + time_int * i
-                    data_manipulated.append([time_eval, float(data_live_ai0[i]), float(data_live_ai19[i]), float(data_live_ai3[i])])
+                    dummylist = []
+                    for channel in channelDict:
+                        dummylist.append(channelDict[channel].dat[i])
+                    data_manipulated.append([time_eval, *dummylist])
                     
+                   
                     if time_eval >= time_next:
                         time_next = time_next + buffer_rate
                         p_plot.send(data_manipulated[i])
@@ -298,9 +314,9 @@ def manipulate_data(p_live, p_time, p_manip, p_plot):
 
 
 # Function calls Qt MainWindow (defined at top of program) to plot data
-def plot_data(p_plot):
+def plot_data(p_plot, channelDict):
     app = QtWidgets.QApplication(sys.argv)
-    w = MainWindow(p_plot)
+    w = MainWindow(p_plot, channelDict)
     w.show()
     sys.exit(app.exec_())
     
