@@ -132,6 +132,6 @@
 
    * Allows customisable number of (and names for) channels
 
-   * Will need to import this into mysql_update.py to configure table columns
+   * Will need to import this into mysql_update.py to configure table columns (could also be read from .CSV)
 
 </sub>
