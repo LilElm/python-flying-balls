@@ -28,12 +28,14 @@
    - [X] Store force profile in MySQL database
    - [X] Implement multiprocessing
    - [X] Listen to user input and Process 3 for kill signal
+   - [ ] Implement GUI
+   - [ ] Implement customisable number of input channels
 
  * Process 1:
 
    - [X] Output force profile
    - [X] Acquire live data from relevant channels
-   - [ ] Synchronise output and input
+   - [X] Synchronise output and input
    - [X] Pipe live data to Process 2 for manipulation
  
  * Process 2:
@@ -46,7 +48,6 @@
  * Process 3:
 
    - [X] Store manipulated data in a MySQL database
-     - [ ] Investigate MySQL bottleneck
    - [X] Send signal to main program once finished
 
  * Process 4:
@@ -124,5 +125,13 @@
  * .CSVs created
 
  * Data uploaded to MySQL database post-acquisition
+
+ **24-Nov-22**
+
+ * Added channelDict to hold Channel objects
+
+   * Allows customisable number of (and names for) channels
+
+   * Will need to import this into mysql_update.py to configure table columns
 
 </sub>
