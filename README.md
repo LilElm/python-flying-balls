@@ -138,4 +138,6 @@
 
  * mysql_update.py reads .CSV headers and adds columns into the relevant database tables if necessary
 
+ * Merged csv-output branch into analog-output and master branches
+
 </sub>
