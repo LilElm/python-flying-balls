@@ -140,4 +140,6 @@
 
  * Merged csv-output branch into analog-output and master branches
 
+ * Created branch 'gui'
+
 </sub>
