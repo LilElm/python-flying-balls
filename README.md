@@ -29,7 +29,7 @@
    - [X] Implement multiprocessing
    - [X] Listen to user input and Process 3 for kill signal
    - [ ] Implement GUI
-   - [ ] Implement customisable number of input channels
+   - [X] Implement customisable number of input channels
 
  * Process 1:
 
