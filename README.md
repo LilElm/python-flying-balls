@@ -134,4 +134,8 @@
 
    * Will need to import this into mysql_update.py to configure table columns (could also be read from .CSV)
 
+ **27-Nov-22**
+
+ * mysql_update.py reads .CSV headers and adds columns into the relevant database tables if necessary
+
 </sub>

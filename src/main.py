@@ -140,7 +140,7 @@ def main():
     processlist = []
     processlist.append(Process(target=get_data, args=(p_live_dev1_1, p_time0_1, input_channels, sampling_rate, force_profile_force, )))
     processlist.append(Process(target=manipulate_data, args=(p_live_dev1_2, p_time0_2, p_manip_dev1_1, p_plot_dev1_1, channelDict, )))
-    processlist.append(Process(target=store_data, args=(p_manip_dev1_2, p_kill_1, )))
+    processlist.append(Process(target=store_data, args=(p_manip_dev1_2, p_kill_1, channel_names, )))
     processlist.append(Process(target=plot_data, args=(p_plot_dev1_2, channelDict, )))
     processlist.append(Process(target=loading, args=(msg, )))
     
@@ -324,11 +324,11 @@ def plot_data(p_plot, channelDict):
 
 # Function connects to the server, recieves manipualted data from
 # manipulated_data() and inserts it in the database
-def store_data(p_manip, p_kill):
+def store_data(p_manip, p_kill, channel_names):
     try:
         tmpfolder = '../tmp/'
         with open((tmpfolder + "data.csv"), "w") as f:
-            f.write("Time, ai0, ai19, ai3\n")
+            f.write("timestamp, " + ", ".join(channel_names) + "\n")
             while True:
 
                 values = p_manip.recv()

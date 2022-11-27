@@ -30,10 +30,24 @@ import msvcrt
 def main():
     currentDT = datetime.datetime.now()
     logfolder = "../log/"
+    tmpfolder = "../tmp/"
     os.makedirs(logfolder, exist_ok=True)
     logging.basicConfig(filename = logfolder + "mysql_update.log", encoding='utf-8', level=logging.DEBUG)
     logging.info(currentDT.strftime("%d/%m/%Y, %H:%M:%S"))    
 
+    
+    msg = "Loading data into database"
+    processlist = []
+    processlist.append(Process(target=loading, args=(msg, )))
+    for p in processlist:
+        try:
+            logging.info("Starting process {}".format(p))
+            p.start()
+            print(str(p))
+        except:
+            print("Error starting {}".format(p))
+            logging.error("Error starting {}".format(p))
+                
 
     # Load in environmental parameters
     load_dotenv()
@@ -84,141 +98,151 @@ def main():
                 print(err)
                 logging.error(err)
                 exit(1)
-                
 
-        # Define tables
-        TABLES = {}
-        TABLES['livedata'] = ("""CREATE TABLE livedata (
-                            run INTEGER NOT NULL,
-                            timestamp DOUBLE NOT NULL,
-                            ai0 DOUBLE NOT NULL,
-                            ai19 DOUBLE NOT NULL,
-                            ai3 DOUBLE
-                            ) ENGINE=InnoDB""")
-        TABLES['force_profile'] = ("""CREATE TABLE force_profile (
-                            run INTEGER NOT NULL,
-                            seconds DOUBLE NOT NULL,
-                            profile DOUBLE NOT NULL,
-                            position DOUBLE NOT NULL
-                            ) ENGINE=InnoDB""")
-        
-        
-        # Drop all tables. This will wipe all saved data
-        """
-        query = "DROP TABLE IF EXISTS {};"
-        for table_name in TABLES:
-            try:
-                cur.execute(query.format(table_name))
-                logging.info("Table {} dropped".format(table_name))
-            except mysql.connector.Error as err:
-                logging.warning(err)
-        """
-        
-      
-        # Create tables if they do not exist
-        for table_name in TABLES:
-            table_description = TABLES[table_name]
-            try:
-                print("Creating table {}: ".format(table_name))
-                logging.info("Creating table {}: ".format(table_name))
-                cur.execute(table_description)
-            except mysql.connector.Error as err:
-                if err.errno == errorcode.ER_TABLE_EXISTS_ERROR:
-                    print("Table already exists")
-                    logging.info("Table already exists")
-                else:
-                    print(err.msg)
-                    logging.error(err.msg)
+
+        # Load in .CSV file and header names
+        filenames = []
+        fileDict = {}
+        for root, dirs, files in os.walk(tmpfolder, topdown=False):
+            for name in files:
+                if ".csv" in name:
+                    filenames.append(name.strip(".csv"))
+                    with open(os.path.join(root, name), "r") as f:
+                        line = f.readline().lower().strip("\n")
+                        headers = line.split(", ")
+                        fileDict[filenames[-1]] = headers
+                        f.seek(0)
         
         
         # Evaluate 'run' number
-        query = "SELECT MAX(run) FROM livedata;"
-        try:
-            cur.execute(query)
-            ans = cur.fetchone()
-            if ans[0] is None:
-                run = 1
-            else:
-                run = ans[0] + 1
-        except:
-            print("Error in fetching run number from database")
-            logging.error("Error in fetching run number from database")
-            pass
+        run_list = []
+        query = "SHOW TABLES;"
+        cur.execute(query)
+        tables = cur.fetchall()
         
-        msg = "Running"
-        processlist = []
-        processlist.append(Process(target=loading, args=(msg, )))
-        for p in processlist:
-            try:
-                logging.info("Starting process {}".format(p))
-                p.start()
-                print(str(p))
-            except:
-                print("Error starting {}".format(p))
-                logging.error("Error starting {}".format(p))
-                
+        if len(tables) == 0:
+            run = 1
+        else:
+            tables = [table[0] for table in tables]
+    
+            query1 = "DESCRIBE {}"
+            query2 = "SELECT MAX(run) FROM {};"
+            for table in tables:
+                cur.execute(query1.format(table))
+                columns = cur.fetchall()
+                columns = [column[0] for column in columns]
+                if "run" in columns:
+                    try:
+                        cur.execute(query2.format(table))
+                        ans = cur.fetchone()
+                        if ans[0] is None:
+                            run_list.append(1)
+                        else:
+                            run_list.append(ans[0] + 1)
+                    except:
+                        print("Error in fetching run number from database")
+                        print("Run assumed to be 1")
+                        logging.error("Error in fetching run number from database")
+                        print("Run assumed to be 1")
+                        pass
+            run = max(run_list)        
+        
+        # Define tables
+        TABLES = {}
+        for name in filenames:
+            TABLES[name] = ("""CREATE TABLE {} (
+                               run INTEGER NOT NULL
+                               ) ENGINE=InnoDB""").format(name)
         
         
-        
-        
+        query1 = "CALL sys.table_exists('{}', '{}', @exists);"
+        query2 = "SELECT @exists;"
+        query3 = """SELECT column_name
+                    FROM information_schema.columns
+                    WHERE table_schema = '{}' AND table_name = '{}'
+                    ORDER BY ordinal_position;"""
+        query4 = """ALTER TABLE {} ADD COLUMN {} DOUBLE;"""
+        query5 = """LOAD DATA INFILE '{}'
+                    INTO TABLE {}
+                    FIELDS TERMINATED BY ','
+                    IGNORE 1 ROWS
+                    ({})
+                    SET run=%s;"""
+                    
+                    
         # Define force_profile file path
         dir_path = os.path.dirname(os.getcwd())
         dir_path=dir_path.replace("\\","/")
         tmpfolder = "/tmp/"
-        filename = "force_profile.csv"
-        filedir = dir_path + tmpfolder + filename
-        tablename = "force_profile"
-        columns = "(seconds, profile, position)"
         
-        # Insert force profile into database
-        try:
-            query = """LOAD DATA INFILE '{}'
-                       INTO TABLE {}
-                       FIELDS TERMINATED BY ','
-                       IGNORE 1 ROWS
-                       {}
-                       SET run=%s;""".format(filedir, tablename, columns)
-            values = run,
-            cur.execute(query, values)
+        for table_name in TABLES:
+            # Check if the table exists
+            cur.execute(query1.format(db_name, table_name))
+            cur.execute(query2)
+            val = cur.fetchone()
+            
+            if len(val[0]) == 0:
+                # Create the table if it does not exist
+                table_description = TABLES[table_name]
+                try:
+                    print("Creating table {}: ".format(table_name))
+                    logging.info("Creating table {}: ".format(table_name))
+                    cur.execute(table_description)
+                except mysql.connector.Error as err:
+                    if err.errno == errorcode.ER_TABLE_EXISTS_ERROR:
+                        print("Table already exists")
+                        logging.info("Table already exists")
+                    else:
+                        print(err.msg)
+                        logging.error(err.msg)
+            
+  
+            # Check if the necessary columns exist
+            try:
+                cur.execute(query3.format(db_name, table_name))
+            except mysql.connector.Error as err:
+                input(err)
+            headers = cur.fetchall()
+            headers = [elem[0] for elem in headers]            
+            # result = all(elem in headers for elem in fileDict[table_name])
+            # print(str(result))
+
+
+            for elem in fileDict[table_name]:
+                if elem not in headers:
+                    # Add the necessary columns to the table if they do not exist
+                    try:
+                        cur.execute(query4.format(table_name, elem))
+                    except mysql.connector.Error as err:
+                        print(err)
+                        input()
             con.commit()
-        except mysql.connector.Error as err:
-            print(err)
-            input()
             
-            
-            
-        # Define data file path
-        filename = "data.csv"
-        filedir = dir_path + tmpfolder + filename
-        tablename = "livedata"
-        columns = "(timestamp, ai0, ai19, ai3)"
-        
-        # Insert data into database
-        try:
-            query = """LOAD DATA INFILE '{}'
-                       INTO TABLE {}
-                       FIELDS TERMINATED BY ','
-                       IGNORE 1 ROWS
-                       {}
-                       SET run=%s;""".format(filedir, tablename, columns)
+            # Load data into the table
+            columns = ", ".join(fileDict[table_name])
+            filedir = dir_path + tmpfolder + table_name + ".csv"
             values = run,
-            cur.execute(query, values)
+            try:
+                cur.execute(query5.format(filedir, table_name, columns), values)
+            except mysql.connector.Error as err:
+                print(str(err))
+                input()
             con.commit()
-        except mysql.connector.Error as err:
-            print(err)
-            input()
-            
         
+
+        # Close the database and terminate the program  
         for p in processlist:
-            logging.info("Killing process {}".format(p))
-            p.kill()
-        
-        
-        # Close the database and terminate the program    
-        input("Program completed successfully")
+            if p:
+                logging.info("Killing process {}".format(p))
+                p.kill()
+        input("\nProgram completed successfully")
     except:
         pass
     finally:
+        for p in processlist:
+            if p:
+                logging.info("Killing process {}".format(p))
+                p.kill()
         try:
             con.close()
             print("main() SQL connection successfully closed")
@@ -227,9 +251,8 @@ def main():
             print("main() SQL failed to close")
             logging.error("main() SQL failed to close")
             
-    
-    
-
+            
+            
 # Function does as it says on the tin
 def create_database(cur, db_name):
     try:
@@ -239,7 +262,6 @@ def create_database(cur, db_name):
         print("Failed creating database: {}".format(err))
         logging.error("Failed creating database: {}".format(err))
         exit(1)
-
 
 
 
@@ -256,12 +278,6 @@ def loading(msg):
         except KeyboardInterrupt:
             logging.warning("Pinwheel stopped via keyboard interruption")
     
-
-
-
-
-
-
 
 
 # Run
