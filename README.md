@@ -142,4 +142,14 @@
 
  * Created branch 'gui'
 
+ **12-Jan-22**
+
+ * GUI uploaded
+
+ * GUI can plot real-time data
+
+ * GUI needs to automatically stop once data acquisition is over
+
+   * If GUI tries to receive data and no data is sent, the program will not respond
+
 </sub>

@@ -21,62 +21,43 @@ import pyqtgraph as pg
 from force_profile import eval_force
 import msvcrt
 
+from gui import start_gui
+from gui import SignalStart
 """Flying balls"""
 
-
+"""
 class InputChannel:
     def __init__(self, channel):
         self.channel = channel
 
+"""
+class Channel:
+    def __init__(self, channel):
+        self.channel = channel
 
-class MainWindow(QtWidgets.QMainWindow):
-    def __init__(self, pipe, channelDict, *args, **kwargs):
-        self.pipe = pipe
-        self.channelDict = channelDict
-        super(MainWindow, self).__init__(*args, **kwargs)
 
-        self.graphWidget = pg.PlotWidget()
-        self.graphWidget.setLabel('left', 'Voltage (V)')
-        self.graphWidget.setLabel('bottom', 'Elapsed Time (s)')
-        self.setCentralWidget(self.graphWidget)
-        self.graphWidget.addLegend()
-        
-        self.elapsed_time = []
-        index = 0
-        for channel in self.channelDict:
-            index = index + 1
-            self.channelDict[channel].index = index
-            self.channelDict[channel].data = []
-            #self.channelDict[channel].line = self.graphWidget.plot(self.elapsed_time, self.channelDict[channel].data, name=channel, pen=pg.mkPen(self.channelDict[channel].index - 95))
-            self.channelDict[channel].line = self.graphWidget.plot(self.elapsed_time, self.channelDict[channel].data, name=self.channelDict[channel].name, pen=pg.mkPen(self.channelDict[channel].index - 95))
-    
-        self.counter = 0
-        self.timer = QtCore.QTimer()
-        self.timer.setInterval(4) # 4 ms = 250 refreshes per sec
-        self.timer.timeout.connect(self.update_plot)
-        self.timer.start()
-        self.update_plot()
-    
-    def update_plot(self):
-        try:
-            if True:
-                data = self.pipe.recv()
-                if self.counter == 0:
-                    self.time_start = data[0]
-                    self.counter = 1
 
-                elapsed_time = data[0] - self.time_start
-                self.elapsed_time.append(elapsed_time)
-                        
-                for channel in self.channelDict:    
-                    self.channelDict[channel].data.append(data[self.channelDict[channel].index])
-                    if len(self.channelDict[channel].data) > 2000: # 100 data points per sec -> 2000 data points = 20 sec
-                        self.elapsed_time = self.elapsed_time[1:]
-                        self.channelDict[channel].data = self.channelDict[channel].data[1:]
-                    self.channelDict[channel].line.setData(self.elapsed_time, self.channelDict[channel].data)
-        except:
-            print("Error in update_plot()")
-            
+def gen_numbers(channelDict):
+    while True:
+        for channel in channelDict:
+            numbers = np.random.rand(4)
+            channelDict[channel].pipeb.send(numbers)
+        time.sleep(1)
+
+
+def get_parameters(pipe_param1a):
+    try:
+        # Wait for user input from GUI
+        sampling_rate = pipe_param1a.recv()
+        lat_params = pipe_param1a.recv()
+        long_params = pipe_param1a.recv()
+    except Exception as e:
+        print(str(e))
+    return sampling_rate, lat_params, long_params
+
+
+
+
 
 def main():
     currentDT = datetime.datetime.now()
@@ -85,25 +66,290 @@ def main():
     logging.basicConfig(filename = logfolder + "main.log", encoding='utf-8', level=logging.DEBUG)
     logging.info(currentDT.strftime("%d/%m/%Y, %H:%M:%S"))    
 
-    msg = "Evaluating force profile"
+    
+
+    # Make pipe for transferring input parameters from GUI
+    pipe_param1a, pipe_param1b = Pipe(duplex=False)
+    
+    # Make pipe for restarting the program... Should this replace signal_start?
+    pipe_signala, pipe_signalb = Pipe(duplex=False)
+    
+    
+    # Define all input channels, including pipes for sending and receiving data
+    input_channels = ["Dev1/ai0", "Dev1/ai19", "Dev1/ai3", "Dev1/ai13", "Dev1/ai1"]
+    input_names = ["ai0", "ai19", "ai3", "ai13", "ai1"]
+    input_channelDict = {channel: Channel(channel=channel) for channel in input_channels}
+    index = 0
+    for channel in input_channelDict:
+        input_channelDict[channel].name = input_names[index]
+        #input_channelDict[channel].pipea, input_channelDict[channel].pipeb = Pipe(duplex=False)
+        index = index + 1
+        input_channelDict[channel].index = index
+    
+   
+    pipe_plota, pipe_plotb = Pipe(duplex=False)
+   
+    
+   
+    
+      
+    # Define all output channels, including pipes for sending and receiving data
+    output_channels = ["Dev1/ao0", "Dev1/ao1"]
+    output_names = ["ao0", "ao1"]
+    output_channelDict = {channel: Channel(channel=channel) for channel in output_channels}
+    index = 0
+    for channel in output_channelDict:
+        output_channelDict[channel].name = output_names[index]
+        #output_channelDict[channel].pipea, output_channelDict[channel].pipeb = Pipe(duplex=False)
+        index = index + 1
+        output_channelDict[channel].index = index
+    
+   
+    
+   
+    
+   
+    
+   
+    
+    #### Create starting signal for GUI plots (deafult=False)
+    signal_start = SignalStart()
+    
+
+
+
+    # Start GUI
     processlist = []
-    processlist.append(Process(target=loading, args=(msg, )))
-    for p in processlist:
-        p.start()
+    proc0 = Process(target=start_gui, args=(input_channelDict, pipe_param1b, pipe_plota, signal_start, pipe_signalb))
+    processlist.append(proc0)
+    proc0.start()
+    
+    # Start loading function
+    pipe_msga, pipe_msgb = Pipe(duplex=False)
+    msg1 = "Acquiring data"
+    msg2 = "Waiting for user input"
+    proc1 = Process(target=loading, args=(pipe_msga, msg2, ))
+    processlist.append(proc1)
+    proc1.start()
+    
+    # Create a process to generate random numbers
+    # This will be replaced by the proper processes later
+    proc2 = Process(target=gen_numbers, args=(input_channelDict, ))
+    processlist.append(proc2)
 
+    #proc2.start()
 
+    
+
+    
+    #############################################################################################################
+    
+
+    # Will only progress past get_parameters() once START has been pressed
+
+    # Get input parameters from the GUI
+    sampling_rate, lat_params, long_params = get_parameters(pipe_param1a)
+    lat_velocity, lat_idle, lat_acc, lat_ramp, lat_rest = lat_params
+    long_velocity, long_idle, long_acc, long_ramp, long_rest = long_params
+    
+    
+    
+    
+    #while True:
+     #   for channel in input_channelDict: 
+      #      input_channelDict[channel].pipeb.send([0.25, 1.0, 2.0, 0.0, 0.25, 1.0, 2.0, 0.0])
+       # time.sleep(0.2)
+
+    
+    
     # Evalute the force profile
-    time_idle = 4.0
-    time_acc=0.05
-    time_ramp=0.2
-    sampling_rate=50000
-    force_profile_times, force_profile_force, force_profile_x = eval_force(time_idle, time_acc, time_ramp, sampling_rate)
+    force_profile_times_lat, force_profile_force_lat, force_profile_x_lat = eval_force(lat_velocity, lat_idle, lat_acc, lat_ramp, lat_rest, sampling_rate)
+    force_profile_times_long, force_profile_force_long, force_profile_x_long = eval_force(long_velocity, long_idle, long_acc, long_ramp, long_rest, sampling_rate)
+  
+    
+    # Turn on the GUI plots
+    signal_start.signal = True
+    
+    
+    
+    #############################################################################################################
+    # Create pipes to send data between processes
+    pipe_livea, pipe_liveb = Pipe(duplex=False)
+    pipe_timea, pipe_timeb = Pipe(duplex=False)
+    pipe_manipa, pipe_manipb = Pipe(duplex=False)
+    pipe_killa, pipe_killb = Pipe(duplex=False)
+    
+  
+    
+    
+    # Create processes
+    processlist2 = []
+    processlist2.append(Process(target=get_data, args=(pipe_liveb, pipe_timeb, input_channels, output_channels, sampling_rate, force_profile_force_lat, force_profile_force_long, input_channelDict, )))
+    processlist2.append(Process(target=manipulate_data, args=(pipe_livea, pipe_timea, pipe_manipb, pipe_plotb, input_channelDict, )))
+    processlist2.append(Process(target=store_data, args=(pipe_manipa, pipe_killb, input_names, )))
+       
+    # Update loading function message
+    pipe_msgb.send(msg1)
+        
+    
+    for p in processlist2:
+        try:
+            logging.info("Starting process {}".format(p))
+            p.start()
+            print(str(p))
+        except:
+            print("Error starting {}".format(p))
+            logging.error("Error starting {}".format(p))
+    
+    
+    
+    
+    
+    
+    while True:
+        if pipe_signala.poll(): #if stop signal
+            pipe_signala.recv()
+            
+            print("stop signal received")
+            
+            # Stop all processes
+            for p in processlist2:
+                try:
+                    p.kill()
+                except:
+                    print("error killing process")
+            
+            # Recreate 'new' processes (processes cannot be reused)
+            processlist2 = []
+            processlist2.append(Process(target=get_data, args=(pipe_liveb, pipe_timeb, input_channels, output_channels, sampling_rate, force_profile_force_lat, force_profile_force_long, input_channelDict, )))
+            processlist2.append(Process(target=manipulate_data, args=(pipe_livea, pipe_timea, pipe_manipb, pipe_plotb, input_channelDict, )))
+            processlist2.append(Process(target=store_data, args=(pipe_manipa, pipe_killb, input_names, )))
+            
+            # Update loading function message
+            pipe_msgb.send(msg2)
+            
+            # Start processes
+            for p in processlist2:
+                try:
+                    p.start()
+                except:
+                    print("error starting process")
+            
+            # Send loading function message
+            pipe_msgb.send(msg1)
+            time.sleep(0.125)
+            
+            
+            
+        else: #if no signal
+            time.sleep(0.125)
+    
+    
+    
+    
+    
+    
+    
+    """
+            
+            
+    # If store_data() has ended, end all
+    # Nota bene, the 'msvcrt' method will only work with Windows
+    print("Press RETURN to stop data acquisition\n")
+    try:
+        while True:
+            if msvcrt.kbhit():
+                if msvcrt.getch()==b'\r':
+                    print("Data acquisition stopped via keyboard interruption")
+                    logging.warning("Data acquisition stopped via keyboard interruption")
+                    break
+            if pipe_killa.poll():
+                print("Data acquisition stopped via store_data()")
+                logging.warning("Data acquisition stopped via store_data()")
+                break
+            
+    except KeyboardInterrupt:
+        logging.warning("Data acquisition stopped via keyboard interruption")
+        print("Data acquisition stopped via keyboard interruption")
+        pass
+    finally:
+        for p in processlist2:
+            logging.info("Killing process {}".format(p))
+            p.kill()
+     
+    
+    print("Program completed successfully")
+    
+    """
+            
+            
+    
+    
+    
+    
+    
+    
+    """
+    
+    while True:
+        
+        if pipe_signala.poll():
+            print("a")
+            time.sleep(1)
+           # proc1.kill()
+           # proc2.kill()
+           # print("fcnlskjbcnbnjskl")
+        else: #if no signal
+            
+            
+        
+        
+            # Wait for user input from GUI
+            sampling_rate = pipe_param1a.recv()
+            lat_params = pipe_param1a.recv()
+            long_params = pipe_param1a.recv()
+            lat_velocity, lat_idle, lat_acc, lat_ramp, lat_rest = lat_params
+            long_velocity, long_idle, long_acc, long_ramp, longt_rest = long_params
+            
+            
+            # Start pinwheel
+          #  msg = "Evaluating force profile"
+            #proc1 = Process(target=loading, args=(msg, ))
+            #processlist.append(proc1)
+            proc1.start()
+        
+        
+            # Evalute the force profile
+            force_profile_times, force_profile_force, force_profile_x = eval_force(lat_velocity, lat_idle, lat_acc, lat_ramp, lat_rest, sampling_rate)
+            proc1.kill()
+            
+            # Turn on the GUI plots (and throw some random numbers at them)
+            signal_start.signal = True
+            
+            #proc2 = Process(target=gen_numbers, args=(pipeDict_send, ))
+        #    proc2 = Process(target=gen_numbers, args=(channelDict, ))
+        #    processlist.append(proc2)
+            proc2.start()
+    
 
+    """
+
+    
+    input("done")
+    
     for p in processlist:
         p.kill()
+        
+    for p in processlist2:
+        p.kill()
+        
+        
+    input("done")
     
-    # Reset device in case of DAQ malfunction
+    pass
+    
     """
+    # Reset device in case of DAQ malfunction
     system = nidaqmx.system.System.local()
     for device in system.devices:
         print("Resetting device {}".format(device))
@@ -115,14 +361,13 @@ def main():
             print("Device {} failed to reset".format(device))
             logging.warning("Device {} failed to reset".format(device))
     """        
-
-
+    """
     # Create pipes to send data between processes
-    p_live_dev1_2, p_live_dev1_1 = Pipe(duplex=False)
-    p_time0_2, p_time0_1 = Pipe(duplex=False)
-    p_manip_dev1_2, p_manip_dev1_1 = Pipe(duplex=False)
-    p_plot_dev1_2, p_plot_dev1_1 = Pipe(duplex=False)
-    p_kill_2, p_kill_1 = Pipe(duplex=False)
+    pipe_livea, pipe_liveb = Pipe(duplex=False)
+    pipe_timea, pipe_timeb = Pipe(duplex=False)
+    pipe_manipa, pipe_manipb = Pipe(duplex=False)
+    pipe_plota, pipe_plotb = Pipe(duplex=False)
+    pipe_killa, pipe_killb = Pipe(duplex=False)
     
     
     # Define all input channels
@@ -138,11 +383,12 @@ def main():
     # Create processes
     msg = "Running"
     processlist = []
-    processlist.append(Process(target=get_data, args=(p_live_dev1_1, p_time0_1, input_channels, sampling_rate, force_profile_force, )))
-    processlist.append(Process(target=manipulate_data, args=(p_live_dev1_2, p_time0_2, p_manip_dev1_1, p_plot_dev1_1, channelDict, )))
-    processlist.append(Process(target=store_data, args=(p_manip_dev1_2, p_kill_1, channel_names, )))
-    processlist.append(Process(target=plot_data, args=(p_plot_dev1_2, channelDict, )))
+    processlist.append(Process(target=get_data, args=(pipe_liveb, pipe_timeb, input_channels, sampling_rate, force_profile_force, )))
+    processlist.append(Process(target=manipulate_data, args=(pipe_livea, pipe_timea, pipe_manipb, pipe_plotb, channelDict, )))
+    processlist.append(Process(target=store_data, args=(pipe_manipa, pipe_killb, channel_names, )))
+    #processlist.append(Process(target=plot_data, args=(pipe_plota, channelDict, )))
     processlist.append(Process(target=loading, args=(msg, )))
+    
     
     for p in processlist:
         try:
@@ -153,7 +399,9 @@ def main():
             print("Error starting {}".format(p))
             logging.error("Error starting {}".format(p))
             
+    """
             
+    """
     # If store_data() has ended, end all
     # Nota bene, the 'msvcrt' method will only work with Windows
     print("Press RETURN to stop data acquisition\n")
@@ -182,34 +430,57 @@ def main():
     print("Program completed successfully")
 #    input("Program completed successfully")
 
-            
+    """        
 
 # Function acquires and buffers live data from DAQ board and pipes it
 # to manipualte_data()
-def get_data(p_live, p_time, input_channels, sampling_rate, force_profile_force):
-    try:    
+def get_data(p_live, p_time, input_channels, output_channels, sampling_rate, force_profile_force_lat, force_profile_force_long, channelDict):
+    try:
+        
+
+        
+        
+        
         with nidaqmx.Task() as task0, nidaqmx.Task() as task1:
             
-            ## Configure tasks
-            ## Task 0 (Dev1/ao0)
-            num_channels0 = 1
-            num_samples0 = np.size(force_profile_force)
             
-            task0.ao_channels.add_ao_voltage_chan("Dev1/ao0")
+            # Configure output task (Task 0)
+            num_channels0 = len(output_channels)
+            num_samples0 = np.size(force_profile_force_lat)
+            for channel in output_channels:
+                task0.ao_channels.add_ao_voltage_chan(channel)
+            
             task0.ao_channels.all.ao_max = 10.0 #max_voltage
             task0.ao_channels.all.ao_min = -10.0 #min_voltage
+            
+            
             task0.timing.cfg_samp_clk_timing(sampling_rate,
                                              active_edge=nidaqmx.constants.Edge.RISING,
                                              sample_mode=nidaqmx.constants.AcquisitionType.FINITE,
                                              samps_per_chan=num_samples0)
+                
+            
             
             writer0 = AnalogMultiChannelWriter(task0.out_stream, auto_start=False)
-            buffer0 = np.reshape(force_profile_force, (1, num_samples0))
+            #buffer0 = np.reshape(force_profile_force, (1, num_samples0))
+            
+            buffer0 = np.vstack((force_profile_force_lat, force_profile_force_long))
+            
             writer0.write_many_sample(buffer0, timeout=60)
             
-            ## Task 1 (Dev1/ai0, Dev1/ai19, Dev1/ai3)
+            
+            #######################################################
+            #######################################################
+            
+            
+            
+            
+            
+            
+            # Configure input task (Task 1) (Dev1/ai0, Dev1/ai19, Dev1/ai3)
             num_channels1 = len(input_channels)
             num_samples1 = 10000 # Buffer size per channel
+            num_samples1 = 2 # Buffer size per channel
             
             for channel in input_channels:
                 task1.ai_channels.add_ai_voltage_chan(channel)
@@ -241,6 +512,9 @@ def get_data(p_live, p_time, input_channels, sampling_rate, force_profile_force)
                     p_live.send(data_live1)
                     p_time.send(times)
                     
+                    
+                   
+                    
                     if task0.is_task_done():
                         time.sleep(10)
                         break
@@ -264,9 +538,28 @@ def get_data(p_live, p_time, input_channels, sampling_rate, force_profile_force)
 # it to store_data()
 def manipulate_data(p_live, p_time, p_manip, p_plot, channelDict):
     try:  
+        
+        
+        
+        #while True:
+         #   for channel in channelDict: 
+          #      channelDict[channel].pipeb.send([0.25, 1.0, 2.0, 0.0, 0.25, 1.0, 2.0, 0.0])
+           # time.sleep(0.2)
+        
+        
+        
+        
         buffer_rate = 0.01 #100 data points per channel per sec
         counter = 0
         while True:
+            
+            """
+            for channel in channelDict: 
+                channelDict[channel].pipeb.send([0.25, 1.0, 2.0, 0.0, 0.25, 1.0, 2.0, 0.0])
+                print("sent")
+                time.sleep(0.2)
+            """
+            
             try:
                 # Unpackage the data
                 data_live = p_live.recv()
@@ -296,6 +589,7 @@ def manipulate_data(p_live, p_time, p_manip, p_plot, channelDict):
                         dummylist.append(channelDict[channel].dat[i])
                     data_manipulated.append([time_eval, *dummylist])
                     
+                    
                    
                     if time_eval >= time_next:
                         time_next = time_next + buffer_rate
@@ -312,14 +606,14 @@ def manipulate_data(p_live, p_time, p_manip, p_plot, channelDict):
         pass
 
 
-
+"""
 # Function calls Qt MainWindow (defined at top of program) to plot data
 def plot_data(p_plot, channelDict):
     app = QtWidgets.QApplication(sys.argv)
     w = MainWindow(p_plot, channelDict)
     w.show()
     sys.exit(app.exec_())
-    
+"""
 
 
 # Function connects to the server, recieves manipualted data from
@@ -356,15 +650,20 @@ def store_data(p_manip, p_kill, channel_names):
 
 
 # Function shows a pretty pinwheel
-def loading(msg):
+def loading(pipe, msg="Loading"):
     time.sleep(1)
     while True:
         try:
             for frame in cycle(["|","/","-","\\"]):
+                if pipe.poll():
+                    msg = pipe.recv()
+                    sys.stdout.write("\n")
+                
                 sys.stdout.write("\r" + msg + " " + frame)
                 sys.stdout.flush()
                 time.sleep(0.15)
             sys.stdout.write("\r")
+
         except KeyboardInterrupt:
             logging.warning("Pinwheel stopped via keyboard interruption")
     

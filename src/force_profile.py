@@ -12,7 +12,18 @@ import os
 import shutil
 import time
 
-def eval_force(time_idle=1.0, time_acc=0.05, time_ramp=0.2, sampling_rate=100000):
+#def eval_force(time_idle=1.0, time_acc=0.05, time_ramp=0.2, sampling_rate=100000):
+def eval_force(velocity=1.0, time_idle=1.0, time_acc=0.05, time_ramp=1.0, time_rest=1.0, sampling_rate=10.0):
+        
+    print(str(velocity))
+    print(str(time_idle))
+    print(str(time_acc))
+    print(str(time_ramp))
+    print(str(time_rest))
+    print(str(sampling_rate))
+    
+        
+#        time_idle=1.0, time_acc=0.05, time_ramp=0.2, sampling_rate=100000):
     logfolder = "../log/"
     outfolder = "../out/"
     tmpfolder = "../tmp/"
@@ -26,7 +37,7 @@ def eval_force(time_idle=1.0, time_acc=0.05, time_ramp=0.2, sampling_rate=100000
     logging.info(currentDT.strftime("%d/%m/%Y, %H:%M:%S"))  
     
     dt = 1.0 / sampling_rate
-    velocity = 1.0 #mm/s?
+    #velocity = 1.0 #mm/s
     df = 0.019 # FWHM I think
     f0 = 4.0#8.026 # Resonant frequency I think
     k = 0.825 # Spring constant I think
@@ -46,24 +57,31 @@ def eval_force(time_idle=1.0, time_acc=0.05, time_ramp=0.2, sampling_rate=100000
     if Decimal(str(time_ramp)) % Decimal(str(dt)) != 0:
         print("time_ramp is not a multiple of dt")
         exit()
+        
+    if Decimal(str(time_rest)) % Decimal(str(dt)) != 0:
+        print("time_rest is not a multiple of dt")
+        exit()
     
     # Times start at 0, but will be corrected later to reflect the true times
     times_idle = np.arange(0.0, time_idle+dt, dt)
     times_acc = np.arange(0.0, time_acc+dt, dt)
     times_ramp = np.arange(0.0, time_ramp+dt, dt)
     times_dec = times_acc
-    times_rest = times_idle
+    times_rest = np.arange(0.0, time_rest+dt, dt)
+   # times_rest = times_idle
         
     len_times_idle = len(times_idle)
     len_times_acc = len(times_acc)
     len_times_ramp = len(times_ramp)
+    len_times_rest = len(times_rest)
     
     # x is the evaluated position of equilibrium, x = F / (mw^2)    
     xs_idle = np.zeros(len_times_idle)
     xs_acc = np.zeros(len_times_acc)
     xs_ramp = np.zeros(len_times_ramp)
     xs_dec = xs_acc
-    xs_rest = xs_idle
+    #xs_rest = xs_idle
+    xs_rest = np.zeros(len_times_rest)
       
     for i in range(len_times_acc):
         val = velocity * time_acc * (1.0 - times_acc[i] / (time_acc * 2.0)) * (times_acc[i] / time_acc)**3.0
@@ -76,14 +94,30 @@ def eval_force(time_idle=1.0, time_acc=0.05, time_ramp=0.2, sampling_rate=100000
     xs_dec = xs_acc[::-1]
     xs_dec = xs_dec * -1.0
 
-   
+    
+    # Find the derivatives
+    dx_idle = np.zeros(len_times_idle)
+    dx_acc = derivative(xs_acc, dt)
+    dx_ramp = derivative(xs_ramp, dt)
+    dx_dec = dx_acc[::-1] * -1#.0
+    dx_rest = np.zeros(len_times_rest)
+    
+    # Find the double derivatives
+    ddx_idle = dx_idle
+    ddx_acc = derivative(dx_acc, dt)
+    ddx_ramp = derivative(dx_ramp, dt)
+    ddx_dec = ddx_acc[::-1] * -1#.0
+    ddx_rest = dx_rest
+    
+    
+    
     # Find the offsets and remove discontinuities
     xs_idle, xs_acc = ArrayLink(xs_idle, xs_acc)
     xs_acc, xs_ramp = ArrayLink(xs_acc, xs_ramp)
     xs_ramp, xs_dec = ArrayLink(xs_ramp, xs_dec)
     xs_dec, xs_rest = ArrayLink(xs_dec, xs_rest)
     xs_tot = np.concatenate((xs_idle, xs_acc, xs_ramp, xs_dec, xs_rest), axis=None)
-     
+    
     times_idle, times_acc = ArrayLink(times_idle, times_acc)
     times_acc, times_ramp = ArrayLink(times_acc, times_ramp)
     times_ramp, times_dec = ArrayLink(times_ramp, times_dec)
@@ -92,9 +126,23 @@ def eval_force(time_idle=1.0, time_acc=0.05, time_ramp=0.2, sampling_rate=100000
     dec = Decimal(str(dt)).as_tuple().exponent * -1
     times_tot = np.round(times_tot, dec)
  
-    # Find the derivatives    
+    dx_idle, dx_acc = ArrayLink(dx_idle, dx_acc)
+    
+    
+    
+    
+    #mask = xs_tot > 0.0
+    #xs_masked = xs_tot[mask]
+    
+    
+    time1 = time.time()
     dx = derivative(xs_tot, dt)
     ddx = derivative(dx, dt)
+    time2 = time.time()
+    
+    time21 = time2 - time1
+  #  print(str(time21))
+   # input()
     
     dd = [2.0 * np.pi * df * x for x in dx]
     pp = [(2.0 * np.pi * f0)**2.0 * x for x in xs_tot]
@@ -120,7 +168,7 @@ def eval_force(time_idle=1.0, time_acc=0.05, time_ramp=0.2, sampling_rate=100000
     ax.plot(times_tot, xs_tot)
     #plt.show()
     path = outfolder + "force_profile.png"
-    fig.savefig(path, bbox_inches="tight", dpi=900)
+    fig.savefig(path, bbox_inches="tight", dpi=600)
     #input()
 
     #np.ravel(times_tot)
@@ -152,11 +200,20 @@ def derivative(xs, h):
     
     for i in range(len(xs)):
         if i == 0:
-            val = (xs[i+1] - xs[i]) / h
+            if xs[i] == 0.0 and xs[i+1] == 0.0:
+                val = 0.0
+            else:
+                val = (xs[i+1] - xs[i]) / h
         elif i==fin:
-            val = (xs[i] - xs[i-1]) / h
+            if xs[i] == 0.0 and xs[i-1] == 0.0:
+                val = 0.0
+            else:
+                val = (xs[i] - xs[i-1]) / h
         else:
-            val = (xs[i+1] - xs[i-1]) / (2.0 * h)
+            if xs[i+1] == 0.0 and xs[i-1] == 0.0:
+                val = 0.0
+            else:
+                val = (xs[i+1] - xs[i-1]) / (2.0 * h)
         dx.append(val)
     return dx
     
@@ -165,6 +222,3 @@ def derivative(xs, h):
 # Run
 if __name__ == "__main__":
     eval_force()
-
-
-  
