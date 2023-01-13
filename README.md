@@ -28,7 +28,7 @@
    - [X] Store force profile in MySQL database
    - [X] Implement multiprocessing
    - [X] Listen to user input and Process 3 for kill signal
-   - [ ] Implement GUI
+   - [X] Implement GUI
    - [X] Implement customisable number of input channels
 
  * Process 1:
@@ -47,7 +47,7 @@
 
  * Process 3:
 
-   - [X] Store manipulated data in a MySQL database
+   - [ ] Store manipulated data in a MySQL database
    - [X] Send signal to main program once finished
 
  * Process 4:
@@ -160,8 +160,10 @@
 
  * GUI checks if there is data to be received before trying to receive it
 
- * Corrections made to GUI input parameters checks
+ * Checks added to GUI input parameters
 
  * force_profile.py slightly optimsed (derivative function applied only to non-zero part of profile)
+
+ * Added output coil plot functionality to GUI
 
 </sub>

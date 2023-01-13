@@ -366,37 +366,78 @@ class RampSettingsLayout(QVBoxLayout):
                         
         
 class OutputGraphLayout(QVBoxLayout):
-    def __init__(self, parent=None, *args, **kwargs):
+    def __init__(self, output_channelDict, pipe_output, signal_start, parent=None, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
-        
+        self.output_channelDict = output_channelDict
+        self.pipe_output = pipe_output
+        self.signal_start = signal_start
 
-        #=====================================================================
-        # Layout output graphs
+        # Create a plot for each input channel
+        for channel in self.output_channelDict:
+            self.output_channelDict[channel].plot = pg.PlotWidget(title=self.output_channelDict[channel].name)
+            self.output_channelDict[channel].plot.setLabel('left', 'Voltage (V)')
+            self.output_channelDict[channel].plot.setLabel('bottom', 'Elapsed Time (s)')
+            self.output_channelDict[channel].plot.addLegend()
+            self.output_channelDict[channel].plot.data = []
+            self.elapsed_time = []
+            self.output_channelDict[channel].plot.line = self.output_channelDict[channel].plot.plot(self.elapsed_time,
+                                                                                                    self.output_channelDict[channel].plot.data)
+                                                                                                    #,name=self.output_channelDict[channel].name)
+            self.addWidget(self.output_channelDict[channel].plot, 1)
+            
         
-        self.addWidget(pg.PlotWidget(),1)
-        self.addWidget(pg.PlotWidget(),1)
-        #=====================================================================
+        
+        self.counter = 0
+        self.timer = QTimer()
+        self.timer.setInterval(20) # 4 ms = 250 refreshes per sec
+        self.timer.timeout.connect(self.update_plots)
+        self.timer.start()
+    
+    
+    
+    def update_plots(self):
+        if self.signal_start.signal:
+            if self.pipe_output.poll():
+                data = self.pipe_output.recv()
+                if self.counter == 0:
+                    self.time_start = data[0]
+                    self.counter = 1
+                elapsed_time = data[0] - self.time_start
+                self.elapsed_time.append(elapsed_time)
+                
+                
+                for channel in self.output_channelDict:
+                    self.output_channelDict[channel].plot.data.append(data[self.output_channelDict[channel].index])
+                    
+                    
+                    if len(self.elapsed_time) > 100:
+                        self.elapsed_time = self.elapsed_time[1:]
+                    
+                    if len(self.output_channelDict[channel].plot.data) > 100:
+                        self.output_channelDict[channel].plot.data = self.output_channelDict[channel].plot.data[1:]
+                    self.output_channelDict[channel].plot.line.setData(self.elapsed_time, self.output_channelDict[channel].plot.data)
+        
         
 
 class InputGraphLayout(QVBoxLayout):
-    def __init__(self, channelDict, pipe_input, signal_start, parent=None, *args, **kwargs):
+    def __init__(self, input_channelDict, pipe_input, signal_start, parent=None, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
         self.pipe_input = pipe_input
         self.signal_start = signal_start
-        self.channelDict = channelDict
+        self.input_channelDict = input_channelDict
         
         
         # Create a plot for each input channel
-        for channel in self.channelDict:
-            self.channelDict[channel].plot = pg.PlotWidget()
-            self.channelDict[channel].plot.setLabel('left', 'Voltage (V)')
-            self.channelDict[channel].plot.setLabel('bottom', 'Elapsed Time (s)')
-            self.channelDict[channel].plot.addLegend()
-            self.channelDict[channel].plot.data = []
+        for channel in self.input_channelDict:
+            self.input_channelDict[channel].plot = pg.PlotWidget(title=self.input_channelDict[channel].name)
+            self.input_channelDict[channel].plot.setLabel('left', 'Voltage (V)')
+            self.input_channelDict[channel].plot.setLabel('bottom', 'Elapsed Time (s)')
+            self.input_channelDict[channel].plot.addLegend()
+            self.input_channelDict[channel].plot.data = []
             self.elapsed_time = []
-            self.channelDict[channel].plot.line = self.channelDict[channel].plot.plot(self.elapsed_time,
-                                                                                      self.channelDict[channel].plot.data)
-            self.addWidget(self.channelDict[channel].plot, 1)
+            self.input_channelDict[channel].plot.line = self.input_channelDict[channel].plot.plot(self.elapsed_time,
+                                                                                      self.input_channelDict[channel].plot.data)
+            self.addWidget(self.input_channelDict[channel].plot, 1)
             
         
         
@@ -419,18 +460,18 @@ class InputGraphLayout(QVBoxLayout):
                 self.elapsed_time.append(elapsed_time)
                 
                 
-                for channel in self.channelDict:
-                    self.channelDict[channel].plot.data.append(data[self.channelDict[channel].index])
+                for channel in self.input_channelDict:
+                    self.input_channelDict[channel].plot.data.append(data[self.input_channelDict[channel].index])
                     
                    # print("len")
-                    #print(str(len(self.channelDict[channel].plot.data)))
+                    #print(str(len(self.input_channelDict[channel].plot.data)))
                     
                     if len(self.elapsed_time) > 100:
                         self.elapsed_time = self.elapsed_time[1:]
                     
-                    if len(self.channelDict[channel].plot.data) > 100:
-                        self.channelDict[channel].plot.data = self.channelDict[channel].plot.data[1:]
-                    self.channelDict[channel].plot.line.setData(self.elapsed_time, self.channelDict[channel].plot.data)
+                    if len(self.input_channelDict[channel].plot.data) > 100:
+                        self.input_channelDict[channel].plot.data = self.input_channelDict[channel].plot.data[1:]
+                    self.input_channelDict[channel].plot.line.setData(self.elapsed_time, self.input_channelDict[channel].plot.data)
         
 
                
@@ -442,19 +483,21 @@ class SignalStart():
 
 
 class Layout(QGridLayout):
-    def __init__(self, channelDict, pipe_param, pipe_input, signal_start, pipe_signal, parent=None, *args, **kwargs):
+    def __init__(self, input_channelDict, output_channelDict, pipe_param, pipe_input, pipe_output, signal_start, pipe_signal, parent=None, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
-        self.channelDict = channelDict
+        self.input_channelDict = input_channelDict
+        self.output_channelDict = output_channelDict
         self.pipe_param = pipe_param
         self.signal_start = signal_start
         self.pipe_signal = pipe_signal
         self.pipe_input = pipe_input
+        self.pipe_output = pipe_output
         
         
         layout_fsettings = FileSettingsLayout()
         layout_ramp = RampSettingsLayout(self.pipe_param, self.signal_start, self.pipe_signal)
-        layout_output = OutputGraphLayout()
-        layout_input = InputGraphLayout(self.channelDict, self.pipe_input, self.signal_start)
+        layout_output = OutputGraphLayout(self.output_channelDict, self.pipe_output, self.signal_start)
+        layout_input = InputGraphLayout(self.input_channelDict, self.pipe_input, self.signal_start)
         
                 
         
@@ -467,13 +510,15 @@ class Layout(QGridLayout):
 
 
 class MainWindow(QMainWindow):
-    def __init__(self, channelDict, pipe_param, pipe_input, signal_start, pipe_signal, parent=None, *args, **kwargs):
+    def __init__(self, input_channelDict, output_channelDict, pipe_param, pipe_input, pipe_output, signal_start, pipe_signal, parent=None, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
-        self.channelDict = channelDict
+        self.input_channelDict = input_channelDict
+        self.output_channelDict = output_channelDict
         self.pipe_param = pipe_param
         self.signal_start = signal_start
         self.pipe_signal = pipe_signal
         self.pipe_input = pipe_input
+        self.pipe_output = pipe_output
         self.title = "GUI Demo"
         self.setGeometry(40, 40, 1200, 625)
         self.initUI()
@@ -481,7 +526,7 @@ class MainWindow(QMainWindow):
     
     def initUI(self):
         self.setWindowTitle(self.title)
-        grid_layout = Layout(self.channelDict, self.pipe_param, self.pipe_input, self.signal_start, self.pipe_signal)        
+        grid_layout = Layout(self.input_channelDict, self.output_channelDict, self.pipe_param, self.pipe_input, self.pipe_output, self.signal_start, self.pipe_signal)        
         widget = QWidget()
         widget.setLayout(grid_layout)
         self.setCentralWidget(widget)
@@ -489,9 +534,9 @@ class MainWindow(QMainWindow):
         
         
 
-def start_gui(pipeDict, pipe_param, pipe_input, signal_start, pipe_signal):
+def start_gui(input_channelDict, output_channelDict, pipe_param, pipe_input, pipe_output, signal_start, pipe_signal):
     app = QApplication(sys.argv)
-    ex = MainWindow(pipeDict, pipe_param, pipe_input, signal_start, pipe_signal)
+    ex = MainWindow(input_channelDict, output_channelDict, pipe_param, pipe_input, pipe_output, signal_start, pipe_signal)
     sys.exit(app.exec_())
 
 if __name__ == '__main__':

@@ -70,8 +70,8 @@ def main():
     
     
     # Define all input channels, including pipes for sending and receiving data
-    input_channels = ["Dev1/ai0", "Dev1/ai19", "Dev1/ai3", "Dev1/ai13", "Dev1/ai1"]
-    input_names = ["ai0", "ai19", "ai3", "ai13", "ai1"]
+    input_channels = ["Dev1/ai17", "Dev1/ai18", "Dev1/ai19", "Dev1/ai20", "Dev1/ai21"]
+    input_names = ["ai17", "ai18", "ai19", "ai20", "ai21"]
     input_channelDict = {channel: Channel(channel=channel) for channel in input_channels}
     index = 0
     for channel in input_channelDict:
@@ -83,8 +83,8 @@ def main():
    
     # Define all output channels, including pipes for sending and receiving data
     output_channels = ["Dev1/ao0", "Dev1/ao1"]
-    measured_channels = ["Dev1/a17", "Dev1/a18"]
-    output_names = ["ao0", "ao1"]
+    measured_channels = ["Dev1/ai3", "Dev1/ai0"]
+    output_names = ["Lateral Coils\nao0/ai3", "Longitudinal Coils\nao1/ai0"]
     output_channelDict = {channel: Channel(channel=channel, measured=measured) for channel in output_channels for measured in measured_channels}
     index = 0
     for channel in output_channelDict:
@@ -106,7 +106,7 @@ def main():
 
     # Start GUI
     processlist = []
-    proc0 = Process(target=start_gui, args=(input_channelDict, pipe_param1b, pipe_inputa, signal_start, pipe_signalb))
+    proc0 = Process(target=start_gui, args=(input_channelDict, output_channelDict, pipe_param1b, pipe_inputa, pipe_outputa, signal_start, pipe_signalb))
     processlist.append(proc0)
     proc0.start()
     
@@ -140,8 +140,8 @@ def main():
     
     # Create processes
     processlist2 = []
-    processlist2.append(Process(target=get_data, args=(pipe_liveb, pipe_timeb, input_channels, output_channels, sampling_rate, force_profile_force_lat, force_profile_force_long, input_channelDict, )))
-    processlist2.append(Process(target=manipulate_data, args=(pipe_livea, pipe_timea, pipe_manipb, pipe_inputb, input_channelDict, )))
+    processlist2.append(Process(target=get_data, args=(pipe_liveb, pipe_timeb, input_channels, measured_channels, output_channels, sampling_rate, force_profile_force_lat, force_profile_force_long, input_channelDict, )))
+    processlist2.append(Process(target=manipulate_data, args=(pipe_livea, pipe_timea, pipe_manipb, pipe_inputb, pipe_outputb, input_channelDict, output_channelDict, )))
     processlist2.append(Process(target=store_data, args=(pipe_manipa, pipe_killb, input_names, )))
  
         
@@ -180,8 +180,8 @@ def main():
             
             # Recreate 'new' processes (processes cannot be reused)
             processlist2 = []
-            processlist2.append(Process(target=get_data, args=(pipe_liveb, pipe_timeb, input_channels, output_channels, sampling_rate, force_profile_force_lat, force_profile_force_long, input_channelDict, )))
-            processlist2.append(Process(target=manipulate_data, args=(pipe_livea, pipe_timea, pipe_manipb, pipe_inputb, input_channelDict, )))
+            processlist2.append(Process(target=get_data, args=(pipe_liveb, pipe_timeb, input_channels, measured_channels, output_channels, sampling_rate, force_profile_force_lat, force_profile_force_long, input_channelDict, )))
+            processlist2.append(Process(target=manipulate_data, args=(pipe_livea, pipe_timea, pipe_manipb, pipe_inputb, pipe_outputb, input_channelDict, output_channelDict, )))
             processlist2.append(Process(target=store_data, args=(pipe_manipa, pipe_killb, input_names, )))
             
             
@@ -292,7 +292,7 @@ def main():
 
 # Function acquires and buffers live data from DAQ board and pipes it
 # to manipualte_data()
-def get_data(p_live, p_time, input_channels, output_channels, sampling_rate, force_profile_force_lat, force_profile_force_long, channelDict):
+def get_data(p_live, p_time, input_channels, measured_channels, output_channels, sampling_rate, force_profile_force_lat, force_profile_force_long, channelDict):
     try:
         with nidaqmx.Task() as task0, nidaqmx.Task() as task1:
             
@@ -315,10 +315,7 @@ def get_data(p_live, p_time, input_channels, output_channels, sampling_rate, for
             
             
             writer0 = AnalogMultiChannelWriter(task0.out_stream, auto_start=False)
-            #buffer0 = np.reshape(force_profile_force, (1, num_samples0))
-            
             buffer0 = np.vstack((force_profile_force_lat, force_profile_force_long))
-            
             writer0.write_many_sample(buffer0, timeout=60)
             
             
@@ -331,11 +328,14 @@ def get_data(p_live, p_time, input_channels, output_channels, sampling_rate, for
             
             
             # Configure input task (Task 1) (Dev1/ai0, Dev1/ai19, Dev1/ai3)
-            num_channels1 = len(input_channels)
+            num_channels1 = len(input_channels) + len(measured_channels)
             num_samples1 = 10000 # Buffer size per channel
             num_samples1 = 2 # Buffer size per channel
             
             for channel in input_channels:
+                task1.ai_channels.add_ai_voltage_chan(channel)
+                
+            for channel in measured_channels:
                 task1.ai_channels.add_ai_voltage_chan(channel)
             
             task1.ai_channels.all.ai_max = 10.0 #max_voltage
@@ -386,7 +386,7 @@ def get_data(p_live, p_time, input_channels, output_channels, sampling_rate, for
 
 # Function recieves buffered data from get_data(), restructures it and pipes
 # it to store_data()
-def manipulate_data(p_live, p_time, p_manip, p_plot, channelDict):
+def manipulate_data(p_live, p_time, p_manip, p_inputplot, p_outputplot, input_channelDict, output_channelDict):
     try:
         buffer_rate = 0.1 #10 data points per channel per sec
         counter = 0
@@ -396,8 +396,12 @@ def manipulate_data(p_live, p_time, p_manip, p_plot, channelDict):
                 data_live = p_live.recv()
                 time_data = p_time.recv()
                 
-                for channel in channelDict:
-                    channelDict[channel].dat = data_live[:,channelDict[channel].index - 1]
+                for channel in input_channelDict:
+                    input_channelDict[channel].dat = data_live[:, input_channelDict[channel].index - 1]
+                
+                size = len(input_channelDict)
+                for channel in output_channelDict:
+                    output_channelDict[channel].dat = data_live[:, size + output_channelDict[channel].index - 1]
                 
                 time_start = time_data[0]
                 time_end = time_data[1]
@@ -408,7 +412,8 @@ def manipulate_data(p_live, p_time, p_manip, p_plot, channelDict):
                 
                 
                 # Restructure the data
-                data_manipulated = []
+                input_man = []
+                output_man = []
                 size = len(data_live)
                 time_int = (time_end - time_start) / size  
                 
@@ -416,17 +421,22 @@ def manipulate_data(p_live, p_time, p_manip, p_plot, channelDict):
                 for i in range(size):
                     time_eval = time_start + time_int * i
                     dummylist = []
-                    for channel in channelDict:
-                        dummylist.append(channelDict[channel].dat[i])
-                    data_manipulated.append([time_eval, *dummylist])
+                    for channel in input_channelDict:
+                        dummylist.append(input_channelDict[channel].dat[i])
+                    input_man.append([time_eval, *dummylist])
+
+                    dummylist = []
+                    for channel in output_channelDict:
+                        dummylist.append(output_channelDict[channel].dat[i])
+                    output_man.append([time_eval, *dummylist])
                     
                     
-                   
                     if time_eval >= time_next:
                         time_next = time_next + buffer_rate
-                        p_plot.send(data_manipulated[i])
+                        p_inputplot.send(input_man[i])
+                        p_outputplot.send(output_man[i])
                 
-                p_manip.send(data_manipulated)
+                p_manip.send(input_man) ################################################### STILL NEED TO SEND OUTPUT TO STOREDATA
                
             except:
                 print("Error in data manipulation")
