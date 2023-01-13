@@ -12,23 +12,37 @@ import os
 import shutil
 import time
 
-#def eval_force(time_idle=1.0, time_acc=0.05, time_ramp=0.2, sampling_rate=100000):
-def eval_force(velocity=1.0, time_idle=1.0, time_acc=0.05, time_ramp=1.0, time_rest=1.0, sampling_rate=10.0):
-        
+def eval_force(velocity=1.0, time_idle=1.0, time_acc=1.0, time_ramp=1.0, time_rest=1.0, sampling_rate=100000.0):
+    """    
     print(str(velocity))
     print(str(time_idle))
     print(str(time_acc))
     print(str(time_ramp))
     print(str(time_rest))
     print(str(sampling_rate))
+    """
     
-        
-#        time_idle=1.0, time_acc=0.05, time_ramp=0.2, sampling_rate=100000):
+    time0 = time.time()
+    
+    
     logfolder = "../log/"
     outfolder = "../out/"
     tmpfolder = "../tmp/"
     if os.path.exists(tmpfolder) and os.path.isdir(tmpfolder):
+        try:
             shutil.rmtree(tmpfolder)
+            logging.info("Removed temporary folder " + str(tmpfolder))
+        except:
+            logging.warning("Failed to remove temporary folder " + str(tmpfolder))
+            logging.warning("Trying again")
+            try:
+                time.sleep(0.5)
+                shutil.rmtree(tmpfolder)
+                logging.info("Removed folder " + str(tmpfolder))
+            except:
+                logging.warning("Failed to remove temporary folder " + str(tmpfolder))
+                print("Unable to remove tmpfolder")
+            
     os.makedirs(outfolder, exist_ok=True)
     os.makedirs(logfolder, exist_ok=True)
     os.makedirs(tmpfolder, exist_ok=True)
@@ -94,21 +108,42 @@ def eval_force(velocity=1.0, time_idle=1.0, time_acc=0.05, time_ramp=1.0, time_r
     xs_dec = xs_acc[::-1]
     xs_dec = xs_dec * -1.0
 
-    
-    # Find the derivatives
+    time9 = time.time()
+    time90 = time9 - time0
+    print(str(time90))
+
+    # Find the derivatives (This approach avoids evaluating derivatives of zero arrays)
+    time1 = time.time()
     dx_idle = np.zeros(len_times_idle)
     dx_acc = derivative(xs_acc, dt)
     dx_ramp = derivative(xs_ramp, dt)
-    dx_dec = dx_acc[::-1] * -1#.0
+    dx_dec = dx_acc[::-1]
+    dx_dec = [dx * -1.0 for dx in dx_dec]
     dx_rest = np.zeros(len_times_rest)
+    
+    # Find offsets and remove discontinuities
+    dx_idle, dx_acc = ArrayLink(dx_idle, dx_acc)
+    dx_acc, dx_ramp = ArrayLink(dx_acc, dx_ramp)
+    dx_ramp, dx_dec = ArrayLink(dx_ramp, dx_dec)
+    dx_dec, dx_rest = ArrayLink(dx_dec, dx_rest)
+    dx = np.concatenate((dx_idle, dx_acc, dx_ramp, dx_dec, dx_rest), axis=None)
     
     # Find the double derivatives
     ddx_idle = dx_idle
     ddx_acc = derivative(dx_acc, dt)
     ddx_ramp = derivative(dx_ramp, dt)
-    ddx_dec = ddx_acc[::-1] * -1#.0
+    ddx_dec = ddx_acc[::-1]
+    ddx_dec = [ddx * -1.0 for ddx in ddx_dec]
     ddx_rest = dx_rest
+    ddx = np.concatenate((ddx_idle, ddx_acc, ddx_ramp, ddx_dec, ddx_rest), axis=None)
     
+    time8 = time.time()
+    time89 = time8 - time9
+    print(str(time89))
+    
+    
+    
+    time2 = time.time()
     
     
     # Find the offsets and remove discontinuities
@@ -126,41 +161,47 @@ def eval_force(velocity=1.0, time_idle=1.0, time_acc=0.05, time_ramp=1.0, time_r
     dec = Decimal(str(dt)).as_tuple().exponent * -1
     times_tot = np.round(times_tot, dec)
  
-    dx_idle, dx_acc = ArrayLink(dx_idle, dx_acc)
+    time7 = time.time()
+    time78 = time7 - time8
+    print(str(time78))
     
+    #time1 = time.time()
+    #dx = derivative(xs_tot, dt)
+    #ddx = derivative(dx, dt)
+    #time2 = time.time()
     
-    
-    
-    #mask = xs_tot > 0.0
-    #xs_masked = xs_tot[mask]
-    
-    
-    time1 = time.time()
-    dx = derivative(xs_tot, dt)
-    ddx = derivative(dx, dt)
-    time2 = time.time()
-    
-    time21 = time2 - time1
-  #  print(str(time21))
-   # input()
+    #time21 = time2 - time1
+    #print(str(time21))
+    #input()
     
     dd = [2.0 * np.pi * df * x for x in dx]
     pp = [(2.0 * np.pi * f0)**2.0 * x for x in xs_tot]
     alpha = (2.0 * np.pi * f0)**2.0 * k
  
+    time6 = time.time()
+    time67 = time6 - time7
+    print(str(time67))
  
     output = []    
     for i in range(len(ddx)):
         output.append((ddx[i] + dd[i] + pp[i]) / alpha)
+        
+    time5 = time.time()
+    time56 = time5 - time6
+    print(str(time56))
+        
     np.set_printoptions(threshold=sys.maxsize)
     profile = np.array(output, dtype=np.float64)
     
     # Print to file
-
     with open((tmpfolder + "force_profile.csv"), "w") as f:
         f.write("Seconds, Profile, Position\n")
         for i in range(len(profile)):
             f.write(str(times_tot[i]) + ", " + str(profile[i])+ ", " + str(xs_tot[i]) + "\n")
+
+    time4 = time.time()
+    time45 = time4 - time5
+    print(str(time45))
 
     fig = plt.figure()
     ax = fig.add_subplot(1,1,1)
@@ -173,6 +214,10 @@ def eval_force(velocity=1.0, time_idle=1.0, time_acc=0.05, time_ramp=1.0, time_r
 
     #np.ravel(times_tot)
     #np.ravel(profile)
+
+    time1 = time.time()
+    time10 = time1 - time0
+   # input(str(time10))
 
     return times_tot, profile, xs_tot
 

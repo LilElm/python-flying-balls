@@ -144,12 +144,24 @@
 
  **12-Jan-22**
 
- * GUI uploaded
+ * GUI progress uploaded
 
  * GUI can plot real-time data
 
  * GUI needs to automatically stop once data acquisition is over
 
    * If GUI tries to receive data and no data is sent, the program will not respond
+
+ **13-Jan-22**
+
+ * GUI can stop/start, even after many stop button presses
+
+ * GUI needs stop button pressed before starting again
+
+ * GUI checks if there is data to be received before trying to receive it
+
+ * Corrections made to GUI input parameters checks
+
+ * force_profile.py slightly optimsed (derivative function applied only to non-zero part of profile)
 
 </sub>

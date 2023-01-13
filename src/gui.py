@@ -22,7 +22,7 @@ from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import QTimer, pyqtSignal, QObject
 import pyqtgraph as pg
 
-from force_profile_dummy import force_profile
+#from force_profile_dummy import force_profile
 
 #from main import main
 
@@ -103,10 +103,10 @@ class CoilLayout(QGridLayout):
 
             self.labelDict = {}
             self.labelDict[QLabel("Velocity\n(mm/s)")] = [1, 1, 1, 1]
-            self.labelDict[QLabel("Time Idle\n(ms)")] = [3, 0, 1, 1]
-            self.labelDict[QLabel("Time Acc\n(ms)")] = [3, 1, 1, 1]
-            self.labelDict[QLabel("Time Ramp\n(ms)")] = [5, 0, 1, 1]
-            self.labelDict[QLabel("Time Rest\n(ms)")] = [5, 1, 1, 1]
+            self.labelDict[QLabel("Time Idle\n(s)")] = [3, 0, 1, 1]
+            self.labelDict[QLabel("Time Acc\n(s)")] = [3, 1, 1, 1]
+            self.labelDict[QLabel("Time Ramp\n(s)")] = [5, 0, 1, 1]
+            self.labelDict[QLabel("Time Rest\n(s)")] = [5, 1, 1, 1]
             
             
             self.textboxDict = {}
@@ -215,17 +215,24 @@ class RampSettingsLayout(QVBoxLayout):
         self.signal_start.signal = True
         
         # Get sampling rate
-        self.sampling_rate = float(self.textbox_srate.text())
+       # self.sampling_rate = float(self.textbox_srate.text())
+        self.sampling_rate = self.textbox_srate.text()
         
         # Read all textboxes and return the values
         for coil in self.coil_layout_dict:
             self.coil_layout_dict[coil].textboxValuesDict = {}
             for textbox in self.coil_layout_dict[coil].textboxDict:
-                self.coil_layout_dict[coil].textboxValuesDict[str(coil) + " " + str(textbox.placeholderText())] = float(textbox.text())
-            
+                #try:
+                 #   self.coil_layout_dict[coil].textboxValuesDict[str(coil) + " " + str(textbox.placeholderText())] = float(textbox.text())
+                #except:
+                 #   print("Please enter a valid " + str(textbox))
+                  #  error_message.append("Please enter a valid " + str(textbox))
+                   # error_code = 1
+                self.coil_layout_dict[coil].textboxValuesDict[str(coil) + " " + str(textbox.placeholderText())] = textbox.text()
+        
         
         # Check the validity of each input value
-        success = self.check_input()
+        success = self.check_input()#error_code, error_message)
         
         # If valid, send input parameters through pipe_params to main.py
         # From there, force_profile.py will be called with the parameters
@@ -256,26 +263,92 @@ class RampSettingsLayout(QVBoxLayout):
         
         error_code = 0
         error_message = []
+        
+        
+        
+        # Check if sampling rate is a float
         try:
-            dt = 1.0 / float(self.sampling_rate)
+            self.sampling_rate = float(self.sampling_rate)
+            dt = 1.0 / self.sampling_rate
         except:
             print("Please enter a valid sampling rate.")
             error_message.append("Please enter a valid sampling rate.")
             error_code = 1
-            
+        
+        
+        # Check if sampling_rate is negative
+        if error_code == 0:
+            if self.sampling_rate < 0.0:
+                print("Please enter a valid sampling rate.")
+                error_message.append("Please enter a valid sampling rate.")
+                error_code = 1
+              
+        
+        
+        # Check if values are floats
         if error_code == 0:
             for coil in self.coil_layout_dict:
                 for textbox in self.coil_layout_dict[coil].textboxValuesDict:
-                    val = self.coil_layout_dict[coil].textboxValuesDict[textbox]
-                    try:
-                        if Decimal(str(val)) % Decimal(str(dt)) != 0:
-                            print(str(textbox) + " is not a multiple of dt")
-                            error_message.append(str(textbox) + " is not a multiple of dt")
+                    if error_code == 0:
+                        val = self.coil_layout_dict[coil].textboxValuesDict[textbox]
+                        try:
+                            self.coil_layout_dict[coil].textboxValuesDict[textbox] = float(val)
+                        except:
+                            print("Please enter a valid " + str(textbox))
+                            error_message.append("Please enter a valid " + str(textbox))
                             error_code = 1
-                    except:
-                        print("Please enter a valid " + str(textbox))
-                        error_message.append("Please enter a valid " + str(textbox))
-                        error_code = 1
+                    
+        
+        
+        # Check if values are positive    
+        if error_code == 0:
+            for coil in self.coil_layout_dict:
+                for textbox in self.coil_layout_dict[coil].textboxValuesDict:
+                    if error_code == 0:
+                        val = self.coil_layout_dict[coil].textboxValuesDict[textbox]
+                        if val < 0.0:
+                            print(str(textbox) + " is negative")
+                            error_message.append(str(textbox) + " is negative")
+                            error_code = 1
+                      
+                        
+        # Check if coil times are the same
+        if error_code == 0:
+            tot_times = []
+            for coil in self.coil_layout_dict:
+                time_sum = 0
+                for textbox in self.coil_layout_dict[coil].textboxValuesDict:
+                    if "Velocity" not in textbox:
+                        val = self.coil_layout_dict[coil].textboxValuesDict[textbox]
+                        if "Acc" in textbox:
+                            val = val * 2.0
+                        time_sum = time_sum + val
+                tot_times.append(time_sum)
+            
+            res = all(t == tot_times[0] for t in tot_times)
+            if not res:
+                print("The total coil times are not equal. Consider changing the 'rest' times")
+                error_message.append("The total coil times are not equal. Consider changing the 'rest' times")
+                error_code = 1
+                
+            
+        # Check if times are compatible with the sampling rate
+        if error_code == 0:
+            for coil in self.coil_layout_dict:
+                for textbox in self.coil_layout_dict[coil].textboxValuesDict:
+                    if "Velocity" not in textbox:
+                        val = self.coil_layout_dict[coil].textboxValuesDict[textbox]
+                        try:
+                            if Decimal(str(val)) % Decimal(str(dt)) != 0:
+                                print(str(textbox) + " is not a multiple of dt")
+                                error_message.append(str(textbox) + " is not a multiple of dt")
+                                error_code = 1
+                        except:
+                            print("Please enter a valid " + str(textbox))
+                            error_message.append("Please enter a valid " + str(textbox))
+                            error_code = 1
+                        
+                        
     
         if error_code == 1:
             msg = QMessageBox()
@@ -297,36 +370,23 @@ class OutputGraphLayout(QVBoxLayout):
         super().__init__(parent, *args, **kwargs)
         
 
-        #======================================================
+        #=====================================================================
         # Layout output graphs
         
         self.addWidget(pg.PlotWidget(),1)
         self.addWidget(pg.PlotWidget(),1)
-        #==============================================================
-
+        #=====================================================================
+        
 
 class InputGraphLayout(QVBoxLayout):
-    def __init__(self, channelDict, pipe_plot, signal_start, parent=None, *args, **kwargs):
+    def __init__(self, channelDict, pipe_input, signal_start, parent=None, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
-        
-
-        self.pipe_plot = pipe_plot
+        self.pipe_input = pipe_input
         self.signal_start = signal_start
         self.channelDict = channelDict
-        #==============================================================
-        # Layout input graphs
-        
-        # input widget 1
-        #self.inputWidget1 = pg.PlotWidget()
         
         
-        
-        
-        
-        
-        #plotlist = ["inputWidget1", "inputWidget2", "inputWidget3", "inputWidget4", "inputWidget5"]
-        #self.plotDict = {plot: pg.PlotWidget(plot=plot) for plot in plotlist}
-        
+        # Create a plot for each input channel
         for channel in self.channelDict:
             self.channelDict[channel].plot = pg.PlotWidget()
             self.channelDict[channel].plot.setLabel('left', 'Voltage (V)')
@@ -339,29 +399,10 @@ class InputGraphLayout(QVBoxLayout):
             self.addWidget(self.channelDict[channel].plot, 1)
             
         
-        """
-        
-        index = 1
-        for plot in self.plotDict:
-            
-            
-            
-            
-            self.plotDict[plot].pipe = pipeDict[index]
-            self.plotDict[plot].setLabel('left', 'Voltage (V)')
-            self.plotDict[plot].setLabel('bottom', 'Elapsed Time (s)')
-            self.plotDict[plot].addLegend()
-            self.plotDict[plot].data = []
-            self.plotDict[plot].line = self.plotDict[plot].plot(self.plotDict[plot].data)
-            self.addWidget(self.plotDict[plot], 1)
-            
-            index = index + 1
-        
-        """
         
         self.counter = 0
         self.timer = QTimer()
-        self.timer.setInterval(50) # 4 ms = 250 refreshes per sec
+        self.timer.setInterval(20) # 4 ms = 250 refreshes per sec
         self.timer.timeout.connect(self.update_plots)
         self.timer.start()
     
@@ -369,100 +410,70 @@ class InputGraphLayout(QVBoxLayout):
     
     def update_plots(self):
         if self.signal_start.signal:
-            #data = self.channelDict[channel].pipea.recv() # Put a timeout on this to prevent program not responding
-          
-            data = self.pipe_plot.recv()
-            
-           # print(str(data))
-           # time.sleep(5)
-            
-            if self.counter == 0:
-                self.time_start = data[0]
-                self.counter = 1
-            elapsed_time = data[0] - self.time_start
-            self.elapsed_time.append(elapsed_time)
-            
-            
-            for channel in self.channelDict:
-                self.channelDict[channel].plot.data.append(data[self.channelDict[channel].index])
-              
-                if len(self.channelDict[channel].plot.data) > 2000:                    
-                    self.elapsed_time = self.elapsed_time[1:]
-                    self.channelDict[channel].plot.data = self.channelDict[channel].plot.data[1:]
+            if self.pipe_input.poll():
+                data = self.pipe_input.recv()
+                if self.counter == 0:
+                    self.time_start = data[0]
+                    self.counter = 1
+                elapsed_time = data[0] - self.time_start
+                self.elapsed_time.append(elapsed_time)
                 
-                self.channelDict[channel].plot.line.setData(self.elapsed_time, self.channelDict[channel].plot.data)
-    
-    """
-    def update_plot(self, channel):
-        try:
-            #data = self.plotDict[plot].pipe.recv()
-            data = self.channelDict[channel].pipeb.recv()
-            #self.plotDict[plot].data.extend(data)
-            self.channelDict[channel].data.extend(data)
-            self.plotDict[plot].line.setData(self.plotDict[plot].data)
                 
-        except Exception as e:
-            print(str(e))
-            print("Error in update_plot()")
-    """    
+                for channel in self.channelDict:
+                    self.channelDict[channel].plot.data.append(data[self.channelDict[channel].index])
+                    
+                   # print("len")
+                    #print(str(len(self.channelDict[channel].plot.data)))
+                    
+                    if len(self.elapsed_time) > 100:
+                        self.elapsed_time = self.elapsed_time[1:]
+                    
+                    if len(self.channelDict[channel].plot.data) > 100:
+                        self.channelDict[channel].plot.data = self.channelDict[channel].plot.data[1:]
+                    self.channelDict[channel].plot.line.setData(self.elapsed_time, self.channelDict[channel].plot.data)
         
-        
-        
- 
+
                
 class SignalStart():
     def __init__(self, signal=False):
         self.signal = signal        
         
         
-        
-        #==============================================================
-
 
 
 class Layout(QGridLayout):
-    def __init__(self, channelDict, pipe_param, pipe_plot, signal_start, pipe_signal, parent=None, *args, **kwargs):
+    def __init__(self, channelDict, pipe_param, pipe_input, signal_start, pipe_signal, parent=None, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
         self.channelDict = channelDict
         self.pipe_param = pipe_param
         self.signal_start = signal_start
         self.pipe_signal = pipe_signal
-        self.pipe_plot = pipe_plot
+        self.pipe_input = pipe_input
         
         
         layout_fsettings = FileSettingsLayout()
         layout_ramp = RampSettingsLayout(self.pipe_param, self.signal_start, self.pipe_signal)
         layout_output = OutputGraphLayout()
-        layout_input = InputGraphLayout(self.channelDict, self.pipe_plot, self.signal_start)
+        layout_input = InputGraphLayout(self.channelDict, self.pipe_input, self.signal_start)
         
+                
         
-        
-        
-        #"""
         self.addLayout(layout_fsettings, 0, 0, 1, 3)
         self.addLayout(layout_ramp, 1, 0, 1, 1)
         self.addLayout(layout_output, 1, 1, 1, 1)
         self.addLayout(layout_input, 1, 2, 1, 1)
-        """
-        self.addLayout(layout_fsettings, 0, 0, 1, 5)
-        self.addLayout(layout_ramp, 1, 0, 1, 1)
-        self.addLayout(layout_output, 1, 1, 1, 2)
-        self.addLayout(layout_input, 1, 3, 1, 2)
-        """
-        
         
 
 
 
 class MainWindow(QMainWindow):
-    def __init__(self, channelDict, pipe_param, pipe_plot, signal_start, pipe_signal, parent=None, *args, **kwargs):
+    def __init__(self, channelDict, pipe_param, pipe_input, signal_start, pipe_signal, parent=None, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
         self.channelDict = channelDict
         self.pipe_param = pipe_param
-        #self.signal_start = SignalStart()
         self.signal_start = signal_start
         self.pipe_signal = pipe_signal
-        self.pipe_plot = pipe_plot
+        self.pipe_input = pipe_input
         self.title = "GUI Demo"
         self.setGeometry(40, 40, 1200, 625)
         self.initUI()
@@ -470,46 +481,17 @@ class MainWindow(QMainWindow):
     
     def initUI(self):
         self.setWindowTitle(self.title)
-        grid_layout = Layout(self.channelDict, self.pipe_param, self.pipe_plot, self.signal_start, self.pipe_signal)
-        
-        
+        grid_layout = Layout(self.channelDict, self.pipe_param, self.pipe_input, self.signal_start, self.pipe_signal)        
         widget = QWidget()
         widget.setLayout(grid_layout)
         self.setCentralWidget(widget)
         self.show()
-#        while True:
- #           data = self.pipe.recv()
-  #          print(str(data))
         
-    """
         
-        # Create a button in the window
-        self.button = QPushButton('Show text', self)
-        self.button.move(20,80)
-        
-        # connect button to function on_click
-        self.button.clicked.connect(self.on_click)
-        self.show()
-    
-    @pyqtSlot()
-    def on_click(self):
-       # textboxValue = self.textboxDict["lat0_vol"].text()
-        #QMessageBox.question(self, 'Message - pythonspot.com', "You typed: " + textboxValue, QMessageBox.Ok, QMessageBox.Ok)
-        #self.textboxDict["lat0_vol"].setText("")
-        #main(textboxValue)
-        pass
 
-
-
-
-            
-    """
-
-
-def start_gui(pipeDict, pipe_param, pipe_plot, signal_start, pipe_signal):
-    #print(str(msg))
+def start_gui(pipeDict, pipe_param, pipe_input, signal_start, pipe_signal):
     app = QApplication(sys.argv)
-    ex = MainWindow(pipeDict, pipe_param, pipe_plot, signal_start, pipe_signal)
+    ex = MainWindow(pipeDict, pipe_param, pipe_input, signal_start, pipe_signal)
     sys.exit(app.exec_())
 
 if __name__ == '__main__':
