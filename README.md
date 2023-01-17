@@ -166,4 +166,12 @@
 
  * Added output coil plot functionality to GUI
 
+ **17-Jan-22**
+
+ * force_profile.py changed to ramp_profile.py
+
+ * gui.py reads and sends the profile (ramp, sine, half-sine, custom)
+
+ * Half-sine profile works
+
 </sub>

@@ -80,7 +80,7 @@ class CoilLayout(QGridLayout):
 
     def define_combo_box(self):
         self.combo_box = QComboBox()
-        self.combo_box_list = ["Ramp Profile", "Sine Profile"]
+        self.combo_box_list = ["Ramp Profile", "Sine Profile", "Half-sine Profile", "Upload Custom"]
         for item in self.combo_box_list:
             self.combo_box.addItem(item)
         self.combo_box.activated[str].connect(self.select_profile)
@@ -133,7 +133,7 @@ class CoilLayout(QGridLayout):
                     self.itemAt(i).widget().setParent(None)   
 
             self.labelDict = {}
-            self.labelDict[QLabel("Amplitude\n(mV ptp)")] = [1, 1, 1, 1]
+            self.labelDict[QLabel("Amplitude\n(V ptp)")] = [1, 1, 1, 1]
             self.labelDict[QLabel("Frequency\n(Hz)")] = [3, 0, 1, 1]
             self.labelDict[QLabel("Phase\n(deg)")] = [3, 1, 1, 1]
             
@@ -149,6 +149,42 @@ class CoilLayout(QGridLayout):
             for textbox in self.textboxDict:
                 a, b, c, d = self.textboxDict[textbox]
                 self.addWidget(textbox, a, b, c, d)
+                 
+        elif content == self.combo_box_list[2]:
+            # Make content for Half Sine Profile
+            for i in reversed(range(self.count())):
+                if i>0:
+                    self.itemAt(i).widget().setParent(None)   
+
+            self.labelDict = {}
+            self.labelDict[QLabel("Amplitude\n(V ptp)")] = [1, 1, 1, 1]
+            self.labelDict[QLabel("Frequency\n(Hz)")] = [3, 0, 1, 1]
+            self.labelDict[QLabel("Time Idle\n(s)")] = [3, 1, 1, 1]
+            self.labelDict[QLabel("Time Rest\n(s)")] = [5, 0, 1, 1]
+            
+            self.textboxDict = {}
+            self.textboxDict[QLineEdit(placeholderText="Amp")] = [0, 1, 1, 1]
+            self.textboxDict[QLineEdit(placeholderText="Freq")] = [2, 0, 1, 1]
+            self.textboxDict[QLineEdit(placeholderText="Idle")] = [2, 1, 1, 1]
+            self.textboxDict[QLineEdit(placeholderText="Rest")] = [4, 0, 1, 1]
+            
+            for label in self.labelDict:
+                a, b, c, d = self.labelDict[label]
+                self.addWidget(label, a, b, c, d)
+          
+            for textbox in self.textboxDict:
+                a, b, c, d = self.textboxDict[textbox]
+                self.addWidget(textbox, a, b, c, d)
+                             
+                
+                
+                
+        elif content == self.combo_box_list[3]:
+            # Make content for Custom Profile
+            for i in reversed(range(self.count())):
+                if i>0:
+                    self.itemAt(i).widget().setParent(None)   
+
             
             
         
@@ -210,47 +246,39 @@ class RampSettingsLayout(QVBoxLayout):
 
 
     def start_on_click(self):
-        
         # Send start signal to graphs
         self.signal_start.signal = True
-        
+
         # Get sampling rate
-       # self.sampling_rate = float(self.textbox_srate.text())
         self.sampling_rate = self.textbox_srate.text()
         
         # Read all textboxes and return the values
         for coil in self.coil_layout_dict:
             self.coil_layout_dict[coil].textboxValuesDict = {}
             for textbox in self.coil_layout_dict[coil].textboxDict:
-                #try:
-                 #   self.coil_layout_dict[coil].textboxValuesDict[str(coil) + " " + str(textbox.placeholderText())] = float(textbox.text())
-                #except:
-                 #   print("Please enter a valid " + str(textbox))
-                  #  error_message.append("Please enter a valid " + str(textbox))
-                   # error_code = 1
                 self.coil_layout_dict[coil].textboxValuesDict[str(coil) + " " + str(textbox.placeholderText())] = textbox.text()
         
         
         # Check the validity of each input value
-        success = self.check_input()#error_code, error_message)
+        success = self.check_input()
         
         # If valid, send input parameters through pipe_params to main.py
         # From there, force_profile.py will be called with the parameters
         if success:
             self.pipe_param.send(self.sampling_rate)
             for coil in self.coil_layout_dict:
+                # Send profile (ramp, sine, half-sine, custom)
+                self.pipe_param.send(self.coil_layout_dict[coil].content)
+                
+                
+                # Send input parameters
                 val = list(self.coil_layout_dict[coil].textboxValuesDict.values())
                 self.pipe_param.send(val)
                 
-                #for textbox in self.coil_layout_dict[coil].textboxDict:
-                #    print(str(self.coil_layout_dict[coil].textboxValuesDict[str(coil) + " " + str(textbox.placeholderText())]))
-                    
-                 #   self.pipe_param.send(self.coil_layout_dict[coil].textboxValuesDict[str(coil) + " " + str(textbox.placeholderText())])
-            #self.pipe_param.send(self.sampling_rate)
-                    
+                
 
         else:
-            print("Do nothing")
+            print("Input parameters invalid")
             #for val in self.coil_layout_dict[coil].textboxDict:
              #   check_input(val)
             

@@ -18,7 +18,8 @@ from nidaqmx import constants
 import logging
 from PyQt5 import QtWidgets, QtCore
 import pyqtgraph as pg
-from force_profile import eval_force
+from ramp_profile import eval_ramp
+from halfsine_profile import eval_halfsine
 import msvcrt
 
 from gui import start_gui
@@ -51,13 +52,37 @@ def get_parameters(pipe_param1a):
     try:
         # Wait for user input from GUI
         sampling_rate = pipe_param1a.recv()
+        lat_profile = pipe_param1a.recv()
         lat_params = pipe_param1a.recv()
+        long_profile = pipe_param1a.recv()
         long_params = pipe_param1a.recv()
     except Exception as e:
         print(str(e))
-    return sampling_rate, lat_params, long_params
+    return sampling_rate, lat_profile, lat_params, long_profile, long_params
 
 
+
+
+
+def force_profile(pipe_msgb, msg2, sampling_rate, profile, params):
+    pipe_msgb.send(msg2)
+    if profile == "Ramp Profile":
+        velocity, idle, acc, ramp, rest = params
+        _, f_profile, _ = eval_ramp(velocity, idle, acc, ramp, rest, sampling_rate)
+    elif profile == "Sine Profile":
+        exit
+    elif profile == "Half-sine Profile":
+        amp, freq, idle, rest = params
+        _, f_profile = eval_halfsine(amp, freq, idle, rest, sampling_rate)
+        
+    elif profile == "Upload Custom":
+        exit
+    
+    return f_profile
+    
+    
+    
+    
 
 
 
@@ -120,15 +145,13 @@ def main():
     processlist.append(proc1)
     proc1.start()
 
-    # Get input parameters from the GUI
-    sampling_rate, lat_params, long_params = get_parameters(pipe_param1a)
-    lat_velocity, lat_idle, lat_acc, lat_ramp, lat_rest = lat_params
-    long_velocity, long_idle, long_acc, long_ramp, long_rest = long_params
+    # Get input parameters from the GUI and evalute the force profile
+    sampling_rate, lat_profile, lat_params, long_profile, long_params = get_parameters(pipe_param1a)
+    force_profile_lat = force_profile(pipe_msgb, msg2, sampling_rate, lat_profile, lat_params)
+    force_profile_long = force_profile(pipe_msgb, msg2, sampling_rate, long_profile, long_params)
     
-    # Evalute the force profile
-    pipe_msgb.send(msg2)
-    force_profile_times_lat, force_profile_force_lat, force_profile_x_lat = eval_force(lat_velocity, lat_idle, lat_acc, lat_ramp, lat_rest, sampling_rate)
-    force_profile_times_long, force_profile_force_long, force_profile_x_long = eval_force(long_velocity, long_idle, long_acc, long_ramp, long_rest, sampling_rate)
+    
+
 
 
     # Create pipes to send data between processes
@@ -140,7 +163,7 @@ def main():
     
     # Create processes
     processlist2 = []
-    processlist2.append(Process(target=get_data, args=(pipe_liveb, pipe_timeb, input_channels, measured_channels, output_channels, sampling_rate, force_profile_force_lat, force_profile_force_long, input_channelDict, )))
+    processlist2.append(Process(target=get_data, args=(pipe_liveb, pipe_timeb, input_channels, measured_channels, output_channels, sampling_rate, force_profile_lat, force_profile_long, input_channelDict, )))
     processlist2.append(Process(target=manipulate_data, args=(pipe_livea, pipe_timea, pipe_manipb, pipe_inputb, pipe_outputb, input_channelDict, output_channelDict, )))
     processlist2.append(Process(target=store_data, args=(pipe_manipa, pipe_killb, input_names, )))
  
@@ -180,7 +203,7 @@ def main():
             
             # Recreate 'new' processes (processes cannot be reused)
             processlist2 = []
-            processlist2.append(Process(target=get_data, args=(pipe_liveb, pipe_timeb, input_channels, measured_channels, output_channels, sampling_rate, force_profile_force_lat, force_profile_force_long, input_channelDict, )))
+            processlist2.append(Process(target=get_data, args=(pipe_liveb, pipe_timeb, input_channels, measured_channels, output_channels, sampling_rate, force_profile_lat, force_profile_long, input_channelDict, )))
             processlist2.append(Process(target=manipulate_data, args=(pipe_livea, pipe_timea, pipe_manipb, pipe_inputb, pipe_outputb, input_channelDict, output_channelDict, )))
             processlist2.append(Process(target=store_data, args=(pipe_manipa, pipe_killb, input_names, )))
             
@@ -188,21 +211,16 @@ def main():
                         
             # Get input parameters from the GUI
             pipe_msgb.send(msg1)
-            sampling_rate, lat_params, long_params = get_parameters(pipe_param1a)
-            lat_velocity, lat_idle, lat_acc, lat_ramp, lat_rest = lat_params
-            long_velocity, long_idle, long_acc, long_ramp, long_rest = long_params
+            sampling_rate, lat_profile, lat_params, long_profile, long_params = get_parameters(pipe_param1a)
             
             # Clear stop signals in case of build-up
             while pipe_signala.poll():
                 pipe_signala.recv()
             
             
-            # Evalute the force profile
-            pipe_msgb.send(msg2)
-            print("111")
-            force_profile_times_lat, force_profile_force_lat, force_profile_x_lat = eval_force(lat_velocity, lat_idle, lat_acc, lat_ramp, lat_rest, sampling_rate)
-            force_profile_times_long, force_profile_force_long, force_profile_x_long = eval_force(long_velocity, long_idle, long_acc, long_ramp, long_rest, sampling_rate)
-            print("222")
+            # Evalute the force profiles
+            force_profile_lat = force_profile(pipe_msgb, msg2, sampling_rate, lat_profile, lat_params)
+            force_profile_long = force_profile(pipe_msgb, msg2, sampling_rate, long_profile, long_params)
             
             # Start processes
             for p in processlist2:

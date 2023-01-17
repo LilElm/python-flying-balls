@@ -12,7 +12,7 @@ import os
 import shutil
 import time
 
-def eval_force(velocity=1.0, time_idle=1.0, time_acc=1.0, time_ramp=1.0, time_rest=1.0, sampling_rate=100000.0):
+def eval_ramp(velocity=1.0, time_idle=1.0, time_acc=1.0, time_ramp=1.0, time_rest=1.0, sampling_rate=100000.0):
     #I think velocity is in mm/s, but all times are in seconds.
     
     logfolder = "../log/"
@@ -37,7 +37,7 @@ def eval_force(velocity=1.0, time_idle=1.0, time_acc=1.0, time_ramp=1.0, time_re
     os.makedirs(logfolder, exist_ok=True)
     os.makedirs(tmpfolder, exist_ok=True)
     currentDT = datetime.datetime.now()
-    logging.basicConfig(filename = logfolder + "force_profile.log", encoding='utf-8', level=logging.DEBUG)
+    logging.basicConfig(filename = logfolder + "ramp_profile.log", encoding='utf-8', level=logging.DEBUG)
     logging.info(currentDT.strftime("%d/%m/%Y, %H:%M:%S"))  
     
     dt = 1.0 / sampling_rate
@@ -98,9 +98,6 @@ def eval_force(velocity=1.0, time_idle=1.0, time_acc=1.0, time_ramp=1.0, time_re
     xs_dec = xs_acc[::-1]
     xs_dec = xs_dec * -1.0
 
-    time9 = time.time()
-    time90 = time9 - time0
-    print(str(time90))
 
     # Find the derivatives (This approach avoids evaluating derivatives of zero arrays)
     time1 = time.time()
@@ -227,4 +224,4 @@ def derivative(xs, h):
 
 # Run
 if __name__ == "__main__":
-    eval_force()
+    eval_ramp()
