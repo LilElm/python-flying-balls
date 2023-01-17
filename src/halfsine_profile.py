@@ -13,7 +13,7 @@ import logging
 import os
 import shutil
 
-def eval_halfsine(amp=1.0, freq=2.0, time_idle=1.0, time_rest=1.0, sampling_rate=100000.0):
+def eval_halfsine(amp=1.0, freq=2.0, time_idle=1.0, time_rest=1.0, sampling_rate=100.0):
     
     logfolder = "../log/"
     outfolder = "../out/"
@@ -57,28 +57,33 @@ def eval_halfsine(amp=1.0, freq=2.0, time_idle=1.0, time_rest=1.0, sampling_rate
         
     if Decimal(str(time_half)) % Decimal(str(dt)) != 0:
         print("time_ramp is not a multiple of dt")
+        input()
         exit()
         
     if Decimal(str(time_rest)) % Decimal(str(dt)) != 0:
         print("time_rest is not a multiple of dt")
+        input()
         exit()
     
     
-    times_idle = np.arange(0.0, time_idle+dt, dt)
-    times_half = np.arange(0.0, time_half+dt, dt)
-    times_rest = np.arange(0.0, time_rest, dt)
-    
-
-    
+    times_idle = np.arange(0.0, time_idle-dt, dt)
+    times_half = np.arange(0.0, time_half, dt)
+    times_rest = np.arange(0.0, time_rest+dt, dt)
     
     omega = 2.0 * np.pi * freq
-    x_idle = [0 for time in times_idle]
     x_half = [amp * np.sin(omega * time) for time in times_half]
+    
+    #times_idle, times_half = ArrayLink(times_idle, times_half)
+    #times_half, times_rest = ArrayLink(times_half, times_rest)
+    
+    times_half = times_half + time_idle
+    times_rest = times_rest + time_idle + time_rest
+    
+    
+    x_idle = [0 for time in times_idle]
     x_rest = [0 for time in times_rest]
     profile = x_idle + x_half + x_rest
     
-    times_idle, times_half = ArrayLink(times_idle, times_half)
-    times_half, times_rest = ArrayLink(times_half, times_rest)
     
     len_times_idle = len(times_idle)
     len_times_half = len(times_half)
@@ -102,7 +107,12 @@ def eval_halfsine(amp=1.0, freq=2.0, time_idle=1.0, time_rest=1.0, sampling_rate
             
         for i in range(len_times_rest):
             f.write(f"{times_rest[i]}, {x_rest[i]}\n")
-        
+    
+    
+    
+    print("half-sine profile")
+    print("len(profile) = " + str(len(profile)))
+    print("==============")
     
     return times_tot, profile
 
@@ -122,4 +132,4 @@ def ArrayLink(array1, array2):
     
     
 if __name__ == "__main__":
-    main()
+    eval_halfsine()

@@ -90,24 +90,21 @@ class CoilLayout(QGridLayout):
         self.make_textboxes(content)
         
     def make_textboxes(self, content):
+        # Destroy all existing textboxes
+        for i in reversed(range(self.count())):
+            if i>0:
+                self.itemAt(i).widget().setParent(None)
+        
+        
         self.content = content
         if content == self.combo_box_list[0]:
             # Make content for "Ramp Profile"
-            
-    
-            for i in reversed(range(self.count())):
-                if i>0:
-                    self.itemAt(i).widget().setParent(None)   
-            
-
-
             self.labelDict = {}
             self.labelDict[QLabel("Velocity\n(mm/s)")] = [1, 1, 1, 1]
             self.labelDict[QLabel("Time Idle\n(s)")] = [3, 0, 1, 1]
             self.labelDict[QLabel("Time Acc\n(s)")] = [3, 1, 1, 1]
             self.labelDict[QLabel("Time Ramp\n(s)")] = [5, 0, 1, 1]
             self.labelDict[QLabel("Time Rest\n(s)")] = [5, 1, 1, 1]
-            
             
             self.textboxDict = {}
             self.textboxDict[QLineEdit(placeholderText="Velocity")] = [0, 1, 1, 1]
@@ -117,21 +114,9 @@ class CoilLayout(QGridLayout):
             self.textboxDict[QLineEdit(placeholderText="Rest")] = [4, 1, 1, 1]
             
             
-            for label in self.labelDict:
-                a, b, c, d = self.labelDict[label]
-                self.addWidget(label, a, b, c, d)
-            for textbox in self.textboxDict:
-                a, b, c, d = self.textboxDict[textbox]
-                self.addWidget(textbox, a, b, c, d)
-            
-            
             
         elif content == self.combo_box_list[1]:
             # Make content for Sine Profile
-            for i in reversed(range(self.count())):
-                if i>0:
-                    self.itemAt(i).widget().setParent(None)   
-
             self.labelDict = {}
             self.labelDict[QLabel("Amplitude\n(V ptp)")] = [1, 1, 1, 1]
             self.labelDict[QLabel("Frequency\n(Hz)")] = [3, 0, 1, 1]
@@ -142,20 +127,10 @@ class CoilLayout(QGridLayout):
             self.textboxDict[QLineEdit(placeholderText="Freq")] = [2, 0, 1, 1]
             self.textboxDict[QLineEdit(placeholderText="Phase")] = [2, 1, 1, 1]
             
-            for label in self.labelDict:
-                a, b, c, d = self.labelDict[label]
-                self.addWidget(label, a, b, c, d)
-          
-            for textbox in self.textboxDict:
-                a, b, c, d = self.textboxDict[textbox]
-                self.addWidget(textbox, a, b, c, d)
-                 
+            
+            
         elif content == self.combo_box_list[2]:
             # Make content for Half Sine Profile
-            for i in reversed(range(self.count())):
-                if i>0:
-                    self.itemAt(i).widget().setParent(None)   
-
             self.labelDict = {}
             self.labelDict[QLabel("Amplitude\n(V ptp)")] = [1, 1, 1, 1]
             self.labelDict[QLabel("Frequency\n(Hz)")] = [3, 0, 1, 1]
@@ -166,26 +141,29 @@ class CoilLayout(QGridLayout):
             self.textboxDict[QLineEdit(placeholderText="Amp")] = [0, 1, 1, 1]
             self.textboxDict[QLineEdit(placeholderText="Freq")] = [2, 0, 1, 1]
             self.textboxDict[QLineEdit(placeholderText="Idle")] = [2, 1, 1, 1]
-            self.textboxDict[QLineEdit(placeholderText="Rest")] = [4, 0, 1, 1]
-            
-            for label in self.labelDict:
-                a, b, c, d = self.labelDict[label]
-                self.addWidget(label, a, b, c, d)
-          
-            for textbox in self.textboxDict:
-                a, b, c, d = self.textboxDict[textbox]
-                self.addWidget(textbox, a, b, c, d)
-                             
+            self.textboxDict[QLineEdit(placeholderText="Rest")] = [4, 0, 1, 1]        
                 
                 
                 
         elif content == self.combo_box_list[3]:
             # Make content for Custom Profile
-            for i in reversed(range(self.count())):
-                if i>0:
-                    self.itemAt(i).widget().setParent(None)   
-
+            self.labelDict = {}
+            self.labelDict[QLabel("Directory")] = [3, 0, 1, 1]
             
+            self.textboxDict = {}
+            self.textboxDict[QLineEdit(placeholderText="Directory")] = [2, 0, 1, 1]  
+
+
+
+        # Add the labels and textboxes
+        for label in self.labelDict:
+            a, b, c, d = self.labelDict[label]
+            self.addWidget(label, a, b, c, d)
+      
+        for textbox in self.textboxDict:
+            a, b, c, d = self.textboxDict[textbox]
+            self.addWidget(textbox, a, b, c, d)
+                         
             
         
 
@@ -334,10 +312,11 @@ class RampSettingsLayout(QVBoxLayout):
                 for textbox in self.coil_layout_dict[coil].textboxValuesDict:
                     if error_code == 0:
                         val = self.coil_layout_dict[coil].textboxValuesDict[textbox]
-                        if val < 0.0:
-                            print(str(textbox) + " is negative")
-                            error_message.append(str(textbox) + " is negative")
-                            error_code = 1
+                        if "Velo" not in textbox or "Amp" not in textbox or "Phase" not in textbox:  
+                            if val < 0.0:
+                                print(str(textbox) + " is negative")
+                                error_message.append(str(textbox) + " is negative")
+                                error_code = 1
                       
                         
         # Check if coil times are the same
@@ -346,16 +325,37 @@ class RampSettingsLayout(QVBoxLayout):
             for coil in self.coil_layout_dict:
                 time_sum = 0
                 for textbox in self.coil_layout_dict[coil].textboxValuesDict:
-                    if "Velocity" not in textbox:
+                    
+                    if "Freq" in textbox:
+                        #Work out associated time
+                        # This depends on sine vs half-sine
+                        
                         val = self.coil_layout_dict[coil].textboxValuesDict[textbox]
-                        if "Acc" in textbox:
-                            val = val * 2.0
-                        time_sum = time_sum + val
+                        if self.coil_layout_dict[coil].content == "Half-sine Profile":
+                            val = 0.5 / val
+                            time_sum = time_sum + val
+                            
+                        elif self.coil_layout_dict[coil].content == "Sine Profile":
+                            val = 1.0 / val
+                            time_sum = time_sum + val
+                            
+                    
+                    
+                    
+                    if "Velo" not in textbox and "Amp" not in textbox and "Freq" not in textbox and "Phase" not in textbox:
+                            print("========")
+                            print(str(textbox))
+                        
+                            val = self.coil_layout_dict[coil].textboxValuesDict[textbox]
+                            if "Acc" in textbox:
+                                val = val * 2.0
+                            time_sum = time_sum + val
                 tot_times.append(time_sum)
             
             res = all(t == tot_times[0] for t in tot_times)
             if not res:
                 print("The total coil times are not equal. Consider changing the 'rest' times")
+                print(str(tot_times))
                 error_message.append("The total coil times are not equal. Consider changing the 'rest' times")
                 error_code = 1
                 
@@ -424,11 +424,19 @@ class OutputGraphLayout(QVBoxLayout):
     
     
     def update_plots(self):
-        if self.signal_start.signal:
+        if not self.signal_start.signal:
+            self.counter = 0
+        
+        else:
             if self.pipe_output.poll():
                 data = self.pipe_output.recv()
+                # Clear all data on start button press
                 if self.counter == 0:
                     self.time_start = data[0]
+                    self.elapsed_time = []
+                    for channel in self.output_channelDict:
+                        self.output_channelDict[channel].plot.data = []
+                        self.output_channelDict[channel].plot.line.setData(self.elapsed_time, self.output_channelDict[channel].plot.data)
                     self.counter = 1
                 elapsed_time = data[0] - self.time_start
                 self.elapsed_time.append(elapsed_time)
@@ -478,21 +486,26 @@ class InputGraphLayout(QVBoxLayout):
     
     
     def update_plots(self):
-        if self.signal_start.signal:
+        if not self.signal_start.signal:
+            self.counter = 0
+        
+        else:
             if self.pipe_input.poll():
                 data = self.pipe_input.recv()
+                # Clear all data on start button press
                 if self.counter == 0:
                     self.time_start = data[0]
+                    self.elapsed_time = []
+                    for channel in self.input_channelDict:
+                        self.input_channelDict[channel].plot.data = []
+                        self.input_channelDict[channel].plot.line.setData(self.elapsed_time, self.input_channelDict[channel].plot.data)
                     self.counter = 1
                 elapsed_time = data[0] - self.time_start
                 self.elapsed_time.append(elapsed_time)
-                
+        
                 
                 for channel in self.input_channelDict:
                     self.input_channelDict[channel].plot.data.append(data[self.input_channelDict[channel].index])
-                    
-                   # print("len")
-                    #print(str(len(self.input_channelDict[channel].plot.data)))
                     
                     if len(self.elapsed_time) > 100:
                         self.elapsed_time = self.elapsed_time[1:]

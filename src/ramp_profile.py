@@ -12,12 +12,13 @@ import os
 import shutil
 import time
 
-def eval_ramp(velocity=1.0, time_idle=1.0, time_acc=1.0, time_ramp=1.0, time_rest=1.0, sampling_rate=100000.0):
+def eval_ramp(velocity=1.0, time_idle=1.0, time_acc=1.0, time_ramp=1.0, time_rest=1.0, sampling_rate=10.0):
     #I think velocity is in mm/s, but all times are in seconds.
     
     logfolder = "../log/"
     outfolder = "../out/"
     tmpfolder = "../tmp/"
+    """
     if os.path.exists(tmpfolder) and os.path.isdir(tmpfolder):
         try:
             shutil.rmtree(tmpfolder)
@@ -32,7 +33,8 @@ def eval_ramp(velocity=1.0, time_idle=1.0, time_acc=1.0, time_ramp=1.0, time_res
             except:
                 logging.warning("Failed to remove temporary folder " + str(tmpfolder))
                 print("Unable to remove tmpfolder")
-            
+    """
+    
     os.makedirs(outfolder, exist_ok=True)
     os.makedirs(logfolder, exist_ok=True)
     os.makedirs(tmpfolder, exist_ok=True)
@@ -158,7 +160,7 @@ def eval_ramp(velocity=1.0, time_idle=1.0, time_acc=1.0, time_ramp=1.0, time_res
     profile = np.array(output, dtype=np.float64)
     
     # Print to file
-    with open((tmpfolder + "force_profile.csv"), "w") as f:
+    with open((tmpfolder + "ramp_profile.csv"), "w") as f:
         f.write("Seconds, Profile, Position\n")
         for i in range(len(profile)):
             f.write(str(times_tot[i]) + ", " + str(profile[i])+ ", " + str(xs_tot[i]) + "\n")
@@ -169,13 +171,16 @@ def eval_ramp(velocity=1.0, time_idle=1.0, time_acc=1.0, time_ramp=1.0, time_res
     ax.plot(times_tot, profile)
     ax.plot(times_tot, xs_tot)
     #plt.show()
-    path = outfolder + "force_profile.png"
+    path = outfolder + "ramp_profile.png"
     fig.savefig(path, bbox_inches="tight", dpi=600)
     #input()
 
     #np.ravel(times_tot)
     #np.ravel(profile)
 
+    print("ramp profile")
+    print("len(profile) = " + str(len(profile)))
+    print("==============")
 
     return times_tot, profile, xs_tot
 

@@ -174,4 +174,10 @@
 
  * Half-sine profile works
 
+ * Ramp/Half-sine profiles return inconsistent lengths
+
+   * These must consistently be the same for the data acquisition to run smoothly
+
+ * A start signal clears the plots
+
 </sub>
