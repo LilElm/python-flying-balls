@@ -165,7 +165,7 @@ def main():
     processlist2 = []
     processlist2.append(Process(target=get_data, args=(pipe_liveb, pipe_timeb, input_channels, measured_channels, output_channels, sampling_rate, force_profile_lat, force_profile_long, input_channelDict, )))
     processlist2.append(Process(target=manipulate_data, args=(pipe_livea, pipe_timea, pipe_manipb, pipe_inputb, pipe_outputb, input_channelDict, output_channelDict, )))
-    processlist2.append(Process(target=store_data, args=(pipe_manipa, pipe_killb, input_names, )))
+    processlist2.append(Process(target=store_data, args=(pipe_manipa, pipe_killb, input_channels, measured_channels, )))
  
         
     
@@ -205,7 +205,7 @@ def main():
             processlist2 = []
             processlist2.append(Process(target=get_data, args=(pipe_liveb, pipe_timeb, input_channels, measured_channels, output_channels, sampling_rate, force_profile_lat, force_profile_long, input_channelDict, )))
             processlist2.append(Process(target=manipulate_data, args=(pipe_livea, pipe_timea, pipe_manipb, pipe_inputb, pipe_outputb, input_channelDict, output_channelDict, )))
-            processlist2.append(Process(target=store_data, args=(pipe_manipa, pipe_killb, input_names, )))
+            processlist2.append(Process(target=store_data, args=(pipe_manipa, pipe_killb, input_channels, measured_channels, )))
             
             
                         
@@ -454,8 +454,9 @@ def manipulate_data(p_live, p_time, p_manip, p_inputplot, p_outputplot, input_ch
                         p_inputplot.send(input_man[i])
                         p_outputplot.send(output_man[i])
                 
-                p_manip.send(input_man) ################################################### STILL NEED TO SEND OUTPUT TO STOREDATA
-               
+                # Send data to store_data()
+                p_manip.send(input_man)
+                p_manip.send(output_man)
             except:
                 print("Error in data manipulation")
                 break
@@ -468,17 +469,19 @@ def manipulate_data(p_live, p_time, p_manip, p_inputplot, p_outputplot, input_ch
 
 # Function connects to the server, recieves manipualted data from
 # manipulated_data() and inserts it in the database
-def store_data(p_manip, p_kill, channel_names):
+def store_data(p_manip, p_kill, input_channels, measured_channels):
     try:
         tmpfolder = '../tmp/'
+        channels = input_channels + measured_channels
         with open((tmpfolder + "data.csv"), "w") as f:
-            f.write("timestamp, " + ", ".join(channel_names) + "\n")
+            f.write("timestamp, " + ", ".join(channels) + "\n")
             while True:
 
-                values = p_manip.recv()
+                values_in = p_manip.recv()
+                values_out = p_manip.recv()
                 
-                for i in range(len(values)):
-                    f.write(', '.join(map(str, values[i])) + "\n")
+                for i in range(len(values_in)):
+                    f.write(', '.join(map(str, values_in[i])) + ', '.join(map(str, values_out[i])) + "\n")
                 
                 # Exit if pipe is empty
                 # Send kill signal

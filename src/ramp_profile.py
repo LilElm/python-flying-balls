@@ -119,7 +119,7 @@ def eval_ramp(velocity=3.0, time_idle=4.0, time_acc=1.0, time_ramp=1.0, time_res
     dx_idle = np.zeros(len_times_idle)
     dx_acc = np.gradient(xs_acc, dt)
     dx_ramp = np.gradient(xs_ramp, dt)
-    dx_dec = np.gradient(xs_dec, dt)#dx_acc[::-1] * -1.0
+    dx_dec = dx_acc[::-1] * -1.0
     dx_rest = np.zeros(len_times_rest)
     dx = np.concatenate((dx_idle, dx_acc, dx_ramp, dx_dec, dx_rest), axis=None)
     
@@ -127,7 +127,7 @@ def eval_ramp(velocity=3.0, time_idle=4.0, time_acc=1.0, time_ramp=1.0, time_res
     ddx_idle = dx_idle
     ddx_acc = np.gradient(dx_acc, dt)
     ddx_ramp = np.gradient(dx_ramp, dt)
-    ddx_dec = np.gradient(dx_dec, dt)#ddx_acc[::-1] * -1.0
+    ddx_dec = ddx_acc[::-1] * -1.0
     ddx_rest = dx_rest
     ddx = np.concatenate((ddx_idle, ddx_acc, ddx_ramp, ddx_dec, ddx_rest), axis=None)
     
@@ -175,47 +175,6 @@ def eval_ramp(velocity=3.0, time_idle=4.0, time_acc=1.0, time_ramp=1.0, time_res
     return profile
 
 
-
-def ArrayLink(array1, array2):
-    # Drop final entry in array1
-    # array2 = array2 - array2[first] + array1[final]
-    
-    array1_val = array1[-1]
-    array1_new = array1[:-1]
-    array2_val = array2[0]
-    array2 = array2 - array2_val + array1_val
-    return array1_new, array2
-    
-
-
-"""
-
-
-def derivative(xs, h):
-    # Evaluate the derivative at a constant step value, h
-    dx = []
-    fin = len(xs) - 1
-    
-    for i in range(len(xs)):
-        if i == 0:
-            if xs[i] == 0.0 and xs[i+1] == 0.0:
-                val = 0.0
-            else:
-                val = (xs[i+1] - xs[i]) / h
-        elif i==fin:
-            if xs[i] == 0.0 and xs[i-1] == 0.0:
-                val = 0.0
-            else:
-                val = (xs[i] - xs[i-1]) / h
-        else:
-            if xs[i+1] == 0.0 and xs[i-1] == 0.0:
-                val = 0.0
-            else:
-                val = (xs[i+1] - xs[i-1]) / (2.0 * h)
-        dx.append(val)
-    return dx
-    
-"""
 
 # Run
 if __name__ == "__main__":

@@ -107,16 +107,6 @@ def eval_halfsine(amp=1.0, freq=2.0, time_idle=1.0, time_rest=4.0, sampling_rate
     # Print to file
     with open((tmpfolder + "half-sine_profile.csv"), "w") as f:
         f.write("Seconds, Profile\n")
-        """
-        for i in range(len_times_idle):
-            f.write(f"{times_idle[i]}, {x_idle[i]}\n")
-            
-        for i in range(len_times_half):
-            f.write(f"{times_half[i]}, {x_half[i]}\n")
-            
-        for i in range(len_times_rest):
-            f.write(f"{times_rest[i]}, {x_rest[i]}\n")
-        """
         for i in range(len(times_tot)):
             f.write(f"{times_tot[i]}, {profile[i]}\n")
     
@@ -127,18 +117,6 @@ def eval_halfsine(amp=1.0, freq=2.0, time_idle=1.0, time_rest=4.0, sampling_rate
     
     return profile
 
-
-"""
-def ArrayLink(array1, array2):
-    # Drop final entry in array1
-    # array2 = array2 - array2[first] + array1[final]
-    
-    array1_val = array1[-1]
-    array1_new = array1[:-1]
-    array2_val = array2[0]
-    array2 = array2 - array2_val + array1_val
-    return array1_new, array2
-"""    
 
     
     

@@ -410,10 +410,10 @@ class OutputGraphLayout(QVBoxLayout):
             self.elapsed_time = []
             self.output_channelDict[channel].plot.line = self.output_channelDict[channel].plot.plot(self.elapsed_time,
                                                                                                     self.output_channelDict[channel].plot.data)
-                                                                                                    #,name=self.output_channelDict[channel].name)
+                                                                                                    #name=self.output_channelDict[channel].name)
             self.addWidget(self.output_channelDict[channel].plot, 1)
             
-        
+            
         
         self.counter = 0
         self.timer = QTimer()
@@ -452,8 +452,12 @@ class OutputGraphLayout(QVBoxLayout):
                     if len(self.output_channelDict[channel].plot.data) > 100:
                         self.output_channelDict[channel].plot.data = self.output_channelDict[channel].plot.data[1:]
                     self.output_channelDict[channel].plot.line.setData(self.elapsed_time, self.output_channelDict[channel].plot.data)
-        
-        
+                    
+                    # Update label
+                    # This probably isn't the best way to do this
+                    self.output_channelDict[channel].plot.setLabel('top', f"x: {elapsed_time:5.2f}, y: {data[self.output_channelDict[channel].index]:5.2f}")
+
+                    
 
 class InputGraphLayout(QVBoxLayout):
     def __init__(self, input_channelDict, pipe_input, signal_start, parent=None, *args, **kwargs):
@@ -514,6 +518,9 @@ class InputGraphLayout(QVBoxLayout):
                         self.input_channelDict[channel].plot.data = self.input_channelDict[channel].plot.data[1:]
                     self.input_channelDict[channel].plot.line.setData(self.elapsed_time, self.input_channelDict[channel].plot.data)
         
+                    # Update label
+                    # This probably isn't the best way to do this
+                    self.input_channelDict[channel].plot.setLabel('top', f"x: {elapsed_time:5.2f}, y: {data[self.input_channelDict[channel].index]:5.2f}")
 
                
 class SignalStart():

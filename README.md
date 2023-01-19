@@ -182,6 +182,10 @@
 
  **19-Jan-22**
 
- * ramp_profile.py and halfsine_profile.py changed to give exact times
+ * ramp_profile.py and halfsine_profile.py changed to give exact profile lengths
+
+ * store_data() updated to output measured channels to data.csv 
+
+ * Position labels added to GUI plots
 
 </sub>
