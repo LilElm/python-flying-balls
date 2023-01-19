@@ -180,4 +180,8 @@
 
  * A start signal clears the plots
 
+ **19-Jan-22**
+
+ * ramp_profile.py and halfsine_profile.py changed to give exact times
+
 </sub>

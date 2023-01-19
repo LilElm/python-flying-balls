@@ -68,12 +68,12 @@ def force_profile(pipe_msgb, msg2, sampling_rate, profile, params):
     pipe_msgb.send(msg2)
     if profile == "Ramp Profile":
         velocity, idle, acc, ramp, rest = params
-        _, f_profile, _ = eval_ramp(velocity, idle, acc, ramp, rest, sampling_rate)
+        f_profile = eval_ramp(velocity, idle, acc, ramp, rest, sampling_rate)
     elif profile == "Sine Profile":
         exit
     elif profile == "Half-sine Profile":
         amp, freq, idle, rest = params
-        _, f_profile = eval_halfsine(amp, freq, idle, rest, sampling_rate)
+        f_profile = eval_halfsine(amp, freq, idle, rest, sampling_rate)
         
     elif profile == "Upload Custom":
         exit

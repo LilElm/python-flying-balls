@@ -13,7 +13,7 @@ import logging
 import os
 import shutil
 
-def eval_halfsine(amp=1.0, freq=2.0, time_idle=1.0, time_rest=1.0, sampling_rate=100.0):
+def eval_halfsine(amp=1.0, freq=2.0, time_idle=1.0, time_rest=4.0, sampling_rate=10000.0):
     
     logfolder = "../log/"
     outfolder = "../out/"
@@ -66,23 +66,31 @@ def eval_halfsine(amp=1.0, freq=2.0, time_idle=1.0, time_rest=1.0, sampling_rate
         exit()
     
     
-    times_idle = np.arange(0.0, time_idle-dt, dt)
+    times_idle = np.arange(0.0, time_idle, dt)
     times_half = np.arange(0.0, time_half, dt)
-    times_rest = np.arange(0.0, time_rest+dt, dt)
+    times_rest = np.arange(0.0, time_rest, dt)
+    
+    
+    print(str(len(times_idle)))
+    print(str(len(times_half)))
+    print(str(len(times_rest)))
+    print("===============")
     
     omega = 2.0 * np.pi * freq
-    x_half = [amp * np.sin(omega * time) for time in times_half]
-    
-    #times_idle, times_half = ArrayLink(times_idle, times_half)
-    #times_half, times_rest = ArrayLink(times_half, times_rest)
-    
-    times_half = times_half + time_idle
-    times_rest = times_rest + time_idle + time_rest
-    
-    
     x_idle = [0 for time in times_idle]
+    x_half = [amp * np.sin(omega * time) for time in times_half]
     x_rest = [0 for time in times_rest]
     profile = x_idle + x_half + x_rest
+    
+    
+    times_half = times_half + time_idle #+ dt
+    times_rest = times_rest + time_idle + time_half# + 2.0*dt
+    
+    #times_half = times_half + time_idle
+    #times_rest = times_rest + time_idle + time_rest
+    
+    
+
     
     
     len_times_idle = len(times_idle)
@@ -99,6 +107,7 @@ def eval_halfsine(amp=1.0, freq=2.0, time_idle=1.0, time_rest=1.0, sampling_rate
     # Print to file
     with open((tmpfolder + "half-sine_profile.csv"), "w") as f:
         f.write("Seconds, Profile\n")
+        """
         for i in range(len_times_idle):
             f.write(f"{times_idle[i]}, {x_idle[i]}\n")
             
@@ -107,17 +116,19 @@ def eval_halfsine(amp=1.0, freq=2.0, time_idle=1.0, time_rest=1.0, sampling_rate
             
         for i in range(len_times_rest):
             f.write(f"{times_rest[i]}, {x_rest[i]}\n")
-    
+        """
+        for i in range(len(times_tot)):
+            f.write(f"{times_tot[i]}, {profile[i]}\n")
     
     
     print("half-sine profile")
     print("len(profile) = " + str(len(profile)))
     print("==============")
     
-    return times_tot, profile
+    return profile
 
-    
-    
+
+"""
 def ArrayLink(array1, array2):
     # Drop final entry in array1
     # array2 = array2 - array2[first] + array1[final]
@@ -127,7 +138,7 @@ def ArrayLink(array1, array2):
     array2_val = array2[0]
     array2 = array2 - array2_val + array1_val
     return array1_new, array2
-    
+"""    
 
     
     
