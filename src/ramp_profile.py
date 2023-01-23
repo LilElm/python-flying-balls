@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
-"""
-Flopper ramp current - Python translation for flying balls
-"""
+
+# Import libraries
 import numpy as np
 import sys
 from decimal import Decimal
@@ -9,8 +8,11 @@ import matplotlib.pyplot as plt
 import datetime
 import logging
 import os
-import shutil
 import time
+
+"""
+Flopper ramp current - Python translation for flying balls
+"""
 
 def eval_ramp(velocity=3.0, time_idle=4.0, time_acc=1.0, time_ramp=1.0, time_rest=1.25, sampling_rate=50000.0):
     #I think velocity is in mm/s, but all times are in seconds.
@@ -167,9 +169,6 @@ def eval_ramp(velocity=3.0, time_idle=4.0, time_acc=1.0, time_ramp=1.0, time_res
 
     #np.ravel(times_tot)
     #np.ravel(profile)
-    print("ramp profile")
-    print("len(profile) = " + str(len(profile)))
-    print("==============")
     
     
     return profile

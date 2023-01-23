@@ -1,33 +1,30 @@
+# -*- coding: utf-8 -*-
 
+# Import libraries
 from decimal import Decimal
 import sys
 from PyQt5.QtWidgets import (QMainWindow,
                              QApplication,
-                             QFrame,
+                             #QFrame,
                              QLabel,
                              QWidget,
                              QPushButton,
                              QGroupBox,
                              QCheckBox,
                              QComboBox,
-                             QAction,
+                             #QAction,
                              QLineEdit,
                              QMessageBox,
-                             QHBoxLayout,
+                             #QHBoxLayout,
                              QVBoxLayout,
-                             QGridLayout,
-                             QSizePolicy)
+                             QGridLayout)#,
+                             #QSizePolicy)
 from PyQt5.QtGui import QIcon
-from PyQt5.QtCore import QTimer, pyqtSignal, QObject
+from PyQt5.QtCore import QTimer
 import pyqtgraph as pg
 
 
-import multiprocessing.connection
-from multiprocessing import Process, Pipe
 
-
-
-import time
 
 
 class FileSettingsLayout(QGridLayout):
@@ -343,8 +340,8 @@ class RampSettingsLayout(QVBoxLayout):
                     
                     
                     if "Velo" not in textbox and "Amp" not in textbox and "Freq" not in textbox and "Phase" not in textbox:
-                            print("========")
-                            print(str(textbox))
+                            #print("========")
+                            #print(str(textbox))
                         
                             val = self.coil_layout_dict[coil].textboxValuesDict[textbox]
                             if "Acc" in textbox:

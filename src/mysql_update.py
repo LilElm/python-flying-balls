@@ -6,28 +6,20 @@ from dotenv import load_dotenv
 import mysql.connector
 from mysql.connector import errorcode
 import multiprocessing.connection
-multiprocessing.connection.BUFSIZE = 2**32-1 # This is the absolute limit for this PC
 from multiprocessing import Process, Pipe
 import datetime
 import time
 import numpy as np
 from itertools import cycle
 import sys
-import nidaqmx
-import nidaqmx.system
-from nidaqmx.stream_readers import AnalogMultiChannelReader
-from nidaqmx.stream_writers import AnalogMultiChannelWriter
-from nidaqmx import constants
 import logging
-from PyQt5 import QtWidgets, QtCore
-import pyqtgraph as pg
-from force_profile import eval_force
-import msvcrt
-
-"""Flying balls"""
 
 
-def main():
+"""Flying balls
+If errno13, add NETWORK SERVICE to folder permissions."""
+
+
+def update_db():
     currentDT = datetime.datetime.now()
     logfolder = "../log/"
     tmpfolder = "../tmp/"
@@ -110,6 +102,7 @@ def main():
                     with open(os.path.join(root, name), "r") as f:
                         line = f.readline().lower().strip("\n")
                         headers = line.split(", ")
+                        headers = [scrub(elem) for elem in headers]
                         fileDict[filenames[-1]] = headers
                         f.seek(0)
         
@@ -143,7 +136,7 @@ def main():
                         print("Error in fetching run number from database")
                         print("Run assumed to be 1")
                         logging.error("Error in fetching run number from database")
-                        print("Run assumed to be 1")
+                        logging.info("Run assumed to be 1")
                         pass
             run = max(run_list)        
         
@@ -207,17 +200,15 @@ def main():
             # result = all(elem in headers for elem in fileDict[table_name])
             # print(str(result))
 
-
+            # Add columns to the table if they do not exist
             for elem in fileDict[table_name]:
                 if elem not in headers:
-                    # Add the necessary columns to the table if they do not exist
                     try:
                         cur.execute(query4.format(table_name, elem))
                     except mysql.connector.Error as err:
                         print(err)
                         input()
-            con.commit()
-            
+            con.commit()  
             # Load data into the table
             columns = ", ".join(fileDict[table_name])
             filedir = dir_path + tmpfolder + table_name + ".csv"
@@ -235,7 +226,8 @@ def main():
             if p:
                 logging.info("Killing process {}".format(p))
                 p.kill()
-        input("\nProgram completed successfully")
+        print("\nData successfully added to the database")
+        time.sleep(2.0)
     except:
         pass
     finally:
@@ -279,10 +271,13 @@ def loading(msg):
             logging.warning("Pinwheel stopped via keyboard interruption")
     
 
+# Function scrubs input of invalid parameters
+def scrub(text):
+    return "".join( chr for chr in text if chr.isalnum() )
 
 # Run
 if __name__ == "__main__":
-    main()
+    update_db()
 
 
   

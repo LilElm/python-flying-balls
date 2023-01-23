@@ -1,15 +1,14 @@
+# -*- coding: utf-8 -*-
+
+# Import libraries
 import asyncio
 from bleak import BleakScanner, BleakClient
-
-
 import numpy as np
 import time
 import logging
 import datetime
 import os
 
-import multiprocessing.connection
-from multiprocessing import Process, Pipe
 
 async def main(pipe_in, pipe_out):
     currentDT = datetime.datetime.now()
@@ -28,36 +27,50 @@ async def main(pipe_in, pipe_out):
     logging.info("Attempting to connect to camera with:")
     logging.info(f"Address: {address}")
     logging.info(f"MODEL_NBR_UUID: {MODEL_NBR_UUID}")
-    async with BleakClient(address) as client:
-        if client.is_connected:
-            print("Connected to the camera")
-            logging.info("Connected to the camera")
+    print("Attempting to connect to the camera")
+    
+    try:
+        async with BleakClient(address) as client:
+            if client.is_connected:
+                print("Connected to the camera")
+                logging.info("Connected to the camera")
+            
+            # Start recording
+            data1 = bytearray([1,5,0,0,10,1,1,0,2,0,0,0])
+            logging.info("Sending 'START RECORDING' bytearray")
+            try:
+                await client.write_gatt_char(MODEL_NBR_UUID, data1, response=True)
+            except:
+                pass
+            print("Recording started")
+            logging.info("Recording started")
+            
+            # Send signal for rest of program to begin
+            pipe_out.send(True)
+            
+            
+            stop = False
+            while not stop:
+                if pipe_in.poll():
+                    stop = pipe_in.recv()
+                    logging.info("Received stop signal")
+            
+            
+            # Stop recording
+            data2 = bytearray([1,5,0,0,10,1,1,0,0,0,0,0])
+            logging.info("Sending 'STOP RECORDING' bytearray")
+            try:
+                await client.write_gatt_char(MODEL_NBR_UUID, data2, response=True)
+            except:
+                pass
+            print("Recording stopped")
+            print("Closing Bluetooth connection")
+        print("Connection closed")
         
-        # Start recording
-        data1 = bytearray([1,5,0,0,10,1,1,0,2,0,0,0])
-        logging.info("Sending 'START RECORDING' bytearray")
-        await client.write_gatt_char(MODEL_NBR_UUID, data1, response=True)
-        print("Recording started")
-        logging.info("Recording started")
+    except:
+        logging.info("Failed to connect to the camera")
+        print("Failed to connect to the camera")
         
-        # Send signal for rest of program to begin
-        pipe_out.send(True)
-        
-        
-        stop = False
-        while not stop:
-            if pipe_in.poll():
-                stop = pipe_in.recv()
-                logging.info("Received stop signal")
-        
-        
-        # Stop recording
-        data2 = bytearray([1,5,0,0,10,1,1,0,0,0,0,0])
-        logging.info("Sending 'STOP RECORDING' bytearray")
-        await client.write_gatt_char(MODEL_NBR_UUID, data2, response=True)
-        print("Recording stopped")
-        print("Closing Bluetooth connection")
-    print("Connection closed")
     
 
         
@@ -69,7 +82,7 @@ def camera(pipe_in, pipe_out):
 
 
 
-    
+#run_camera(None, None)
     
     #CC:86:EC:72:D2:54: A:91A496D3
     

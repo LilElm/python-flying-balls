@@ -47,7 +47,7 @@
 
  * Process 3:
 
-   - [ ] Store manipulated data in a MySQL database
+   - [X] Store manipulated data in a MySQL database
    - [X] Send signal to main program once finished
 
  * Process 4:
@@ -201,6 +201,16 @@
  * 'STOP' must be pressed for the camera to stop recording
 
  * Buffer size increased to avoid data loss
+
+ * mysql_update.py modified to work with current data output
+
+ * shutil module and mysql_update.py are both incompatible with camera.py
+
+   * Only rmtree has been imported from shutil in effort to work around any disfunction
+
+   * mysql_update.py is called using the os module to keep the environments separate
+
+ * Future work: keep camera connected until the program closes
 
 
 </sub>

@@ -2,6 +2,7 @@
 
 # Import libraries
 import os
+from shutil import rmtree
 import multiprocessing.connection
 multiprocessing.connection.BUFSIZE = 2**32-1 # This is the absolute limit for this PC
 from multiprocessing import Process, Pipe
@@ -17,28 +18,23 @@ from nidaqmx.stream_writers import AnalogMultiChannelWriter
 from nidaqmx import constants
 import logging
 from PyQt5 import QtWidgets, QtCore
-import pyqtgraph as pg
+
+from camera import camera
 from ramp_profile import eval_ramp
 from halfsine_profile import eval_halfsine
-import msvcrt
-
 from gui import start_gui
 from gui import SignalStart
-from camera import camera
+
+
 """Flying balls"""
 
-"""
-class InputChannel:
-    def __init__(self, channel):
-        self.channel = channel
 
-"""
+
 class Channel:
     def __init__(self, channel, measured=None):
         self.channel = channel
         if measured is not None:
             self.measured = measured
-
 
 
 def gen_numbers(channelDict):
@@ -62,11 +58,7 @@ def get_parameters(pipe_param1a):
     return sampling_rate, lat_profile, lat_params, long_profile, long_params
 
 
-
-
-
-def force_profile(pipe_msgb, msg2, sampling_rate, profile, params):
-    pipe_msgb.send(msg2)
+def force_profile(sampling_rate, profile, params):
     if profile == "Ramp Profile":
         velocity, idle, acc, ramp, rest = params
         f_profile = eval_ramp(velocity, idle, acc, ramp, rest, sampling_rate)
@@ -75,24 +67,20 @@ def force_profile(pipe_msgb, msg2, sampling_rate, profile, params):
     elif profile == "Half-sine Profile":
         amp, freq, idle, rest = params
         f_profile = eval_halfsine(amp, freq, idle, rest, sampling_rate)
-        
     elif profile == "Upload Custom":
         exit
-    
     return f_profile
     
-    
-    
-    
-
-
 
 def main():
     currentDT = datetime.datetime.now()
     logfolder = "../log/"
     tmpfolder = "../tmp/"
     os.makedirs(logfolder, exist_ok=True)
-    os.makedirs(tmpfolder, exist_ok=True)
+   # if os.path.exists(tmpfolder) and os.path.isdir(tmpfolder):
+    #    rmtree(tmpfolder)
+    #os.makedirs(tmpfolder)
+    
     logging.basicConfig(filename = logfolder + "main.log", encoding='utf-8', level=logging.DEBUG)
     logging.info(currentDT.strftime("%d/%m/%Y, %H:%M:%S"))   
     
@@ -141,24 +129,22 @@ def main():
     # Start message function
     pipe_msga, pipe_msgb = Pipe(duplex=False)
     msg1 = "Waiting for user input"
-    msg2 = "Evaluating force profile"
-    msg3 = "Acquiring data"
-    msg4 = "Stop signal received"
+    msg2 = "Evaluating force profiles"
+    msg3 = "Starting acquisition"
+    msg4 = "Acquiring data"
+    msg5 = "Stop signal received"
     proc1 = Process(target=message, args=(pipe_msga, msg1, ))
     processlist.append(proc1)
     proc1.start()
 
     # Get input parameters from the GUI and evalute the force profile
     sampling_rate, lat_profile, lat_params, long_profile, long_params = get_parameters(pipe_param1a)
-    force_profile_lat = force_profile(pipe_msgb, msg2, sampling_rate, lat_profile, lat_params)
-    force_profile_long = force_profile(pipe_msgb, msg2, sampling_rate, long_profile, long_params)
+    pipe_msgb.send(msg2)
+    force_profile_lat = force_profile(sampling_rate, lat_profile, lat_params)
+    force_profile_long = force_profile(sampling_rate, long_profile, long_params)
+    pipe_msgb.send(msg3)
     
     
-    
-
-    
-
-
     # Create pipes to send data between processes
     pipe_livea, pipe_liveb = Pipe(duplex=False)
     pipe_timea, pipe_timeb = Pipe(duplex=False)
@@ -173,13 +159,11 @@ def main():
     processlist2 = []
     proc_cam = Process(target=camera, args=(pipe_cama, pipe_recordb, ))
     processlist2.append(proc_cam)
-    #processlist2.append(Process(target=camera, args=(pipe_cama, pipe_recordb, )))
     processlist2.append(Process(target=get_data, args=(pipe_liveb, pipe_timeb, input_channels, measured_channels, output_channels, sampling_rate, force_profile_lat, force_profile_long, input_channelDict, )))
     processlist2.append(Process(target=manipulate_data, args=(pipe_livea, pipe_timea, pipe_manipb, pipe_inputb, pipe_outputb, input_channelDict, output_channelDict, )))
     processlist2.append(Process(target=store_data, args=(pipe_manipa, pipe_killb, input_channels, measured_channels, )))
-
- 
-        
+    
+    
     
     for p in processlist2:
         try:
@@ -197,9 +181,8 @@ def main():
     
     
     # Turn on the GUI plots
-    pipe_msgb.send(msg3)
+    pipe_msgb.send(msg4)
     signal_start.signal = True
-    
     
     
     
@@ -208,7 +191,7 @@ def main():
         if pipe_signala.poll():
             while pipe_signala.poll():
                 pipe_signala.recv()
-            pipe_msgb.send(msg4)
+            pipe_msgb.send(msg5)
             signal_start.signal = False
             
             # Stop camera
@@ -221,12 +204,21 @@ def main():
                     p.kill()
                 except:
                     print("error killing process")
+                    
+            # Store data in a database
+            # update_db() # This cocks up the camera
+            # Run this file via os package
+            #os.system('start python mysql_update.py')
+            
+            # Drop tmpfolder
+            if os.path.exists(tmpfolder) and os.path.isdir(tmpfolder):
+                rmtree(tmpfolder)
+            os.makedirs(tmpfolder)
             
             # Recreate 'new' processes (processes cannot be reused)
             processlist2 = []
             proc_cam = Process(target=camera, args=(pipe_cama, pipe_recordb, ))
             processlist2.append(proc_cam)
-            #processlist2.append(Process(target=camera, args=(pipe_cama, pipe_recordb, )))
             processlist2.append(Process(target=get_data, args=(pipe_liveb, pipe_timeb, input_channels, measured_channels, output_channels, sampling_rate, force_profile_lat, force_profile_long, input_channelDict, )))
             processlist2.append(Process(target=manipulate_data, args=(pipe_livea, pipe_timea, pipe_manipb, pipe_inputb, pipe_outputb, input_channelDict, output_channelDict, )))
             processlist2.append(Process(target=store_data, args=(pipe_manipa, pipe_killb, input_channels, measured_channels, )))
@@ -236,9 +228,7 @@ def main():
             pipe_msgb.send(msg1)
             sampling_rate, lat_profile, lat_params, long_profile, long_params = get_parameters(pipe_param1a)
             
-
-
-                
+            
             
             # Clear stop signals in case of build-up
             while pipe_signala.poll():
@@ -246,8 +236,10 @@ def main():
             
             
             # Evalute the force profiles
-            force_profile_lat = force_profile(pipe_msgb, msg2, sampling_rate, lat_profile, lat_params)
-            force_profile_long = force_profile(pipe_msgb, msg2, sampling_rate, long_profile, long_params)
+            pipe_msgb.send(msg2)
+            force_profile_lat = force_profile(sampling_rate, lat_profile, lat_params)
+            force_profile_long = force_profile(sampling_rate, long_profile, long_params)
+            pipe_msgb.send(msg3)
             
             # Start processes
             for p in processlist2:
@@ -266,12 +258,11 @@ def main():
 
             
             # Turn on the GUI plots
-            pipe_msgb.send(msg3)
+            pipe_msgb.send(msg4)
             signal_start.signal = True
             time.sleep(0.125)
             
             
-    
     
     
     """
@@ -449,7 +440,7 @@ def get_data(p_live, p_time, input_channels, measured_channels, output_channels,
 # it to store_data()
 def manipulate_data(p_live, p_time, p_manip, p_inputplot, p_outputplot, input_channelDict, output_channelDict):
     try:
-        buffer_rate = 0.01 #100 data points per channel per sec
+        buffer_rate = 0.025 #40 data points per channel per sec
         counter = 0
         while True:
             try:
@@ -489,13 +480,14 @@ def manipulate_data(p_live, p_time, p_manip, p_inputplot, p_outputplot, input_ch
                     dummylist = []
                     for channel in output_channelDict:
                         dummylist.append(output_channelDict[channel].dat[i])
-                    output_man.append([time_eval, *dummylist])
+                    #output_man.append([time_eval, *dummylist])
+                    output_man.append([*dummylist])
                     
                     
                     if time_eval >= time_next:
                         time_next = time_next + buffer_rate
                         p_inputplot.send(input_man[i])
-                        p_outputplot.send(output_man[i])
+                        p_outputplot.send([time_eval, *dummylist])
                 
                 # Send data to store_data()
                 p_manip.send(input_man)
@@ -519,15 +511,16 @@ def store_data(p_manip, p_kill, input_channels, measured_channels):
         
         timenow = time.time()
         
-        with open((tmpfolder + str(timenow) + "_data.csv"), "w") as f:
+#        with open((tmpfolder + str(timenow) + "_data.csv"), "w") as f:
+        with open((f"{tmpfolder}data.csv"), "w") as f:
             f.write("timestamp, " + ", ".join(channels) + "\n")
             while True:
-
                 values_in = p_manip.recv()
                 values_out = p_manip.recv()
                 
+                
                 for i in range(len(values_in)):
-                    f.write(', '.join(map(str, values_in[i])) + ', '.join(map(str, values_out[i])) + "\n")
+                    f.write(', '.join(map(str, values_in[i])) + ", " + ', '.join(map(str, values_out[i])) + "\n")
                 
                 # Exit if pipe is empty
                 # Send kill signal
@@ -536,6 +529,10 @@ def store_data(p_manip, p_kill, input_channels, measured_channels):
                     time.sleep(2)
                 if p_manip.poll() is False:
                     p_kill.send(True)
+                    # Store data in a database
+                    # update_db() # This cocks up the camera
+                    # Run this file via os package
+                    os.system('start python mysql_update.py')
                     break
                 
     except KeyboardInterrupt:
