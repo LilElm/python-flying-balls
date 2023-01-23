@@ -52,7 +52,11 @@
 
  * Process 4:
    
-   - [X] Plot real-time data using Qt  
+   - [X] Plot real-time data using Qt
+
+ * Process 5:
+   
+   - [X] Record automatically via Bluetooth camera
 
 
 </sub>
