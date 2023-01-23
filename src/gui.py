@@ -18,13 +18,13 @@ from PyQt5.QtWidgets import (QMainWindow,
                              QGridLayout,
                              QSizePolicy)
 from PyQt5.QtGui import QIcon
-#from PyQt5.QtCore import *####pyqtSlot
 from PyQt5.QtCore import QTimer, pyqtSignal, QObject
 import pyqtgraph as pg
 
-#from force_profile_dummy import force_profile
 
-#from main import main
+import multiprocessing.connection
+from multiprocessing import Process, Pipe
+
 
 
 import time
@@ -118,7 +118,7 @@ class CoilLayout(QGridLayout):
         elif content == self.combo_box_list[1]:
             # Make content for Sine Profile
             self.labelDict = {}
-            self.labelDict[QLabel("Amplitude\n(V ptp)")] = [1, 1, 1, 1]
+            self.labelDict[QLabel("Amplitude\n(V)")] = [1, 1, 1, 1]
             self.labelDict[QLabel("Frequency\n(Hz)")] = [3, 0, 1, 1]
             self.labelDict[QLabel("Phase\n(deg)")] = [3, 1, 1, 1]
             
@@ -132,7 +132,7 @@ class CoilLayout(QGridLayout):
         elif content == self.combo_box_list[2]:
             # Make content for Half Sine Profile
             self.labelDict = {}
-            self.labelDict[QLabel("Amplitude\n(V ptp)")] = [1, 1, 1, 1]
+            self.labelDict[QLabel("Amplitude\n(V)")] = [1, 1, 1, 1]
             self.labelDict[QLabel("Frequency\n(Hz)")] = [3, 0, 1, 1]
             self.labelDict[QLabel("Time Idle\n(s)")] = [3, 1, 1, 1]
             self.labelDict[QLabel("Time Rest\n(s)")] = [5, 0, 1, 1]
@@ -312,7 +312,7 @@ class RampSettingsLayout(QVBoxLayout):
                 for textbox in self.coil_layout_dict[coil].textboxValuesDict:
                     if error_code == 0:
                         val = self.coil_layout_dict[coil].textboxValuesDict[textbox]
-                        if "Velo" not in textbox or "Amp" not in textbox or "Phase" not in textbox:  
+                        if "Velo" not in textbox and "Amp" not in textbox and "Phase" not in textbox:  
                             if val < 0.0:
                                 print(str(textbox) + " is negative")
                                 error_message.append(str(textbox) + " is negative")
@@ -417,7 +417,7 @@ class OutputGraphLayout(QVBoxLayout):
         
         self.counter = 0
         self.timer = QTimer()
-        self.timer.setInterval(20) # 4 ms = 250 refreshes per sec
+        self.timer.setInterval(10) # 5 ms = 200 refreshes per sec
         self.timer.timeout.connect(self.update_plots)
         self.timer.start()
     
@@ -446,10 +446,10 @@ class OutputGraphLayout(QVBoxLayout):
                     self.output_channelDict[channel].plot.data.append(data[self.output_channelDict[channel].index])
                     
                     
-                    if len(self.elapsed_time) > 100:
+                    if len(self.elapsed_time) > 200:
                         self.elapsed_time = self.elapsed_time[1:]
                     
-                    if len(self.output_channelDict[channel].plot.data) > 100:
+                    if len(self.output_channelDict[channel].plot.data) > 200:
                         self.output_channelDict[channel].plot.data = self.output_channelDict[channel].plot.data[1:]
                     self.output_channelDict[channel].plot.line.setData(self.elapsed_time, self.output_channelDict[channel].plot.data)
                     
@@ -483,7 +483,7 @@ class InputGraphLayout(QVBoxLayout):
         
         self.counter = 0
         self.timer = QTimer()
-        self.timer.setInterval(20) # 4 ms = 250 refreshes per sec
+        self.timer.setInterval(10) # 5 ms = 200 refreshes per sec
         self.timer.timeout.connect(self.update_plots)
         self.timer.start()
     
@@ -511,10 +511,10 @@ class InputGraphLayout(QVBoxLayout):
                 for channel in self.input_channelDict:
                     self.input_channelDict[channel].plot.data.append(data[self.input_channelDict[channel].index])
                     
-                    if len(self.elapsed_time) > 100:
+                    if len(self.elapsed_time) > 200:
                         self.elapsed_time = self.elapsed_time[1:]
                     
-                    if len(self.input_channelDict[channel].plot.data) > 100:
+                    if len(self.input_channelDict[channel].plot.data) > 200:
                         self.input_channelDict[channel].plot.data = self.input_channelDict[channel].plot.data[1:]
                     self.input_channelDict[channel].plot.line.setData(self.elapsed_time, self.input_channelDict[channel].plot.data)
         

@@ -188,4 +188,15 @@
 
  * Position labels added to GUI plots
 
+ **23-Jan-22**
+
+ * camera.py added and controls the camera
+
+ * The camera automatically begins recording on 'START'
+
+ * 'STOP' must be pressed for the camera to stop recording
+
+ * Buffer size increased to avoid data loss
+
+
 </sub>

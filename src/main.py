@@ -24,6 +24,7 @@ import msvcrt
 
 from gui import start_gui
 from gui import SignalStart
+from camera import camera
 """Flying balls"""
 
 """
@@ -89,7 +90,9 @@ def force_profile(pipe_msgb, msg2, sampling_rate, profile, params):
 def main():
     currentDT = datetime.datetime.now()
     logfolder = "../log/"
+    tmpfolder = "../tmp/"
     os.makedirs(logfolder, exist_ok=True)
+    os.makedirs(tmpfolder, exist_ok=True)
     logging.basicConfig(filename = logfolder + "main.log", encoding='utf-8', level=logging.DEBUG)
     logging.info(currentDT.strftime("%d/%m/%Y, %H:%M:%S"))   
     
@@ -151,7 +154,9 @@ def main():
     force_profile_long = force_profile(pipe_msgb, msg2, sampling_rate, long_profile, long_params)
     
     
+    
 
+    
 
 
     # Create pipes to send data between processes
@@ -159,13 +164,20 @@ def main():
     pipe_timea, pipe_timeb = Pipe(duplex=False)
     pipe_manipa, pipe_manipb = Pipe(duplex=False)
     pipe_killa, pipe_killb = Pipe(duplex=False)
+    pipe_cama, pipe_camb = Pipe(duplex=False)
+    pipe_recorda, pipe_recordb = Pipe(duplex=False)
+    
     
     
     # Create processes
     processlist2 = []
+    proc_cam = Process(target=camera, args=(pipe_cama, pipe_recordb, ))
+    processlist2.append(proc_cam)
+    #processlist2.append(Process(target=camera, args=(pipe_cama, pipe_recordb, )))
     processlist2.append(Process(target=get_data, args=(pipe_liveb, pipe_timeb, input_channels, measured_channels, output_channels, sampling_rate, force_profile_lat, force_profile_long, input_channelDict, )))
     processlist2.append(Process(target=manipulate_data, args=(pipe_livea, pipe_timea, pipe_manipb, pipe_inputb, pipe_outputb, input_channelDict, output_channelDict, )))
     processlist2.append(Process(target=store_data, args=(pipe_manipa, pipe_killb, input_channels, measured_channels, )))
+
  
         
     
@@ -174,6 +186,11 @@ def main():
             logging.info("Starting process {}".format(p))
             p.start()
             print(str(p))
+            if p == proc_cam:
+                cont = False
+                while not cont:
+                    if pipe_recorda.poll():
+                        cont = pipe_recorda.recv()
         except:
             print("Error starting {}".format(p))
             logging.error("Error starting {}".format(p))
@@ -194,6 +211,10 @@ def main():
             pipe_msgb.send(msg4)
             signal_start.signal = False
             
+            # Stop camera
+            pipe_camb.send(True)
+            proc_cam.join()
+            
             # Stop all processes
             for p in processlist2:
                 try:
@@ -203,15 +224,21 @@ def main():
             
             # Recreate 'new' processes (processes cannot be reused)
             processlist2 = []
+            proc_cam = Process(target=camera, args=(pipe_cama, pipe_recordb, ))
+            processlist2.append(proc_cam)
+            #processlist2.append(Process(target=camera, args=(pipe_cama, pipe_recordb, )))
             processlist2.append(Process(target=get_data, args=(pipe_liveb, pipe_timeb, input_channels, measured_channels, output_channels, sampling_rate, force_profile_lat, force_profile_long, input_channelDict, )))
             processlist2.append(Process(target=manipulate_data, args=(pipe_livea, pipe_timea, pipe_manipb, pipe_inputb, pipe_outputb, input_channelDict, output_channelDict, )))
             processlist2.append(Process(target=store_data, args=(pipe_manipa, pipe_killb, input_channels, measured_channels, )))
+
             
-            
-                        
             # Get input parameters from the GUI
             pipe_msgb.send(msg1)
             sampling_rate, lat_profile, lat_params, long_profile, long_params = get_parameters(pipe_param1a)
+            
+
+
+                
             
             # Clear stop signals in case of build-up
             while pipe_signala.poll():
@@ -225,9 +252,18 @@ def main():
             # Start processes
             for p in processlist2:
                 try:
+                    logging.info("Starting process {}".format(p))
                     p.start()
+                    print(str(p))
+                    if p == proc_cam:
+                        cont = False
+                        while not cont:
+                            if pipe_recorda.poll():
+                                cont = pipe_recorda.recv()
                 except:
-                    print("error starting process")
+                    print("Error starting {}".format(p))
+                    logging.error("Error starting {}".format(p))
+
             
             # Turn on the GUI plots
             pipe_msgb.send(msg3)
@@ -310,14 +346,14 @@ def main():
 
 # Function acquires and buffers live data from DAQ board and pipes it
 # to manipualte_data()
-def get_data(p_live, p_time, input_channels, measured_channels, output_channels, sampling_rate, force_profile_force_lat, force_profile_force_long, channelDict):
+def get_data(p_live, p_time, input_channels, measured_channels, output_channels, sampling_rate, force_profile_lat, force_profile_long, channelDict):
     try:
         with nidaqmx.Task() as task0, nidaqmx.Task() as task1:
             
             
             # Configure output task (Task 0)
             num_channels0 = len(output_channels)
-            num_samples0 = np.size(force_profile_force_lat)
+            num_samples0 = np.size(force_profile_lat)
             for channel in output_channels:
                 task0.ao_channels.add_ao_voltage_chan(channel)
             
@@ -333,22 +369,25 @@ def get_data(p_live, p_time, input_channels, measured_channels, output_channels,
             
             
             writer0 = AnalogMultiChannelWriter(task0.out_stream, auto_start=False)
-            buffer0 = np.vstack((force_profile_force_lat, force_profile_force_long))
+            buffer0 = np.vstack((force_profile_lat, force_profile_long))
             writer0.write_many_sample(buffer0, timeout=60)
-            
-            
-            #######################################################
-            #######################################################
-            
-            
-            
             
             
             
             # Configure input task (Task 1) (Dev1/ai0, Dev1/ai19, Dev1/ai3)
             num_channels1 = len(input_channels) + len(measured_channels)
-            num_samples1 = 10000 # Buffer size per channel
-            num_samples1 = 2 # Buffer size per channel
+            
+            # The buffer size must be sufficiently high, otherwise the buffer will overwrite itself
+            # However, if the buffer size is large, so too will be the delay
+            # Moreover, if the buffer is not a complete multiple of the sampling rate, data will be truncated
+            #num_samples1 = int(4*sampling_rate / 1) # Buffer size per channel
+            
+            if sampling_rate <= 10000:
+                num_samples1 = int(sampling_rate)
+            elif sampling_rate <= 50000:
+                num_samples1 = int(sampling_rate * 2)
+            else:
+                num_samples1 = int(sampling_rate * 5)
             
             for channel in input_channels:
                 task1.ai_channels.add_ai_voltage_chan(channel)
@@ -372,6 +411,8 @@ def get_data(p_live, p_time, input_channels, measured_channels, output_channels,
             task0.triggers.start_trigger.cfg_dig_edge_start_trig(task1.triggers.start_trigger.term)
             task0.start()
             
+            
+            
             while True:
                 try:
                     time_start = time.time()
@@ -379,14 +420,15 @@ def get_data(p_live, p_time, input_channels, measured_channels, output_channels,
                     time_end = time.time()
                     times = [time_start, time_end]
                     
+                    
+                    
                     data_live1 = buffer1.T.astype(np.float32)
                     p_live.send(data_live1)
                     p_time.send(times)
                     
                     if task0.is_task_done():
-                        time.sleep(10)
                         break
-                    
+
                 except nidaqmx.errors.DaqError as err:
                     print(err)
                     logging.error(err)
@@ -395,6 +437,7 @@ def get_data(p_live, p_time, input_channels, measured_channels, output_channels,
                     if task1:
                         task1.close()
                     break
+                
     except KeyboardInterrupt:
         logging.warning("Data acquisition stopped via keyboard interruption")
     finally:
@@ -406,7 +449,7 @@ def get_data(p_live, p_time, input_channels, measured_channels, output_channels,
 # it to store_data()
 def manipulate_data(p_live, p_time, p_manip, p_inputplot, p_outputplot, input_channelDict, output_channelDict):
     try:
-        buffer_rate = 0.1 #10 data points per channel per sec
+        buffer_rate = 0.01 #100 data points per channel per sec
         counter = 0
         while True:
             try:
@@ -473,7 +516,10 @@ def store_data(p_manip, p_kill, input_channels, measured_channels):
     try:
         tmpfolder = '../tmp/'
         channels = input_channels + measured_channels
-        with open((tmpfolder + "data.csv"), "w") as f:
+        
+        timenow = time.time()
+        
+        with open((tmpfolder + str(timenow) + "_data.csv"), "w") as f:
             f.write("timestamp, " + ", ".join(channels) + "\n")
             while True:
 
@@ -488,7 +534,7 @@ def store_data(p_manip, p_kill, input_channels, measured_channels):
                 # This is not an elegant solution. Consider revising
                 if p_manip.poll() is False:
                     time.sleep(2)
-                if p_manip.poll() is False:                    
+                if p_manip.poll() is False:
                     p_kill.send(True)
                     break
                 
