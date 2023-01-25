@@ -8,7 +8,6 @@ cd "src/"
 C:\Users\ultservi\Anaconda3\python.exe "main.py"
 
 timeout /t 1
-#C:\Users\ultservi\Anaconda3\python.exe "mysql_update.py"
 
 
 pause

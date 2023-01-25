@@ -5,20 +5,16 @@ from decimal import Decimal
 import sys
 from PyQt5.QtWidgets import (QMainWindow,
                              QApplication,
-                             #QFrame,
                              QLabel,
                              QWidget,
                              QPushButton,
                              QGroupBox,
                              QCheckBox,
                              QComboBox,
-                             #QAction,
                              QLineEdit,
                              QMessageBox,
-                             #QHBoxLayout,
                              QVBoxLayout,
-                             QGridLayout)#,
-                             #QSizePolicy)
+                             QGridLayout)
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import QTimer
 import pyqtgraph as pg
@@ -28,8 +24,9 @@ import pyqtgraph as pg
 
 
 class FileSettingsLayout(QGridLayout):
-    def __init__(self, parent=None, *args, **kwargs):
+    def __init__(self, checkbox, parent=None, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
+        self.checkbox = checkbox
 
         
         #================================================================
@@ -45,19 +42,11 @@ class FileSettingsLayout(QGridLayout):
         self.addWidget(QLineEdit(), 0, 1, 1, 1)
         self.addWidget(QLabel("DB Environment"), 1, 1, 1, 1)
         
-        self.checkbox = QCheckBox()
-        self.checkbox.stateChanged.connect(self.checked)
-        
         self.addWidget(self.checkbox, 0, 2, 1, 1)
         self.addWidget(QLabel("Save to File?"), 1, 2, 1, 1)
         
-        
-    def checked(self):
-        val = self.checkbox.isChecked()
-        if val:
-            print("Checked")
-        else:
-            print("Not checked")
+
+
 
 
 class CoilLayout(QGridLayout):
@@ -165,7 +154,7 @@ class CoilLayout(QGridLayout):
         
 
 class RampSettingsLayout(QVBoxLayout):
-    def __init__(self, pipe_param, signal_start, pipe_signal, parent=None, *args, **kwargs):
+    def __init__(self, pipe_param, signal_start, pipe_signal, checkbox, parent=None, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
         #============================================================
         # Layout of Ramp Settings
@@ -178,6 +167,7 @@ class RampSettingsLayout(QVBoxLayout):
         self.pipe_param = pipe_param
         self.signal_start = signal_start
         self.pipe_signal = pipe_signal
+        self.checkbox = checkbox
 
 
         
@@ -224,7 +214,8 @@ class RampSettingsLayout(QVBoxLayout):
         # Send start signal to graphs
         self.signal_start.signal = True
 
-        # Get sampling rate
+        # Get 'save to file' and sampling rate
+        self.save = self.checkbox.isChecked()
         self.sampling_rate = self.textbox_srate.text()
         
         # Read all textboxes and return the values
@@ -240,6 +231,7 @@ class RampSettingsLayout(QVBoxLayout):
         # If valid, send input parameters through pipe_params to main.py
         # From there, force_profile.py will be called with the parameters
         if success:
+            self.pipe_param.send(self.save)
             self.pipe_param.send(self.sampling_rate)
             for coil in self.coil_layout_dict:
                 # Send profile (ramp, sine, half-sine, custom)
@@ -249,8 +241,6 @@ class RampSettingsLayout(QVBoxLayout):
                 # Send input parameters
                 val = list(self.coil_layout_dict[coil].textboxValuesDict.values())
                 self.pipe_param.send(val)
-                
-                
 
         else:
             print("Input parameters invalid")
@@ -324,7 +314,7 @@ class RampSettingsLayout(QVBoxLayout):
                 for textbox in self.coil_layout_dict[coil].textboxValuesDict:
                     
                     if "Freq" in textbox:
-                        #Work out associated time
+                        # Work out associated time
                         # This depends on sine vs half-sine
                         
                         val = self.coil_layout_dict[coil].textboxValuesDict[textbox]
@@ -340,13 +330,10 @@ class RampSettingsLayout(QVBoxLayout):
                     
                     
                     if "Velo" not in textbox and "Amp" not in textbox and "Freq" not in textbox and "Phase" not in textbox:
-                            #print("========")
-                            #print(str(textbox))
-                        
-                            val = self.coil_layout_dict[coil].textboxValuesDict[textbox]
-                            if "Acc" in textbox:
-                                val = val * 2.0
-                            time_sum = time_sum + val
+                        val = self.coil_layout_dict[coil].textboxValuesDict[textbox]
+                        if "Acc" in textbox:
+                            val = val * 2.0
+                        time_sum = time_sum + val
                 tot_times.append(time_sum)
             
             res = all(t == tot_times[0] for t in tot_times)
@@ -379,7 +366,6 @@ class RampSettingsLayout(QVBoxLayout):
             msg = QMessageBox()
             msg.setIcon(QMessageBox.Critical)
             msg.setText("Error")
-#            msg.setInformativeText(str(error_message))
             msg.setInformativeText(str(error_message[0]))
             msg.setWindowTitle("Error")
             msg.exec_()
@@ -414,7 +400,7 @@ class OutputGraphLayout(QVBoxLayout):
         
         self.counter = 0
         self.timer = QTimer()
-        self.timer.setInterval(10) # 5 ms = 200 refreshes per sec
+        self.timer.setInterval(10) #ms
         self.timer.timeout.connect(self.update_plots)
         self.timer.start()
     
@@ -480,7 +466,7 @@ class InputGraphLayout(QVBoxLayout):
         
         self.counter = 0
         self.timer = QTimer()
-        self.timer.setInterval(10) # 5 ms = 200 refreshes per sec
+        self.timer.setInterval(10) #ms
         self.timer.timeout.connect(self.update_plots)
         self.timer.start()
     
@@ -537,10 +523,12 @@ class Layout(QGridLayout):
         self.pipe_signal = pipe_signal
         self.pipe_input = pipe_input
         self.pipe_output = pipe_output
+        self.checkbox = QCheckBox()
+
         
         
-        layout_fsettings = FileSettingsLayout()
-        layout_ramp = RampSettingsLayout(self.pipe_param, self.signal_start, self.pipe_signal)
+        layout_fsettings = FileSettingsLayout(self.checkbox)
+        layout_ramp = RampSettingsLayout(self.pipe_param, self.signal_start, self.pipe_signal, self.checkbox)
         layout_output = OutputGraphLayout(self.output_channelDict, self.pipe_output, self.signal_start)
         layout_input = InputGraphLayout(self.input_channelDict, self.pipe_input, self.signal_start)
         
@@ -564,14 +552,16 @@ class MainWindow(QMainWindow):
         self.pipe_signal = pipe_signal
         self.pipe_input = pipe_input
         self.pipe_output = pipe_output
-        self.title = "GUI Demo"
+        self.title = "Flying Balls"
+        self.icon = "../fig/icon.png"
         self.setGeometry(40, 40, 1200, 625)
         self.initUI()
     
     
     def initUI(self):
         self.setWindowTitle(self.title)
-        grid_layout = Layout(self.input_channelDict, self.output_channelDict, self.pipe_param, self.pipe_input, self.pipe_output, self.signal_start, self.pipe_signal)        
+        self.setWindowIcon(QIcon(self.icon))
+        grid_layout = Layout(self.input_channelDict, self.output_channelDict, self.pipe_param, self.pipe_input, self.pipe_output, self.signal_start, self.pipe_signal)
         widget = QWidget()
         widget.setLayout(grid_layout)
         self.setCentralWidget(widget)

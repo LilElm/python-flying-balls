@@ -13,24 +13,36 @@ import numpy as np
 from itertools import cycle
 import sys
 import logging
+import shutil
 
 
 """Flying balls
 If errno13, add NETWORK SERVICE to folder permissions."""
+
+class File():
+    def __init__(self, root, name, extension):
+        self.root = root
+        self.name = name
+        self.extension = extension
+
 
 
 def update_db():
     currentDT = datetime.datetime.now()
     logfolder = "../log/"
     tmpfolder = "../tmp/"
+    outfolder = "../out/"
     os.makedirs(logfolder, exist_ok=True)
+    os.makedirs(outfolder, exist_ok=True)
     logging.basicConfig(filename = logfolder + "mysql_update.log", encoding='utf-8', level=logging.DEBUG)
     logging.info(currentDT.strftime("%d/%m/%Y, %H:%M:%S"))    
 
+    # Change folder permissions so that the database (NETWORK SERVICE) can access the appropriate files
+    os.system('icacls "C:\\Users\\ultservi\\Desktop\Elmy\\python-flying-balls" /T /grant "NETWORK SERVICE":F')
     
     msg = "Loading data into database"
     processlist = []
-    processlist.append(Process(target=loading, args=(msg, )))
+    #processlist.append(Process(target=loading, args=(msg, )))
     for p in processlist:
         try:
             logging.info("Starting process {}".format(p))
@@ -91,21 +103,26 @@ def update_db():
                 logging.error(err)
                 exit(1)
 
-
+        
         # Load in .CSV file and header names
-        filenames = []
         fileDict = {}
         for root, dirs, files in os.walk(tmpfolder, topdown=False):
             for name in files:
                 if ".csv" in name:
-                    filenames.append(name.strip(".csv"))
+                    filename = name.strip(".csv")
                     with open(os.path.join(root, name), "r") as f:
                         line = f.readline().lower().strip("\n")
                         headers = line.split(", ")
                         headers = [scrub(elem) for elem in headers]
-                        fileDict[filenames[-1]] = headers
+                        
+                        if "dat" in name:
+                            timestamp = f.readline().lower().strip("\n").split(", ")[0]
                         f.seek(0)
-        
+                        
+                        # Create fileDict object
+                        fileDict[filename] = File(root=root, name=filename, extension=".csv")
+                        fileDict[filename].headers = headers
+                        
         
         # Evaluate 'run' number
         run_list = []
@@ -142,7 +159,7 @@ def update_db():
         
         # Define tables
         TABLES = {}
-        for name in filenames:
+        for name in fileDict:
             TABLES[name] = ("""CREATE TABLE {} (
                                run INTEGER NOT NULL
                                ) ENGINE=InnoDB""").format(name)
@@ -168,11 +185,13 @@ def update_db():
         dir_path=dir_path.replace("\\","/")
         tmpfolder = "/tmp/"
         
+        
+        # Check if each table exists
         for table_name in TABLES:
-            # Check if the table exists
             cur.execute(query1.format(db_name, table_name))
             cur.execute(query2)
             val = cur.fetchone()
+            
             
             if len(val[0]) == 0:
                 # Create the table if it does not exist
@@ -189,38 +208,51 @@ def update_db():
                         print(err.msg)
                         logging.error(err.msg)
             
-  
+            
             # Check if the necessary columns exist
             try:
                 cur.execute(query3.format(db_name, table_name))
             except mysql.connector.Error as err:
                 input(err)
             headers = cur.fetchall()
-            headers = [elem[0] for elem in headers]            
+            headers = [elem[0] for elem in headers]
             # result = all(elem in headers for elem in fileDict[table_name])
             # print(str(result))
 
+
             # Add columns to the table if they do not exist
-            for elem in fileDict[table_name]:
+            for elem in fileDict[table_name].headers:
                 if elem not in headers:
                     try:
                         cur.execute(query4.format(table_name, elem))
                     except mysql.connector.Error as err:
-                        print(err)
-                        input()
-            con.commit()  
+                        input(err)
+            con.commit()
+            
+            
             # Load data into the table
-            columns = ", ".join(fileDict[table_name])
+            columns = ", ".join(fileDict[table_name].headers)
             filedir = dir_path + tmpfolder + table_name + ".csv"
             values = run,
             try:
                 cur.execute(query5.format(filedir, table_name, columns), values)
             except mysql.connector.Error as err:
-                print(str(err))
-                input()
+                input(str(err))
             con.commit()
         
-
+        
+        # Move files to ../out/timestamp.csv
+        dt = datetime.datetime.fromtimestamp(float(timestamp)).strftime("%Y.%m.%d_%H%M%S")
+        for file in fileDict:
+            root = fileDict[file].root
+            name_old = fileDict[file].name + fileDict[file].extension
+            name_new = "_".join([dt, name_old])
+            
+            path_old = os.path.join(root, name_old)
+            path_new = os.path.join(outfolder, name_new)
+            shutil.move(path_old, path_new)
+         
+        
         # Close the database and terminate the program  
         for p in processlist:
             if p:
@@ -244,7 +276,6 @@ def update_db():
             logging.error("main() SQL failed to close")
             
             
-            
 # Function does as it says on the tin
 def create_database(cur, db_name):
     try:
@@ -254,7 +285,6 @@ def create_database(cur, db_name):
         print("Failed creating database: {}".format(err))
         logging.error("Failed creating database: {}".format(err))
         exit(1)
-
 
 
 # Function shows a pretty pinwheel
@@ -269,7 +299,7 @@ def loading(msg):
             sys.stdout.write("\r")
         except KeyboardInterrupt:
             logging.warning("Pinwheel stopped via keyboard interruption")
-    
+
 
 # Function scrubs input of invalid parameters
 def scrub(text):

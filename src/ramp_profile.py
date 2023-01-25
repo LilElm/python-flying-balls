@@ -14,28 +14,12 @@ import time
 Flopper ramp current - Python translation for flying balls
 """
 
-def eval_ramp(velocity=3.0, time_idle=4.0, time_acc=1.0, time_ramp=1.0, time_rest=1.25, sampling_rate=50000.0):
+def eval_ramp(velocity=3.0, time_idle=4.0, time_acc=1.0, time_ramp=1.0, time_rest=1.25, sampling_rate=50000.0, coil=None):
     #I think velocity is in mm/s, but all times are in seconds.
     
     logfolder = "../log/"
     outfolder = "../out/"
     tmpfolder = "../tmp/"
-    """
-    if os.path.exists(tmpfolder) and os.path.isdir(tmpfolder):
-        try:
-            shutil.rmtree(tmpfolder)
-            logging.info("Removed temporary folder " + str(tmpfolder))
-        except:
-            logging.warning("Failed to remove temporary folder " + str(tmpfolder))
-            logging.warning("Trying again")
-            try:
-                time.sleep(0.5)
-                shutil.rmtree(tmpfolder)
-                logging.info("Removed folder " + str(tmpfolder))
-            except:
-                logging.warning("Failed to remove temporary folder " + str(tmpfolder))
-                print("Unable to remove tmpfolder")
-    """
     
     os.makedirs(outfolder, exist_ok=True)
     os.makedirs(logfolder, exist_ok=True)
@@ -158,14 +142,20 @@ def eval_ramp(velocity=3.0, time_idle=4.0, time_acc=1.0, time_ramp=1.0, time_res
             f.write(f"{times_tot[i]}, {profile[i]}, {xs_tot[i]}\n")
 
 
+
+    
+    if coil is None:
+        path = f"{tmpfolder}ramp_profile.png"
+    else:
+        path = f"{tmpfolder}{coil}_ramp_profile.png"
+
     fig = plt.figure()
     ax = fig.add_subplot(1,1,1)
     ax.plot(times_tot, profile)
     ax.plot(times_tot, xs_tot)
     #plt.show()
-    path = outfolder + "ramp_profile.png"
-    fig.savefig(path, bbox_inches="tight", dpi=600)
-    #input()
+    fig.savefig(path, bbox_inches="tight", dpi=600)    
+
 
     #np.ravel(times_tot)
     #np.ravel(profile)

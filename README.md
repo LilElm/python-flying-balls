@@ -212,5 +212,19 @@
 
  * Future work: keep camera connected until the program closes
 
+ **25-Jan-22**
+
+ * mysql_update.py changes file permissions to allow 'NETWORK SERVICE' as this automatically reverts
+
+ * mysql_update.py moves files from ./tmp/ to ./dat/ and renames them according to their timestamp
+
+ * Camera connection maintained
+
+ * 'Save to File' button works
+
+ * Icon and title added
+
+ * Program neatened
+
 
 </sub>

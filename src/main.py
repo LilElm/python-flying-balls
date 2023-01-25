@@ -2,7 +2,7 @@
 
 # Import libraries
 import os
-from shutil import rmtree
+#from shutil import rmtree
 import multiprocessing.connection
 multiprocessing.connection.BUFSIZE = 2**32-1 # This is the absolute limit for this PC
 from multiprocessing import Process, Pipe
@@ -17,9 +17,8 @@ from nidaqmx.stream_readers import AnalogMultiChannelReader
 from nidaqmx.stream_writers import AnalogMultiChannelWriter
 from nidaqmx import constants
 import logging
-from PyQt5 import QtWidgets, QtCore
 
-from camera import camera
+from camera import start_camera
 from ramp_profile import eval_ramp
 from halfsine_profile import eval_halfsine
 from gui import start_gui
@@ -45,30 +44,33 @@ def gen_numbers(channelDict):
         time.sleep(1)
 
 
-def get_parameters(pipe_param1a):
+def get_parameters(pipe_parama):
     try:
         # Wait for user input from GUI
-        sampling_rate = pipe_param1a.recv()
-        lat_profile = pipe_param1a.recv()
-        lat_params = pipe_param1a.recv()
-        long_profile = pipe_param1a.recv()
-        long_params = pipe_param1a.recv()
+        save = pipe_parama.recv()
+        sampling_rate = pipe_parama.recv()
+        lat_profile = pipe_parama.recv()
+        lat_params = pipe_parama.recv()
+        long_profile = pipe_parama.recv()
+        long_params = pipe_parama.recv()
+        
     except Exception as e:
         print(str(e))
-    return sampling_rate, lat_profile, lat_params, long_profile, long_params
+    return save, sampling_rate, lat_profile, lat_params, long_profile, long_params
 
 
-def force_profile(sampling_rate, profile, params):
+def force_profile(sampling_rate, profile, params, coil):
+    f_profile = None
     if profile == "Ramp Profile":
         velocity, idle, acc, ramp, rest = params
-        f_profile = eval_ramp(velocity, idle, acc, ramp, rest, sampling_rate)
+        f_profile = eval_ramp(velocity, idle, acc, ramp, rest, sampling_rate, coil)
     elif profile == "Sine Profile":
-        exit
+        sys.exit()
     elif profile == "Half-sine Profile":
         amp, freq, idle, rest = params
-        f_profile = eval_halfsine(amp, freq, idle, rest, sampling_rate)
+        f_profile = eval_halfsine(amp, freq, idle, rest, sampling_rate, coil)
     elif profile == "Upload Custom":
-        exit
+        sys.exit()
     return f_profile
     
 
@@ -77,10 +79,7 @@ def main():
     logfolder = "../log/"
     tmpfolder = "../tmp/"
     os.makedirs(logfolder, exist_ok=True)
-   # if os.path.exists(tmpfolder) and os.path.isdir(tmpfolder):
-    #    rmtree(tmpfolder)
-    #os.makedirs(tmpfolder)
-    
+    os.makedirs(tmpfolder, exist_ok=True)
     logging.basicConfig(filename = logfolder + "main.log", encoding='utf-8', level=logging.DEBUG)
     logging.info(currentDT.strftime("%d/%m/%Y, %H:%M:%S"))   
     
@@ -107,43 +106,16 @@ def main():
         output_channelDict[channel].name = output_names[index]
         index = index + 1
         output_channelDict[channel].index = index
-    pipe_outputa, pipe_outputb = Pipe(duplex=False)
 
-
-    # Make pipe for transferring input parameters from GUI
-    pipe_param1a, pipe_param1b = Pipe(duplex=False)
-    
-    # Make pipe for restarting the program... Should this replace signal_start?
-    pipe_signala, pipe_signalb = Pipe(duplex=False)
     
     # Create starting signal for GUI plots (deafult=False)
     signal_start = SignalStart()
-
-
-    # Start GUI
-    processlist = []
-    proc0 = Process(target=start_gui, args=(input_channelDict, output_channelDict, pipe_param1b, pipe_inputa, pipe_outputa, signal_start, pipe_signalb))
-    processlist.append(proc0)
-    proc0.start()
     
-    # Start message function
-    pipe_msga, pipe_msgb = Pipe(duplex=False)
-    msg1 = "Waiting for user input"
-    msg2 = "Evaluating force profiles"
-    msg3 = "Starting acquisition"
-    msg4 = "Acquiring data"
-    msg5 = "Stop signal received"
-    proc1 = Process(target=message, args=(pipe_msga, msg1, ))
-    processlist.append(proc1)
-    proc1.start()
+    # Create pipes for the GUI
+    pipe_outputa, pipe_outputb = Pipe(duplex=False)
+    pipe_parama, pipe_paramb = Pipe(duplex=False)
+    pipe_signala, pipe_signalb = Pipe(duplex=False) # Restarts
 
-    # Get input parameters from the GUI and evalute the force profile
-    sampling_rate, lat_profile, lat_params, long_profile, long_params = get_parameters(pipe_param1a)
-    pipe_msgb.send(msg2)
-    force_profile_lat = force_profile(sampling_rate, lat_profile, lat_params)
-    force_profile_long = force_profile(sampling_rate, long_profile, long_params)
-    pipe_msgb.send(msg3)
-    
     
     # Create pipes to send data between processes
     pipe_livea, pipe_liveb = Pipe(duplex=False)
@@ -152,116 +124,115 @@ def main():
     pipe_killa, pipe_killb = Pipe(duplex=False)
     pipe_cama, pipe_camb = Pipe(duplex=False)
     pipe_recorda, pipe_recordb = Pipe(duplex=False)
+    pipe_msga, pipe_msgb = Pipe(duplex=False)
+
+
+    # Start GUI
+    processlist = []
+    proc0 = Process(target=start_gui, args=(input_channelDict, output_channelDict, pipe_paramb, pipe_inputa, pipe_outputa, signal_start, pipe_signalb))
+    processlist.append(proc0)
+    proc0.start()
     
-    
-    
-    # Create processes
-    processlist2 = []
-    proc_cam = Process(target=camera, args=(pipe_cama, pipe_recordb, ))
-    processlist2.append(proc_cam)
-    processlist2.append(Process(target=get_data, args=(pipe_liveb, pipe_timeb, input_channels, measured_channels, output_channels, sampling_rate, force_profile_lat, force_profile_long, input_channelDict, )))
-    processlist2.append(Process(target=manipulate_data, args=(pipe_livea, pipe_timea, pipe_manipb, pipe_inputb, pipe_outputb, input_channelDict, output_channelDict, )))
-    processlist2.append(Process(target=store_data, args=(pipe_manipa, pipe_killb, input_channels, measured_channels, )))
-    
-    
-    
-    for p in processlist2:
-        try:
-            logging.info("Starting process {}".format(p))
-            p.start()
-            print(str(p))
-            if p == proc_cam:
-                cont = False
-                while not cont:
-                    if pipe_recorda.poll():
-                        cont = pipe_recorda.recv()
-        except:
-            print("Error starting {}".format(p))
-            logging.error("Error starting {}".format(p))
-    
-    
-    # Turn on the GUI plots
-    pipe_msgb.send(msg4)
-    signal_start.signal = True
-    
-    
-    
+    # Start message function
+    msg0 = "Waiting for the camera"
+    msg1 = "Waiting for user input"
+    msg2 = "Evaluating force profiles"
+    msg3 = "Starting acquisition"
+    msg4 = "Acquiring data"
+    msg5 = "Stop signal received"
+    proc1 = Process(target=message, args=(pipe_msga, msg0, ))
+    processlist.append(proc1)
+    proc1.start()
+
+    # Start camera
+    proc3 = Process(target=start_camera, args=(pipe_cama, pipe_recordb, ))
+    processlist.append(proc3)
+    proc3.start()
+
+
     while True:
-        # If stop signal
-        if pipe_signala.poll():
-            while pipe_signala.poll():
-                pipe_signala.recv()
-            pipe_msgb.send(msg5)
-            signal_start.signal = False
-            
-            # Stop camera
-            pipe_camb.send(True)
-            proc_cam.join()
-            
-            # Stop all processes
-            for p in processlist2:
-                try:
-                    p.kill()
-                except:
-                    print("error killing process")
+        running = True
+        # Get input parameters from the GUI and evalute the force profile
+        pipe_msgb.send(msg1)
+        save, sampling_rate, lat_profile, lat_params, long_profile, long_params = get_parameters(pipe_parama)
+        pipe_msgb.send(msg2)
+        force_profile_lat = force_profile(sampling_rate, lat_profile, lat_params, coil="lat")
+        force_profile_long = force_profile(sampling_rate, long_profile, long_params, coil="long")
+        
+    
+        # Create processes
+        processlist2 = []
+        processlist2.append(Process(target=get_data, args=(pipe_liveb, pipe_timeb, input_channels, measured_channels, output_channels, sampling_rate, force_profile_lat, force_profile_long, input_channelDict, )))
+        processlist2.append(Process(target=manipulate_data, args=(pipe_livea, pipe_timea, pipe_manipb, pipe_inputb, pipe_outputb, input_channelDict, output_channelDict, )))
+        processlist2.append(Process(target=store_data, args=(pipe_manipa, pipe_killb, input_channels, measured_channels, save, )))
+    
+        
+        # Start camera
+        pipe_camb.send(True)
+        cam = False
+        pipe_msgb.send(msg0)
+        while not cam:
+            if pipe_recorda.poll():
+                while pipe_recorda.poll():
+                    cam = pipe_recorda.recv()
+
+        
+        pipe_msgb.send(msg3)
+        for p in processlist2:
+            try:
+                logging.info("Starting process {}".format(p))
+                p.start()
+                print(str(p))
+            except:
+                running = False
+                print("Error starting {}".format(p))
+                logging.error("Error starting {}".format(p))
+                # Stop all processes
+                for p in processlist2:
+                    try:
+                        p.kill()
+                    except:
+                        print("error killing process")
+                 
+                # Clear stop signals in case of build-up
+                while pipe_signala.poll():
+                    pipe_signala.recv()
+                
+                
+        
+    
+        # Turn on the GUI plots
+        pipe_msgb.send(msg4)
+        signal_start.signal = True
+    
+
+        while running:
+            # If stop signal
+            if pipe_signala.poll():
+                while pipe_signala.poll():
+                    pipe_signala.recv()
+                pipe_msgb.send(msg5)
+                signal_start.signal = False
+                
+                
+                """
+                if pipe_recorda:
+                    while pipe_recorda.poll():
+                        cam = pipe_recorda.recv()"""
+                
+                
+                # Stop camera
+                pipe_camb.send(False)
+                # Stop all processes
+                for p in processlist2:
+                    try:
+                        p.kill()
+                    except:
+                        print("error killing process")
+                running = False
                     
-            # Store data in a database
-            # update_db() # This cocks up the camera
-            # Run this file via os package
-            #os.system('start python mysql_update.py')
-            
-            # Drop tmpfolder
-            if os.path.exists(tmpfolder) and os.path.isdir(tmpfolder):
-                rmtree(tmpfolder)
-            os.makedirs(tmpfolder)
-            
-            # Recreate 'new' processes (processes cannot be reused)
-            processlist2 = []
-            proc_cam = Process(target=camera, args=(pipe_cama, pipe_recordb, ))
-            processlist2.append(proc_cam)
-            processlist2.append(Process(target=get_data, args=(pipe_liveb, pipe_timeb, input_channels, measured_channels, output_channels, sampling_rate, force_profile_lat, force_profile_long, input_channelDict, )))
-            processlist2.append(Process(target=manipulate_data, args=(pipe_livea, pipe_timea, pipe_manipb, pipe_inputb, pipe_outputb, input_channelDict, output_channelDict, )))
-            processlist2.append(Process(target=store_data, args=(pipe_manipa, pipe_killb, input_channels, measured_channels, )))
-
-            
-            # Get input parameters from the GUI
-            pipe_msgb.send(msg1)
-            sampling_rate, lat_profile, lat_params, long_profile, long_params = get_parameters(pipe_param1a)
-            
-            
-            
-            # Clear stop signals in case of build-up
-            while pipe_signala.poll():
-                pipe_signala.recv()
-            
-            
-            # Evalute the force profiles
-            pipe_msgb.send(msg2)
-            force_profile_lat = force_profile(sampling_rate, lat_profile, lat_params)
-            force_profile_long = force_profile(sampling_rate, long_profile, long_params)
-            pipe_msgb.send(msg3)
-            
-            # Start processes
-            for p in processlist2:
-                try:
-                    logging.info("Starting process {}".format(p))
-                    p.start()
-                    print(str(p))
-                    if p == proc_cam:
-                        cont = False
-                        while not cont:
-                            if pipe_recorda.poll():
-                                cont = pipe_recorda.recv()
-                except:
-                    print("Error starting {}".format(p))
-                    logging.error("Error starting {}".format(p))
-
-            
-            # Turn on the GUI plots
-            pipe_msgb.send(msg4)
-            signal_start.signal = True
-            time.sleep(0.125)
-            
+    
+                
             
     
     
@@ -296,12 +267,6 @@ def main():
     print("Program completed successfully")
     
     """
-            
-            
-    
-    
-    
-    
     
     
    
@@ -343,26 +308,30 @@ def get_data(p_live, p_time, input_channels, measured_channels, output_channels,
             
             
             # Configure output task (Task 0)
-            num_channels0 = len(output_channels)
             num_samples0 = np.size(force_profile_lat)
             for channel in output_channels:
                 task0.ao_channels.add_ao_voltage_chan(channel)
             
-            task0.ao_channels.all.ao_max = 10.0 #max_voltage
-            task0.ao_channels.all.ao_min = -10.0 #min_voltage
-            
-            
+            task0.ao_channels.all.ao_max = 0.5 #max_voltage
+            task0.ao_channels.all.ao_min = -0.5 #min_voltage
             task0.timing.cfg_samp_clk_timing(sampling_rate,
                                              active_edge=nidaqmx.constants.Edge.RISING,
                                              sample_mode=nidaqmx.constants.AcquisitionType.FINITE,
                                              samps_per_chan=num_samples0)
                 
             
-            
-            writer0 = AnalogMultiChannelWriter(task0.out_stream, auto_start=False)
-            buffer0 = np.vstack((force_profile_lat, force_profile_long))
-            writer0.write_many_sample(buffer0, timeout=60)
-            
+            try:
+                writer0 = AnalogMultiChannelWriter(task0.out_stream, auto_start=False)
+                buffer0 = np.vstack((force_profile_lat, force_profile_long))
+                writer0.write_many_sample(buffer0, timeout=60)
+            except nidaqmx.errors.DaqError as err:
+                print(err)
+                logging.error(err)
+                if task0:
+                    task0.close()
+                if task1:
+                    task1.close()
+                sys.exit(1)
             
             
             # Configure input task (Task 1) (Dev1/ai0, Dev1/ai19, Dev1/ai3)
@@ -370,8 +339,6 @@ def get_data(p_live, p_time, input_channels, measured_channels, output_channels,
             
             # The buffer size must be sufficiently high, otherwise the buffer will overwrite itself
             # However, if the buffer size is large, so too will be the delay
-            # Moreover, if the buffer is not a complete multiple of the sampling rate, data will be truncated
-            #num_samples1 = int(4*sampling_rate / 1) # Buffer size per channel
             
             if sampling_rate <= 10000:
                 num_samples1 = int(sampling_rate)
@@ -504,45 +471,45 @@ def manipulate_data(p_live, p_time, p_manip, p_inputplot, p_outputplot, input_ch
 
 # Function connects to the server, recieves manipualted data from
 # manipulated_data() and inserts it in the database
-def store_data(p_manip, p_kill, input_channels, measured_channels):
-    try:
-        tmpfolder = '../tmp/'
-        channels = input_channels + measured_channels
-        
-        timenow = time.time()
-        
-#        with open((tmpfolder + str(timenow) + "_data.csv"), "w") as f:
-        with open((f"{tmpfolder}data.csv"), "w") as f:
-            f.write("timestamp, " + ", ".join(channels) + "\n")
-            while True:
-                values_in = p_manip.recv()
-                values_out = p_manip.recv()
+def store_data(p_manip, p_kill, input_channels, measured_channels, save):
+    if save:
+        logging.info("Save signal received")
+        try:
+            tmpfolder = '../tmp/'
+            channels = input_channels + measured_channels
+            
+            with open((f"{tmpfolder}data.csv"), "w") as f:
+                f.write("timestamp, " + ", ".join(channels) + "\n")
+                while True:
+                    values_in = p_manip.recv()
+                    values_out = p_manip.recv()
+                    
+                    
+                    for i in range(len(values_in)):
+                        f.write(', '.join(map(str, values_in[i])) + ", " + ', '.join(map(str, values_out[i])) + "\n")
+                    
+                    # Exit if pipe is empty
+                    # Send kill signal
+                    # This is not an elegant solution. Consider revising
+                    if p_manip.poll() is False:
+                        time.sleep(2)
+                    if p_manip.poll() is False:
+                        p_kill.send(True)
+                        # Store data in a database
+                        # This is ran in a separate environment as to not interfere with the camera
+                        os.system('start python mysql_update.py')
+                        break
                 
                 
-                for i in range(len(values_in)):
-                    f.write(', '.join(map(str, values_in[i])) + ", " + ', '.join(map(str, values_out[i])) + "\n")
-                
-                # Exit if pipe is empty
-                # Send kill signal
-                # This is not an elegant solution. Consider revising
-                if p_manip.poll() is False:
-                    time.sleep(2)
-                if p_manip.poll() is False:
-                    p_kill.send(True)
-                    # Store data in a database
-                    # update_db() # This cocks up the camera
-                    # Run this file via os package
-                    os.system('start python mysql_update.py')
-                    break
-                
-    except KeyboardInterrupt:
-        logging.warning("Data storage stopped via keyboard interruption")
-        pass
-    finally:
-        
-        p_kill.send(True)
-        logging.info("Process kill signal sent from store_data()")
-
+        except KeyboardInterrupt:
+            logging.warning("Data storage stopped via keyboard interruption")
+            pass
+        finally:
+            p_kill.send(True)
+            logging.info("Process kill signal sent from store_data()")
+    else:
+        logging.info("No save signal received")
+        sys.exit(0)
 
 
 # Function shows a pretty pinwheel

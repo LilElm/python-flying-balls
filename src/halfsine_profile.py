@@ -10,27 +10,11 @@ import logging
 import os
 
 
-def eval_halfsine(amp=1.0, freq=2.0, time_idle=1.0, time_rest=4.0, sampling_rate=10000.0):
+def eval_halfsine(amp=1.0, freq=2.0, time_idle=1.0, time_rest=4.0, sampling_rate=10000.0, coil=None):
     
     logfolder = "../log/"
     outfolder = "../out/"
     tmpfolder = "../tmp/"
-    """
-    if os.path.exists(tmpfolder) and os.path.isdir(tmpfolder):
-        try:
-            shutil.rmtree(tmpfolder)
-            logging.info("Removed temporary folder " + str(tmpfolder))
-        except:
-            logging.warning("Failed to remove temporary folder " + str(tmpfolder))
-            logging.warning("Trying again")
-            try:
-                time.sleep(0.5)
-                shutil.rmtree(tmpfolder)
-                logging.info("Removed folder " + str(tmpfolder))
-            except:
-                logging.warning("Failed to remove temporary folder " + str(tmpfolder))
-                print("Unable to remove tmpfolder")
-    """
             
     os.makedirs(outfolder, exist_ok=True)
     os.makedirs(logfolder, exist_ok=True)
@@ -91,6 +75,17 @@ def eval_halfsine(amp=1.0, freq=2.0, time_idle=1.0, time_rest=4.0, sampling_rate
             f.write(f"{times_tot[i]}, {profile[i]}\n")
     
     
+
+    if coil is None:
+        path = f"{tmpfolder}halfsine_profile.png"
+    else:
+        path = f"{tmpfolder}{coil}_halfsine_profile.png"
+        
+    fig = plt.figure()
+    ax = fig.add_subplot(1,1,1)
+    ax.plot(times_tot, profile)
+    #plt.show()
+    fig.savefig(path, bbox_inches="tight", dpi=600)
     
     return profile
 
