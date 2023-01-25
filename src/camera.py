@@ -3,14 +3,10 @@
 # Import libraries
 import asyncio
 from bleak import BleakScanner, BleakClient
-#import numpy as np
-#import time
 import logging
 import datetime
 import os
 import sys
-#import multiprocessing.connection
-#from multiprocessing import Process, Pipe
 
 
 async def main(pipe_in, pipe_out):
@@ -44,13 +40,10 @@ async def main(pipe_in, pipe_out):
                 #pipe_out.send(True)
                 
 
-
-                
             while True:
                 if pipe_in.poll():
                     while pipe_in.poll():
                         val = pipe_in.recv()
-                        print(str(val))
 
             
                     # Start recording
@@ -85,7 +78,7 @@ async def main(pipe_in, pipe_out):
                             logging.info("Failed to communicate with the camera")
      
                 
-     
+                    # Disconnect
                     elif val == 0:
                         print("Closing Bluetooth connection")
                         logging.info("Closing Bluetooth connection")
@@ -93,10 +86,7 @@ async def main(pipe_in, pipe_out):
                         pipe_out.send(True)
                         break
                 
-                
-
         print("Connection closed")
-            
     except:
         logging.info("Failed to connect to the camera")
         print("Failed to connect to the camera")
@@ -105,18 +95,12 @@ async def main(pipe_in, pipe_out):
                     
         
         
-    
-
         
 
 def start_camera(pipe_in, pipe_out):
     asyncio.run(main(pipe_in, pipe_out))
     
 
-
-
-
-#camera(None, None)
     
     #CC:86:EC:72:D2:54: A:91A496D3
     

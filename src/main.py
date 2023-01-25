@@ -312,8 +312,8 @@ def get_data(p_live, p_time, input_channels, measured_channels, output_channels,
             for channel in output_channels:
                 task0.ao_channels.add_ao_voltage_chan(channel)
             
-            task0.ao_channels.all.ao_max = 0.5 #max_voltage
-            task0.ao_channels.all.ao_min = -0.5 #min_voltage
+            task0.ao_channels.all.ao_max = 1.0#0.5 #max_voltage
+            task0.ao_channels.all.ao_min = -1.0#0.5 #min_voltage
             task0.timing.cfg_samp_clk_timing(sampling_rate,
                                              active_edge=nidaqmx.constants.Edge.RISING,
                                              sample_mode=nidaqmx.constants.AcquisitionType.FINITE,
@@ -341,11 +341,11 @@ def get_data(p_live, p_time, input_channels, measured_channels, output_channels,
             # However, if the buffer size is large, so too will be the delay
             
             if sampling_rate <= 10000:
-                num_samples1 = int(sampling_rate)
+                num_samples1 = int(sampling_rate * 4)
             elif sampling_rate <= 50000:
-                num_samples1 = int(sampling_rate * 2)
+                num_samples1 = int(sampling_rate * 8)
             else:
-                num_samples1 = int(sampling_rate * 5)
+                num_samples1 = int(sampling_rate * 12)
             
             for channel in input_channels:
                 task1.ai_channels.add_ai_voltage_chan(channel)

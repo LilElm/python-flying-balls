@@ -226,5 +226,7 @@
 
  * Program neatened
 
+ * pg.PlotWidget.setLabel() replaced by pg.LabelItem()
+
 
 </sub>

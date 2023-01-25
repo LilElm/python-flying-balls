@@ -396,7 +396,10 @@ class OutputGraphLayout(QVBoxLayout):
                                                                                                     #name=self.output_channelDict[channel].name)
             self.addWidget(self.output_channelDict[channel].plot, 1)
             
-            
+            # Annotation for the x and y coordinates
+            self.output_channelDict[channel].label = pg.LabelItem()
+            self.output_channelDict[channel].label.setParentItem(self.output_channelDict[channel].plot.getPlotItem())
+            self.output_channelDict[channel].label.anchor(itemPos=(1,0), parentPos=(1,0), offset=(-10,10))
         
         self.counter = 0
         self.timer = QTimer()
@@ -437,9 +440,7 @@ class OutputGraphLayout(QVBoxLayout):
                     self.output_channelDict[channel].plot.line.setData(self.elapsed_time, self.output_channelDict[channel].plot.data)
                     
                     # Update label
-                    # This probably isn't the best way to do this
-                    self.output_channelDict[channel].plot.setLabel('top', f"x: {elapsed_time:5.2f}, y: {data[self.output_channelDict[channel].index]:5.2f}")
-
+                    self.output_channelDict[channel].label.setText(f"x: {elapsed_time:5.2f}, y: {data[self.output_channelDict[channel].index]:5.2f}")
                     
 
 class InputGraphLayout(QVBoxLayout):
@@ -462,6 +463,10 @@ class InputGraphLayout(QVBoxLayout):
                                                                                       self.input_channelDict[channel].plot.data)
             self.addWidget(self.input_channelDict[channel].plot, 1)
             
+            # Annotation for the x and y coordinates
+            self.input_channelDict[channel].label = pg.LabelItem()
+            self.input_channelDict[channel].label.setParentItem(self.input_channelDict[channel].plot.getPlotItem())
+            self.input_channelDict[channel].label.anchor(itemPos=(1,0), parentPos=(1,0), offset=(-10,10))
         
         
         self.counter = 0
@@ -502,9 +507,8 @@ class InputGraphLayout(QVBoxLayout):
                     self.input_channelDict[channel].plot.line.setData(self.elapsed_time, self.input_channelDict[channel].plot.data)
         
                     # Update label
-                    # This probably isn't the best way to do this
-                    self.input_channelDict[channel].plot.setLabel('top', f"x: {elapsed_time:5.2f}, y: {data[self.input_channelDict[channel].index]:5.2f}")
-
+                    self.input_channelDict[channel].label.setText(f"x: {elapsed_time:5.2f}, y: {data[self.input_channelDict[channel].index]:5.2f}")
+                    
                
 class SignalStart():
     def __init__(self, signal=False):
@@ -524,6 +528,8 @@ class Layout(QGridLayout):
         self.pipe_input = pipe_input
         self.pipe_output = pipe_output
         self.checkbox = QCheckBox()
+        self.checkbox.setChecked(True)
+        
 
         
         
