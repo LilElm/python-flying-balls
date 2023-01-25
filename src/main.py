@@ -339,13 +339,14 @@ def get_data(p_live, p_time, input_channels, measured_channels, output_channels,
             
             # The buffer size must be sufficiently high, otherwise the buffer will overwrite itself
             # However, if the buffer size is large, so too will be the delay
+            # The number of tasks the computer has seems to affect this, so it's safer to set these too high
             
             if sampling_rate <= 10000:
-                num_samples1 = int(sampling_rate * 4)
+                num_samples1 = int(sampling_rate * 6)
             elif sampling_rate <= 50000:
-                num_samples1 = int(sampling_rate * 8)
+                num_samples1 = int(sampling_rate * 10)
             else:
-                num_samples1 = int(sampling_rate * 12)
+                num_samples1 = int(sampling_rate * 20)
             
             for channel in input_channels:
                 task1.ai_channels.add_ai_voltage_chan(channel)
@@ -407,7 +408,7 @@ def get_data(p_live, p_time, input_channels, measured_channels, output_channels,
 # it to store_data()
 def manipulate_data(p_live, p_time, p_manip, p_inputplot, p_outputplot, input_channelDict, output_channelDict):
     try:
-        buffer_rate = 0.025 #40 data points per channel per sec
+        buffer_rate = 0.0125 #80 data points per channel per sec
         counter = 0
         while True:
             try:

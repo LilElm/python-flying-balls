@@ -228,5 +228,11 @@
 
  * pg.PlotWidget.setLabel() replaced by pg.LabelItem()
 
+ * Save checkbox ticked by default
+
+ * Invalid frequencies are rounded in halfsine_profile.py
+
+   * Idle and rest times still flag errors in gui.py
+
 
 </sub>

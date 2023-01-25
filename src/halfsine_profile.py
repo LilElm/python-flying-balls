@@ -31,20 +31,31 @@ def eval_halfsine(amp=1.0, freq=2.0, time_idle=1.0, time_rest=4.0, sampling_rate
     # Modulo, whether via % of math.fmod() is completely broken
     # Decimal(str()) % Decimal(str()) offers a solution, even if clunky
     # Nota bene, this does not work with math.fmod(); only %
+    dec = Decimal(str(dt)).as_tuple().exponent * -1
     if Decimal(str(time_idle)) % Decimal(str(dt)) != 0:
         print("time_idle is not a multiple of dt")
-        input()
-        exit()
+        time_idle = np.round(time_idle, dec)
+        print(f"time_idle rounded to {time_idle}")        
+ #       input()
+#        exit()
         
     if Decimal(str(time_half)) % Decimal(str(dt)) != 0:
-        print("time_ramp is not a multiple of dt")
-        input()
-        exit()
+        print("time_half is not a multiple of dt")
+        
+        
+        freq = 1.0 / (2.0 * np.round((0.5 / freq), dec))
+        time_half = 0.5 / freq
+        print("freq changed to " + str(freq))
+        
+        #input()
+        #exit()
         
     if Decimal(str(time_rest)) % Decimal(str(dt)) != 0:
         print("time_rest is not a multiple of dt")
-        input()
-        exit()
+        time_rest = np.round(time_idle, dec)
+        print(f"time_rest rounded to {time_rest}")
+#        input()
+ #       exit()
     
     
     times_idle = np.arange(0.0, time_idle, dt)
