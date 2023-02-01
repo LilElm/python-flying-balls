@@ -10,7 +10,7 @@ import logging
 import os
 
 
-def eval_halfsine(amp=1.0, freq=2.0, time_idle=1.0, time_rest=4.0, sampling_rate=10000.0, coil=None):
+def eval_halfsine(amp=1.0, freq=3.0, time_idle=1.0, time_rest=4.0, sampling_rate=100.0, coil=None):
     
     logfolder = "../log/"
     outfolder = "../out/"
@@ -27,7 +27,7 @@ def eval_halfsine(amp=1.0, freq=2.0, time_idle=1.0, time_rest=4.0, sampling_rate
     dt = 1.0 / sampling_rate
     time_half = 0.5 / freq
     
-    
+    """
     # Modulo, whether via % of math.fmod() is completely broken
     # Decimal(str()) % Decimal(str()) offers a solution, even if clunky
     # Nota bene, this does not work with math.fmod(); only %
@@ -56,7 +56,7 @@ def eval_halfsine(amp=1.0, freq=2.0, time_idle=1.0, time_rest=4.0, sampling_rate
         print(f"time_rest rounded to {time_rest}")
 #        input()
  #       exit()
-    
+    """
     
     times_idle = np.arange(0.0, time_idle, dt)
     times_half = np.arange(0.0, time_half, dt)
@@ -80,23 +80,24 @@ def eval_halfsine(amp=1.0, freq=2.0, time_idle=1.0, time_rest=4.0, sampling_rate
     
     
     # Print to file
-    with open((tmpfolder + "halfsine_profile.csv"), "w") as f:
+    if coil is None:
+        path = f"{tmpfolder}halfsine_profile"
+    else:
+        path = f"{tmpfolder}{coil}_halfsine_profile"
+    
+    with open((path + ".csv"), "w") as f:
         f.write("Seconds, Profile\n")
         for i in range(len(times_tot)):
             f.write(f"{times_tot[i]}, {profile[i]}\n")
     
-    
-
-    if coil is None:
-        path = f"{tmpfolder}halfsine_profile.png"
-    else:
-        path = f"{tmpfolder}{coil}_halfsine_profile.png"
-        
+    path = path + ".png"
     fig = plt.figure()
     ax = fig.add_subplot(1,1,1)
     ax.plot(times_tot, profile)
     #plt.show()
     fig.savefig(path, bbox_inches="tight", dpi=600)
+    plt.close()
+    
     
     return profile
 

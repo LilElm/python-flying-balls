@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 
 # Import libraries
-from decimal import Decimal
+from decimal import *
+getcontext().prec = 10
+import numpy as np
 import sys
 from PyQt5.QtWidgets import (QMainWindow,
                              QApplication,
@@ -47,7 +49,18 @@ class FileSettingsLayout(QGridLayout):
         
 
 
-
+class TextBox():
+    def __init__(self, placeholder, loc, label_text, label_loc, parent=None, *args, **kwargs):
+        self.placeholder = placeholder
+        self.loc = loc
+        self.label_text = label_text
+        self.label_loc = label_loc
+        
+        self.textbox = QLineEdit(placeholderText=str(placeholder))
+        self.label = QLabel(str(label_text))
+        
+        
+        
 
 class CoilLayout(QGridLayout):
     def __init__(self, coil, parent=None, *args, **kwargs):
@@ -74,82 +87,93 @@ class CoilLayout(QGridLayout):
     def select_profile(self):
         content = self.combo_box.currentText()
         self.make_textboxes(content)
-        
+    
+
+    
     def make_textboxes(self, content):
         # Destroy all existing textboxes
         for i in reversed(range(self.count())):
             if i>0:
                 self.itemAt(i).widget().setParent(None)
-        
-        
         self.content = content
+        
+        
+        # Make content for "Ramp Profile"
         if content == self.combo_box_list[0]:
-            # Make content for "Ramp Profile"
-            self.labelDict = {}
-            self.labelDict[QLabel("Velocity\n(mm/s)")] = [1, 1, 1, 1]
-            self.labelDict[QLabel("Time Idle\n(s)")] = [3, 0, 1, 1]
-            self.labelDict[QLabel("Time Acc\n(s)")] = [3, 1, 1, 1]
-            self.labelDict[QLabel("Time Ramp\n(s)")] = [5, 0, 1, 1]
-            self.labelDict[QLabel("Time Rest\n(s)")] = [5, 1, 1, 1]
-            
-            self.textboxDict = {}
-            self.textboxDict[QLineEdit(placeholderText="Velocity")] = [0, 1, 1, 1]
-            self.textboxDict[QLineEdit(placeholderText="Idle")] = [2, 0, 1, 1]
-            self.textboxDict[QLineEdit(placeholderText="Acc")] = [2, 1, 1, 1]
-            self.textboxDict[QLineEdit(placeholderText="Ramp")] = [4, 0, 1, 1]
-            self.textboxDict[QLineEdit(placeholderText="Rest")] = [4, 1, 1, 1]
-            
-            
-            
+            textbox_placeholders = ["Velocity", "Idle", "Acc", "Ramp", "Rest"]
+            textbox_locs = [[0, 1, 1, 1],
+                            [2, 0, 1, 1],
+                            [2, 1, 1, 1],
+                            [4, 0, 1, 1],
+                            [4, 1, 1, 1]]
+            textbox_labels = ["Velocity\n(mm/s)",
+                              "Time Idle\n(s)",
+                              "Time Acc\n(s)",
+                              "Time Ramp\n(s)",
+                              "Time Rest\n(s)"]
+            textbox_labellocs = [[1, 1, 1, 1],
+                                 [3, 0, 1, 1],
+                                 [3, 1, 1, 1],
+                                 [5, 0, 1, 1],
+                                 [5, 1, 1, 1]]
+        
+        
+        # Make content for Sine Profile
         elif content == self.combo_box_list[1]:
-            # Make content for Sine Profile
-            self.labelDict = {}
-            self.labelDict[QLabel("Amplitude\n(V)")] = [1, 1, 1, 1]
-            self.labelDict[QLabel("Frequency\n(Hz)")] = [3, 0, 1, 1]
-            self.labelDict[QLabel("Phase\n(deg)")] = [3, 1, 1, 1]
-            
-            self.textboxDict = {}
-            self.textboxDict[QLineEdit(placeholderText="Amp")] = [0, 1, 1, 1]
-            self.textboxDict[QLineEdit(placeholderText="Freq")] = [2, 0, 1, 1]
-            self.textboxDict[QLineEdit(placeholderText="Phase")] = [2, 1, 1, 1]
-            
-            
-            
+            textbox_placeholders = ["Amplitude", "Freq", "Phase"]
+            textbox_locs = [[0, 1, 1, 1],
+                            [2, 0, 1, 1],
+                            [2, 1, 1, 1]]
+            textbox_labels = ["Amplitude\n(V)",
+                              "Frequency\n(Hz)",
+                              "Phase\n(deg)"]
+            textbox_labellocs = [[1, 1, 1, 1],
+                                 [3, 0, 1, 1],
+                                 [3, 1, 1, 1]]
+        
+        
+        # Make content for Sine Profile
         elif content == self.combo_box_list[2]:
-            # Make content for Half Sine Profile
-            self.labelDict = {}
-            self.labelDict[QLabel("Amplitude\n(V)")] = [1, 1, 1, 1]
-            self.labelDict[QLabel("Frequency\n(Hz)")] = [3, 0, 1, 1]
-            self.labelDict[QLabel("Time Idle\n(s)")] = [3, 1, 1, 1]
-            self.labelDict[QLabel("Time Rest\n(s)")] = [5, 0, 1, 1]
-            
-            self.textboxDict = {}
-            self.textboxDict[QLineEdit(placeholderText="Amp")] = [0, 1, 1, 1]
-            self.textboxDict[QLineEdit(placeholderText="Freq")] = [2, 0, 1, 1]
-            self.textboxDict[QLineEdit(placeholderText="Idle")] = [2, 1, 1, 1]
-            self.textboxDict[QLineEdit(placeholderText="Rest")] = [4, 0, 1, 1]        
-                
-                
-                
+            textbox_placeholders = ["Amplitude", "Freq", "Idle", "Rest"]
+            textbox_locs = [[0, 1, 1, 1],
+                            [2, 0, 1, 1],
+                            [2, 1, 1, 1],
+                            [4, 0, 1, 1]]
+            textbox_labels = ["Amplitude\n(V)",
+                              "Frequency\n(Hz)",
+                              "Time Idle\n(s)",
+                              "Time Rest\n(s)"]
+            textbox_labellocs = [[1, 1, 1, 1],
+                                 [3, 0, 1, 1],
+                                 [3, 1, 1, 1],
+                                 [5, 0, 1, 1]]
+        
+        
+        # Make content for Custom Profile
         elif content == self.combo_box_list[3]:
-            # Make content for Custom Profile
-            self.labelDict = {}
-            self.labelDict[QLabel("Directory")] = [3, 0, 1, 1]
+            textbox_placeholders = ["Directory"]
+            textbox_locs = [[2, 0, 1, 1]]
+            textbox_labels = ["Directory"]
+            textbox_labellocs = [[3, 0, 1, 1]]
             
-            self.textboxDict = {}
-            self.textboxDict[QLineEdit(placeholderText="Directory")] = [2, 0, 1, 1]  
-
+            
+                
+        self.textboxDict = {}
+        for i in range(len(textbox_placeholders)):
+            self.textboxDict[textbox_placeholders[i]] = TextBox(
+                                                    textbox_placeholders[i],
+                                                    textbox_locs[i],
+                                                    textbox_labels[i],
+                                                    textbox_labellocs[i])
 
 
         # Add the labels and textboxes
-        for label in self.labelDict:
-            a, b, c, d = self.labelDict[label]
-            self.addWidget(label, a, b, c, d)
-      
         for textbox in self.textboxDict:
-            a, b, c, d = self.textboxDict[textbox]
-            self.addWidget(textbox, a, b, c, d)
-                         
+            a, b, c, d = self.textboxDict[textbox].loc
+            self.addWidget(self.textboxDict[textbox].textbox, a, b, c, d)
+            
+            a, b, c, d = self.textboxDict[textbox].label_loc
+            self.addWidget(self.textboxDict[textbox].label, a, b, c, d)
             
         
 
@@ -218,11 +242,18 @@ class RampSettingsLayout(QVBoxLayout):
         self.save = self.checkbox.isChecked()
         self.sampling_rate = self.textbox_srate.text()
         
+        """
         # Read all textboxes and return the values
         for coil in self.coil_layout_dict:
             self.coil_layout_dict[coil].textboxValuesDict = {}
             for textbox in self.coil_layout_dict[coil].textboxDict:
                 self.coil_layout_dict[coil].textboxValuesDict[str(coil) + " " + str(textbox.placeholderText())] = textbox.text()
+        """
+        """
+        for coil in self.coil_layout_dict:
+            for textbox in self.coil_layout_dict[coil].textboxDict:
+                val = self.coil_layout_dict[coil].textboxDict[textbox].textbox.text()
+        """    
         
         
         # Check the validity of each input value
@@ -239,8 +270,14 @@ class RampSettingsLayout(QVBoxLayout):
                 
                 
                 # Send input parameters
-                val = list(self.coil_layout_dict[coil].textboxValuesDict.values())
-                self.pipe_param.send(val)
+                self.coil_layout_dict[coil].vals = []
+                for textbox in self.coil_layout_dict[coil].textboxDict:
+                    self.coil_layout_dict[coil].vals.append(self.coil_layout_dict[coil].textboxDict[textbox].val)
+                
+                
+                #val = list(self.coil_layout_dict[coil].textboxValuesDict.values())
+                vals = self.coil_layout_dict[coil].vals
+                self.pipe_param.send(vals)
 
         else:
             print("Input parameters invalid")
@@ -275,101 +312,140 @@ class RampSettingsLayout(QVBoxLayout):
                 print("Please enter a valid sampling rate.")
                 error_message.append("Please enter a valid sampling rate.")
                 error_code = 1
-              
         
         
         # Check if values are floats
         if error_code == 0:
             for coil in self.coil_layout_dict:
-                for textbox in self.coil_layout_dict[coil].textboxValuesDict:
+                for textbox in self.coil_layout_dict[coil].textboxDict:
                     if error_code == 0:
-                        val = self.coil_layout_dict[coil].textboxValuesDict[textbox]
+                        val = self.coil_layout_dict[coil].textboxDict[textbox].textbox.text()
                         try:
-                            self.coil_layout_dict[coil].textboxValuesDict[textbox] = float(val)
+                            self.coil_layout_dict[coil].textboxDict[textbox].val = float(val)
                         except:
                             print("Please enter a valid " + str(textbox))
                             error_message.append("Please enter a valid " + str(textbox))
                             error_code = 1
-                    
-        
-        
+                            
+            
+                
+                
         # Check if values are positive    
         if error_code == 0:
             for coil in self.coil_layout_dict:
-                for textbox in self.coil_layout_dict[coil].textboxValuesDict:
+                for textbox in self.coil_layout_dict[coil].textboxDict:
                     if error_code == 0:
-                        val = self.coil_layout_dict[coil].textboxValuesDict[textbox]
                         if "Velo" not in textbox and "Amp" not in textbox and "Phase" not in textbox:  
-                            if val < 0.0:
+                            if self.coil_layout_dict[coil].textboxDict[textbox].val < 0.0:
                                 print(str(textbox) + " is negative")
                                 error_message.append(str(textbox) + " is negative")
                                 error_code = 1
-                      
                         
-        # Check if coil times are the same
+            
+            
+          
+            
+          
+            
+          
+        """
+        # Check if coil times are the same and multiples of dt
         if error_code == 0:
-            tot_times = []
+            tot_times = []    
             for coil in self.coil_layout_dict:
                 time_sum = 0
-                for textbox in self.coil_layout_dict[coil].textboxValuesDict:
-                    
+                for textbox in self.coil_layout_dict[coil].textboxDict:
+                    val = self.coil_layout_dict[coil].textboxDict[textbox].val
+                    dec = Decimal(str(dt)).as_tuple().exponent * -1
+                    freq = val
+                    t = 0
                     if "Freq" in textbox:
-                        # Work out associated time
-                        # This depends on sine vs half-sine
-                        
-                        val = self.coil_layout_dict[coil].textboxValuesDict[textbox]
                         if self.coil_layout_dict[coil].content == "Half-sine Profile":
-                            val = 0.5 / val
-                            time_sum = time_sum + val
+                            t = Decimal("0.5") / Decimal(val)
+                            if Decimal(str(t)) % Decimal(str(dt)) != 0:
+                                freq = 1.0 / (2.0 * np.round((0.5 / val), dec))
+                                self.coil_layout_dict[coil].textboxDict[textbox].textbox.setText(str(freq))
+                                print("Half-sine frequency has been rounded to match the sampling rate")
+                                print(f"freq: {freq}")
+                                t = Decimal("0.5") / Decimal(str(freq))
                             
                         elif self.coil_layout_dict[coil].content == "Sine Profile":
-                            val = 1.0 / val
-                            time_sum = time_sum + val
+                            t = Decimal("1.0") / Decimal(val)
+                            if Decimal(str(t)) % Decimal(str(dt)) != 0:
+                                freq = 1.0 / (np.round((1.0 / val), dec))
+                                self.coil_layout_dict[coil].textboxDict[textbox].textbox.setText(str(freq))
+                                print("Half-sine frequency has been rounded to match the sampling rate")
+                                print(f"freq: {freq}")
+                                t = Decimal("1.0") / Decimal(str(freq))
                             
-                    
-                    
-                    
-                    if "Velo" not in textbox and "Amp" not in textbox and "Freq" not in textbox and "Phase" not in textbox:
-                        val = self.coil_layout_dict[coil].textboxValuesDict[textbox]
+                            
+                            
+                    elif "Velo" not in textbox and "Amp" not in textbox and "Freq" not in textbox and "Phase" not in textbox:
                         if "Acc" in textbox:
-                            val = val * 2.0
-                        time_sum = time_sum + val
+                            t = val * 2.0
+                        else:
+                            t = val
+                    t = float(t)
+                    time_sum = time_sum + t
                 tot_times.append(time_sum)
-            
+        """
+        
+        # Check if coil times are the same and adjust accordingly
+        if error_code == 0:
+            tot_times = []    
+            for coil in self.coil_layout_dict:
+                time_sum = 0
+                t = 0
+                for textbox in self.coil_layout_dict[coil].textboxDict:
+                    val = self.coil_layout_dict[coil].textboxDict[textbox].val
+                    if "Freq" in textbox:
+                        if self.coil_layout_dict[coil].content == "Half-sine Profile":
+                            t = 0.5 / val
+                        elif self.coil_layout_dict[coil].content == "Sine Profile":
+                            t = 1.0 / val
+                    elif "Velo" not in textbox and "Amp" not in textbox and "Freq" not in textbox and "Phase" not in textbox:
+                        if "Acc" in textbox:
+                            t = val * 2.0
+                        else:
+                            t = val
+                    t = float(t)
+                    time_sum = time_sum + t
+                tot_times.append(time_sum)
+                    
+                
+                    
             res = all(t == tot_times[0] for t in tot_times)
             if not res:
-                print("The total coil times are not equal. Consider changing the 'rest' times")
+                print("The total coil times are not equal. The 'rest' times will be changed automatically")
                 print(str(tot_times))
-                error_message.append("The total coil times are not equal. Consider changing the 'rest' times")
-                error_code = 1
+                #error_code = 1
                 
-            
-        # Check if times are compatible with the sampling rate
-        if error_code == 0:
-            for coil in self.coil_layout_dict:
-                for textbox in self.coil_layout_dict[coil].textboxValuesDict:
-                    if "Velocity" not in textbox:
-                        val = self.coil_layout_dict[coil].textboxValuesDict[textbox]
-                        try:
-                            if Decimal(str(val)) % Decimal(str(dt)) != 0:
-                                print(str(textbox) + " is not a multiple of dt")
-                                error_message.append(str(textbox) + " is not a multiple of dt")
-                                error_code = 1
-                        except:
-                            print("Please enter a valid " + str(textbox))
-                            error_message.append("Please enter a valid " + str(textbox))
-                            error_code = 1
-                        
-                        
+                index = 0
+                for coil in self.coil_layout_dict:
+                    # Evaluate difference between time and total time, add difference to current time rest
+                    dif = max(tot_times) - tot_times[index]
+                    if dif != 0.0:
+                    
+                        for textbox in self.coil_layout_dict[coil].textboxDict:
+                            if "Rest" in textbox:
+                                val = self.coil_layout_dict[coil].textboxDict[textbox].val
+                                rest = val + dif
+                                self.coil_layout_dict[coil].textboxDict[textbox].textbox.setText(str(rest))
+                                print(f"{coil} Rest time has been increased to equate the total times")
+                                #error_message.append("Rest time has been increased to equate the total times")
+                    index = index + 1
+                              
+        
     
         if error_code == 1:
-            msg = QMessageBox()
-            msg.setIcon(QMessageBox.Critical)
-            msg.setText("Error")
-            msg.setInformativeText(str(error_message[0]))
-            msg.setWindowTitle("Error")
-            msg.exec_()
             success = False
+            if len(error_message) > 0:
+                msg = QMessageBox()
+                msg.setIcon(QMessageBox.Critical)
+                msg.setText("Error")
+                msg.setInformativeText(str(error_message[0]))
+                msg.setWindowTitle("Error")
+                msg.exec_()
         else:
             success = True
         return success
@@ -432,10 +508,10 @@ class OutputGraphLayout(QVBoxLayout):
                     self.output_channelDict[channel].plot.data.append(data[self.output_channelDict[channel].index])
                     
                     
-                    if len(self.elapsed_time) > 200:
+                    if len(self.elapsed_time) > 500:
                         self.elapsed_time = self.elapsed_time[1:]
                     
-                    if len(self.output_channelDict[channel].plot.data) > 200:
+                    if len(self.output_channelDict[channel].plot.data) > 500:
                         self.output_channelDict[channel].plot.data = self.output_channelDict[channel].plot.data[1:]
                     self.output_channelDict[channel].plot.line.setData(self.elapsed_time, self.output_channelDict[channel].plot.data)
                     
@@ -499,10 +575,10 @@ class InputGraphLayout(QVBoxLayout):
                 for channel in self.input_channelDict:
                     self.input_channelDict[channel].plot.data.append(data[self.input_channelDict[channel].index])
                     
-                    if len(self.elapsed_time) > 200:
+                    if len(self.elapsed_time) > 500:
                         self.elapsed_time = self.elapsed_time[1:]
                     
-                    if len(self.input_channelDict[channel].plot.data) > 200:
+                    if len(self.input_channelDict[channel].plot.data) > 500:
                         self.input_channelDict[channel].plot.data = self.input_channelDict[channel].plot.data[1:]
                     self.input_channelDict[channel].plot.line.setData(self.elapsed_time, self.input_channelDict[channel].plot.data)
         

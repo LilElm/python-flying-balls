@@ -34,6 +34,7 @@ def eval_ramp(velocity=3.0, time_idle=4.0, time_acc=1.0, time_ramp=1.0, time_res
     f0 = 4.0#8.026 # Resonant frequency I think
     k = 0.825 # Spring constant I think
     
+    """
     # Modulo, whether via % of math.fmod() is completely broken
     # Decimal(str()) % Decimal(str()) offers a solution, even if clunky
     # Nota bene, this does not work with math.fmod(); only %
@@ -52,6 +53,8 @@ def eval_ramp(velocity=3.0, time_idle=4.0, time_acc=1.0, time_ramp=1.0, time_res
     if Decimal(str(time_rest)) % Decimal(str(dt)) != 0:
         input("time_rest is not a multiple of dt")
         exit()
+    
+    """
     
     # Times start at 0, but will be corrected later to reflect the true times
     times_idle = np.arange(0.0, time_idle, dt)
@@ -136,27 +139,27 @@ def eval_ramp(velocity=3.0, time_idle=4.0, time_acc=1.0, time_ramp=1.0, time_res
     
     
     # Print to file
-    with open((tmpfolder + "ramp_profile.csv"), "w") as f:
-        f.write("Seconds, Profile, Position\n")
-        for i in range(len(profile)):
-            f.write(f"{times_tot[i]}, {profile[i]}, {xs_tot[i]}\n")
-
-
-
-    
     if coil is None:
-        path = f"{tmpfolder}ramp_profile.png"
+        path = f"{tmpfolder}ramp_profile"
     else:
-        path = f"{tmpfolder}{coil}_ramp_profile.png"
-
+        path = f"{tmpfolder}{coil}_ramp_profile"
+    
+    with open((path + ".csv"), "w") as f:
+        f.write("Seconds, Profile\n")
+        for i in range(len(times_tot)):
+            f.write(f"{times_tot[i]}, {profile[i]}\n")
+    
+    path = path + ".png"
     fig = plt.figure()
     ax = fig.add_subplot(1,1,1)
     ax.plot(times_tot, profile)
-    ax.plot(times_tot, xs_tot)
     #plt.show()
-    fig.savefig(path, bbox_inches="tight", dpi=600)    
-
-
+    fig.savefig(path, bbox_inches="tight", dpi=600)
+    plt.close()
+    
+    
+    
+    
     #np.ravel(times_tot)
     #np.ravel(profile)
     

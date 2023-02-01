@@ -159,6 +159,21 @@ def main():
         force_profile_lat = force_profile(sampling_rate, lat_profile, lat_params, coil="lat")
         force_profile_long = force_profile(sampling_rate, long_profile, long_params, coil="long")
         
+        # Check length and adjust accordingly
+        len_lat = len(force_profile_lat)
+        len_long = len(force_profile_long)
+        while len_lat < len_long:
+            val = force_profile_lat[-1]
+            force_profile_lat.append(val)
+            len_lat = len(force_profile_lat)
+        while len_long < len_lat:
+            val = force_profile_long[-1]
+            force_profile_long.append(val)
+            len_long = len(force_profile_long)
+            
+          
+            
+        
     
         # Create processes
         processlist2 = []
@@ -171,10 +186,17 @@ def main():
         pipe_camb.send(True)
         cam = False
         pipe_msgb.send(msg0)
+        time_cam1 = time.time()
         while not cam:
             if pipe_recorda.poll():
                 while pipe_recorda.poll():
                     cam = pipe_recorda.recv()
+            else:
+                time_cam2 = time.time()
+                t = time_cam2 - time_cam1
+                if t > 10.0:
+                    print("Failed to connect to the camera")
+                    break
 
         
         pipe_msgb.send(msg3)

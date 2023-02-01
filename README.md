@@ -146,7 +146,7 @@
 
  * Created branch 'gui'
 
- **12-Jan-22**
+ **12-Jan-23**
 
  * GUI progress uploaded
 
@@ -156,7 +156,7 @@
 
    * If GUI tries to receive data and no data is sent, the program will not respond
 
- **13-Jan-22**
+ **13-Jan-23**
 
  * GUI can stop/start, even after many stop button presses
 
@@ -170,7 +170,7 @@
 
  * Added output coil plot functionality to GUI
 
- **17-Jan-22**
+ **17-Jan-23**
 
  * force_profile.py changed to ramp_profile.py
 
@@ -184,7 +184,7 @@
 
  * A start signal clears the plots
 
- **19-Jan-22**
+ **19-Jan-23**
 
  * ramp_profile.py and halfsine_profile.py changed to give exact profile lengths
 
@@ -192,7 +192,7 @@
 
  * Position labels added to GUI plots
 
- **23-Jan-22**
+ **23-Jan-23**
 
  * camera.py added and controls the camera
 
@@ -212,7 +212,7 @@
 
  * Future work: keep camera connected until the program closes
 
- **25-Jan-22**
+ **25-Jan-23**
 
  * mysql_update.py changes file permissions to allow 'NETWORK SERVICE' as this automatically reverts
 
@@ -233,6 +233,14 @@
  * Invalid frequencies are rounded in halfsine_profile.py
 
    * Idle and rest times still flag errors in gui.py
+
+ **01-Feb-23**
+
+ * GUI no longer checks sampling rate / time compatibility
+
+   * This was originally to ensure that profile array lengths were identical, but this is now adjusted during the program
+
+ * GUI automatically updates 'rest' times to be equal, but due to the above adjustment, this is now not strictly necessary
 
 
 </sub>
