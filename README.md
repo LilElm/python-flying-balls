@@ -250,5 +250,7 @@
 
  * path textbox functional (outfolder)
 
+ * Processes end cleaner (pipe stop signals)
+
 
 </sub>

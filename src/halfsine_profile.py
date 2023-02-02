@@ -68,6 +68,7 @@ def eval_halfsine(amp=1.0, freq=3.0, time_idle=1.0, time_rest=4.0, sampling_rate
     x_half = [amp * np.sin(omega * time) for time in times_half]
     x_rest = [0 for time in times_rest]
     profile = x_idle + x_half + x_rest
+    profile = np.array(profile, dtype=np.float64)
     
     
     times_half = times_half + time_idle

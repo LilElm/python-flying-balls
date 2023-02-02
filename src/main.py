@@ -142,7 +142,8 @@ def main():
     pipe_livea, pipe_liveb = Pipe(duplex=False)
     pipe_timea, pipe_timeb = Pipe(duplex=False)
     pipe_manipa, pipe_manipb = Pipe(duplex=False)
-    pipe_killa, pipe_killb = Pipe(duplex=False)
+    pipe_store_donea, pipe_store_doneb = Pipe(duplex=False)
+    pipe_man_donea, pipe_man_doneb = Pipe(duplex=False)
     pipe_cama, pipe_camb = Pipe(duplex=False)
     pipe_recorda, pipe_recordb = Pipe(duplex=False)
     pipe_msga, pipe_msgb = Pipe(duplex=False)
@@ -187,26 +188,30 @@ def main():
         # Check length and adjust accordingly
         len_lat = len(force_profile_lat)
         len_long = len(force_profile_long)
+
+                  
         while len_lat < len_long:
             val = force_profile_lat[-1]
-            force_profile_lat.append(val)
+            force_profile_lat = np.append(force_profile_lat, val)
             len_lat = len(force_profile_lat)
+            
+            
         while len_long < len_lat:
             val = force_profile_long[-1]
-            force_profile_long.append(val)
+            force_profile_long = np.append(force_profile_long, val, axis=None)
             len_long = len(force_profile_long)
-            
-         
-        #input(str(force_profile_lat))
-        #input(str(force_profile_long))
             
         
     
         # Create processes
+        p_get_data = Process(target=get_data, args=(pipe_liveb, pipe_timeb, input_channels, measured_channels, output_channels, sampling_rate, force_profile_lat, force_profile_long, input_channelDict, ))
+        p_man_data = Process(target=manipulate_data, args=(pipe_livea, pipe_timea, pipe_manipb, pipe_inputb, pipe_outputb, pipe_man_donea, input_channelDict, output_channelDict, ))
+        p_store_data = Process(target=store_data, args=(pipe_manipa, pipe_store_donea, input_channels, measured_channels, save, outfolder, db_env, ))
+        
         processlist2 = []
-        processlist2.append(Process(target=get_data, args=(pipe_liveb, pipe_timeb, input_channels, measured_channels, output_channels, sampling_rate, force_profile_lat, force_profile_long, input_channelDict, )))
-        processlist2.append(Process(target=manipulate_data, args=(pipe_livea, pipe_timea, pipe_manipb, pipe_inputb, pipe_outputb, input_channelDict, output_channelDict, )))
-        processlist2.append(Process(target=store_data, args=(pipe_manipa, pipe_killb, input_channels, measured_channels, save, outfolder, db_env, )))
+        processlist2.append(p_get_data)
+        processlist2.append(p_man_data)
+        processlist2.append(p_store_data)
     
         
         # Start camera
@@ -241,7 +246,7 @@ def main():
                     try:
                         p.kill()
                     except:
-                        print("error killing process")
+                        print(f"error killing process {p}")
                  
                 # Clear stop signals in case of build-up
                 while pipe_signala.poll():
@@ -262,6 +267,7 @@ def main():
                     pipe_signala.recv()
                 pipe_msgb.send(msg5)
                 signal_start.signal = False
+
                 
                 
                 """
@@ -281,8 +287,16 @@ def main():
                 running = False
                     
     
+            if not p_get_data.is_alive():
+                pipe_camb.send(False)
+                if p_store_data.is_alive():
+                    pipe_store_doneb.send(True)
+                    p_store_data.join()
+                if p_man_data.is_alive():
+                    pipe_man_doneb.send(True)
+                    p_man_data.join()
+                    
                 
-            
     
     
     """
@@ -429,7 +443,6 @@ def get_data(p_live, p_time, input_channels, measured_channels, output_channels,
                     times = [time_start, time_end]
                     
                     
-                    
                     data_live1 = buffer1.T.astype(np.float32)
                     p_live.send(data_live1)
                     p_time.send(times)
@@ -449,85 +462,93 @@ def get_data(p_live, p_time, input_channels, measured_channels, output_channels,
     except KeyboardInterrupt:
         logging.warning("Data acquisition stopped via keyboard interruption")
     finally:
-        pass
+        print("Leaving get_data()")
+        logging.info("Leaving get_data()")
 
 
 
 # Function recieves buffered data from get_data(), restructures it and pipes
 # it to store_data()
-def manipulate_data(p_live, p_time, p_manip, p_inputplot, p_outputplot, input_channelDict, output_channelDict):
+def manipulate_data(p_live, p_time, p_manip, p_inputplot, p_outputplot, p_done, input_channelDict, output_channelDict):
     try:
         buffer_rate = 0.0125 #80 data points per channel per sec
         counter = 0
         while True:
-            try:
-                # Unpackage the data
-                data_live = p_live.recv()
-                time_data = p_time.recv()
-                
-                for channel in input_channelDict:
-                    input_channelDict[channel].dat = data_live[:, input_channelDict[channel].index - 1]
-                
-                size = len(input_channelDict)
-                for channel in output_channelDict:
-                    output_channelDict[channel].dat = data_live[:, size + output_channelDict[channel].index - 1]
-                
-                time_start = time_data[0]
-                time_end = time_data[1]
-                
-                if counter == 0:
-                    counter = 1
-                    time_next = time_start
-                
-                
-                # Restructure the data
-                input_man = []
-                output_man = []
-                size = len(data_live)
-                time_int = (time_end - time_start) / size  
-                
-                
-                for i in range(size):
-                    time_eval = time_start + time_int * i
-                    dummylist = []
-                    for channel in input_channelDict:
-                        dummylist.append(input_channelDict[channel].dat[i])
-                    input_man.append([time_eval, *dummylist])
+            if p_done.poll():
+                while p_done.poll():
+                    p_done.recv()
+                break
 
-                    dummylist = []
-                    for channel in output_channelDict:
-                        dummylist.append(output_channelDict[channel].dat[i])
-                    #output_man.append([time_eval, *dummylist])
-                    output_man.append([*dummylist])
-                    
-                    
-                    if time_eval >= time_next:
-                        time_next = time_next + buffer_rate
-                        p_inputplot.send(input_man[i])
-                        p_outputplot.send([time_eval, *dummylist])
+            # Unpackage the data
+            try:    
+                if p_live.poll() and p_time.poll():
+                    data_live = p_live.recv()
+                    time_data = p_time.recv()
                 
-                # Send data to store_data()
-                p_manip.send(input_man)
-                p_manip.send(output_man)
+                    for channel in input_channelDict:
+                        input_channelDict[channel].dat = data_live[:, input_channelDict[channel].index - 1]
+                    
+                    size = len(input_channelDict)
+                    for channel in output_channelDict:
+                        output_channelDict[channel].dat = data_live[:, size + output_channelDict[channel].index - 1]
+                    
+                    time_start = time_data[0]
+                    time_end = time_data[1]
+                    
+                    if counter == 0:
+                        counter = 1
+                        time_next = time_start
+                    
+                    
+                    # Restructure the data
+                    input_man = []
+                    output_man = []
+                    size = len(data_live)
+                    time_int = (time_end - time_start) / size  
+                    
+                    
+                    for i in range(size):
+                        time_eval = time_start + time_int * i
+                        dummylist = []
+                        for channel in input_channelDict:
+                            dummylist.append(input_channelDict[channel].dat[i])
+                        input_man.append([time_eval, *dummylist])
+    
+                        dummylist = []
+                        for channel in output_channelDict:
+                            dummylist.append(output_channelDict[channel].dat[i])
+                        #output_man.append([time_eval, *dummylist])
+                        output_man.append([*dummylist])
+                        
+                        
+                        if time_eval >= time_next:
+                            time_next = time_next + buffer_rate
+                            p_inputplot.send(input_man[i])
+                            p_outputplot.send([time_eval, *dummylist])
+                    
+                    # Send data to store_data()
+                    p_manip.send(input_man)
+                    p_manip.send(output_man)
             except:
                 print("Error in data manipulation")
                 break
     except KeyboardInterrupt:
         logging.warning("Data manipulation stopped via keyboard interruption")
     finally:
-        pass
+        logging.info("Leaving manipulate_data()")
+        print("Leaving manipulate_data()")
 
 
 
 # Function connects to the server, recieves manipualted data from
 # manipulated_data() and inserts it in the database
-def store_data(p_manip, p_kill, input_channels, measured_channels, save, outfolder, db_env):
-    if save:
-        logging.info("Save signal received")
-        try:
+def store_data(p_manip, p_done, input_channels, measured_channels, save, outfolder, db_env):
+    try:
+        if save:
+            logging.info("Save signal received")
             tmpfolder = '../tmp/'
             channels = input_channels + measured_channels
-            
+                
             with open((f"{tmpfolder}data.csv"), "w") as f:
                 f.write("timestamp, " + ", ".join(channels) + "\n")
                 while True:
@@ -538,28 +559,25 @@ def store_data(p_manip, p_kill, input_channels, measured_channels, save, outfold
                     for i in range(len(values_in)):
                         f.write(', '.join(map(str, values_in[i])) + ", " + ', '.join(map(str, values_out[i])) + "\n")
                     
-                    # Exit if pipe is empty
-                    # Send kill signal
-                    # This is not an elegant solution. Consider revising
-                    if p_manip.poll() is False:
-                        time.sleep(6)
-                    if p_manip.poll() is False:
-                        p_kill.send(True)
+                    # Exit upon signal
+                    if p_done.poll():
+                        while p_done.poll():
+                            p_done.recv()
                         # Store data in a database
                         # This is ran in a separate environment as to not interfere with the camera
                         os.system(f'start python mysql_update.py {outfolder} {db_env}')
                         break
+        else:
+            logging.info("No save signal received")
+            sys.exit(0)
                 
-                
-        except KeyboardInterrupt:
-            logging.warning("Data storage stopped via keyboard interruption")
-            pass
-        finally:
-            p_kill.send(True)
-            logging.info("Process kill signal sent from store_data()")
-    else:
-        logging.info("No save signal received")
-        sys.exit(0)
+    except KeyboardInterrupt:
+        logging.warning("Data storage stopped via keyboard interruption")
+        pass
+    finally:
+        logging.info("Leaving store_data()")
+        print("Leaving store_data()")
+        
 
 
 # Function shows a pretty pinwheel
