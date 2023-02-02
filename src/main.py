@@ -2,7 +2,7 @@
 
 # Import libraries
 import os
-from shutil import rmtree, copy
+from shutil import rmtree
 import multiprocessing.connection
 multiprocessing.connection.BUFSIZE = 2**32-1 # This is the absolute limit for this PC
 from multiprocessing import Process, Pipe

@@ -252,5 +252,8 @@
 
  * Processes end cleaner (pipe stop signals)
 
+ * Fixed camera (...again)
+
+   * The camera doesn't like utf-8
 
 </sub>
