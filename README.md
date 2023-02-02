@@ -242,5 +242,9 @@
 
  * GUI automatically updates 'rest' times to be equal, but due to the above adjustment, this is now not strictly necessary
 
+ **02-Feb-23**
+
+ * Custom profile functional
+
 
 </sub>

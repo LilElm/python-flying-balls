@@ -287,13 +287,9 @@ class RampSettingsLayout(QVBoxLayout):
         
         
     def check_input(self):
-        # Modulo, whether via % of math.fmod() is completely broken
-        # Decimal(str()) % Decimal(str()) offers a solution, even if clunky
-        # Nota bene, this does not work with math.fmod(); only %
-        
         error_code = 0
         error_message = []
-        
+        tot_times = []
         
         
         # Check if sampling rate is a float
@@ -314,41 +310,40 @@ class RampSettingsLayout(QVBoxLayout):
                 error_code = 1
         
         
-        # Check if values are floats
+        # Check if input is a custom profile
         if error_code == 0:
             for coil in self.coil_layout_dict:
-                for textbox in self.coil_layout_dict[coil].textboxDict:
-                    if error_code == 0:
+                if "Custom" in self.coil_layout_dict[coil].content:
+                    for textbox in self.coil_layout_dict[coil].textboxDict:
                         val = self.coil_layout_dict[coil].textboxDict[textbox].textbox.text()
-                        try:
-                            self.coil_layout_dict[coil].textboxDict[textbox].val = float(val)
-                        except:
-                            print("Please enter a valid " + str(textbox))
-                            error_message.append("Please enter a valid " + str(textbox))
-                            error_code = 1
-                            
-            
-                
-                
-        # Check if values are positive    
-        if error_code == 0:
-            for coil in self.coil_layout_dict:
-                for textbox in self.coil_layout_dict[coil].textboxDict:
+                        self.coil_layout_dict[coil].textboxDict[textbox].val = val
+                else:
+                    # Check if values are floats
                     if error_code == 0:
-                        if "Velo" not in textbox and "Amp" not in textbox and "Phase" not in textbox:  
-                            if self.coil_layout_dict[coil].textboxDict[textbox].val < 0.0:
-                                print(str(textbox) + " is negative")
-                                error_message.append(str(textbox) + " is negative")
-                                error_code = 1
-                        
-            
-            
-          
-            
-          
-            
-          
-        """
+                        for textbox in self.coil_layout_dict[coil].textboxDict:
+                            if error_code == 0:
+                                val = self.coil_layout_dict[coil].textboxDict[textbox].textbox.text()
+                                try:
+                                    self.coil_layout_dict[coil].textboxDict[textbox].val = float(val)
+                                except:
+                                    print("Please enter a valid " + str(textbox))
+                                    error_message.append("Please enter a valid " + str(textbox))
+                                    error_code = 1
+                                        
+                                        
+                    # Check if values are positive    
+                    if error_code == 0:
+                        for textbox in self.coil_layout_dict[coil].textboxDict:
+                            if error_code == 0:
+                                if "Velo" not in textbox and "Amp" not in textbox and "Phase" not in textbox:  
+                                    if self.coil_layout_dict[coil].textboxDict[textbox].val < 0.0:
+                                        print(str(textbox) + " is negative")
+                                        error_message.append(str(textbox) + " is negative")
+                                        error_code = 1
+                    
+                    
+                    
+                    """
         # Check if coil times are the same and multiples of dt
         if error_code == 0:
             tot_times = []    
@@ -388,52 +383,49 @@ class RampSettingsLayout(QVBoxLayout):
                     t = float(t)
                     time_sum = time_sum + t
                 tot_times.append(time_sum)
-        """
-        
-        # Check if coil times are the same and adjust accordingly
-        if error_code == 0:
-            tot_times = []    
-            for coil in self.coil_layout_dict:
-                time_sum = 0
-                t = 0
-                for textbox in self.coil_layout_dict[coil].textboxDict:
-                    val = self.coil_layout_dict[coil].textboxDict[textbox].val
-                    if "Freq" in textbox:
-                        if self.coil_layout_dict[coil].content == "Half-sine Profile":
-                            t = 0.5 / val
-                        elif self.coil_layout_dict[coil].content == "Sine Profile":
-                            t = 1.0 / val
-                    elif "Velo" not in textbox and "Amp" not in textbox and "Freq" not in textbox and "Phase" not in textbox:
-                        if "Acc" in textbox:
-                            t = val * 2.0
-                        else:
-                            t = val
-                    t = float(t)
-                    time_sum = time_sum + t
-                tot_times.append(time_sum)
+                    """
                     
-                
-                    
-            res = all(t == tot_times[0] for t in tot_times)
-            if not res:
-                print("The total coil times are not equal. The 'rest' times will be changed automatically")
-                print(str(tot_times))
-                #error_code = 1
-                
-                index = 0
-                for coil in self.coil_layout_dict:
-                    # Evaluate difference between time and total time, add difference to current time rest
-                    dif = max(tot_times) - tot_times[index]
-                    if dif != 0.0:
-                    
+                    # Check if coil times are the same and adjust accordingly
+                    if error_code == 0:
+                        time_sum = 0
+                        t = 0
                         for textbox in self.coil_layout_dict[coil].textboxDict:
-                            if "Rest" in textbox:
-                                val = self.coil_layout_dict[coil].textboxDict[textbox].val
-                                rest = val + dif
-                                self.coil_layout_dict[coil].textboxDict[textbox].textbox.setText(str(rest))
-                                print(f"{coil} Rest time has been increased to equate the total times")
-                                #error_message.append("Rest time has been increased to equate the total times")
-                    index = index + 1
+                            val = self.coil_layout_dict[coil].textboxDict[textbox].val
+                            if "Freq" in textbox:
+                                if self.coil_layout_dict[coil].content == "Half-sine Profile":
+                                    t = 0.5 / val
+                                elif self.coil_layout_dict[coil].content == "Sine Profile":
+                                    t = 1.0 / val
+                            elif "Velo" not in textbox and "Amp" not in textbox and "Freq" not in textbox and "Phase" not in textbox:
+                                if "Acc" in textbox:
+                                    t = val * 2.0
+                                else:
+                                    t = val
+                            t = float(t)
+                            time_sum = time_sum + t
+                        tot_times.append(time_sum)
+                                
+                            
+                # Check if coil times are equal                
+                res = all(t == tot_times[0] for t in tot_times)
+                if not res:
+                    print("The total coil times are not equal. The 'rest' times will be changed automatically")
+                    print(str(tot_times))
+                    #error_code = 1
+                    
+                    index = 0
+                    # Evaluate difference between time and total time, add difference to current time rest
+                    for coil in self.coil_layout_dict:
+                        dif = max(tot_times) - tot_times[index]
+                        if dif != 0.0:
+                            for textbox in self.coil_layout_dict[coil].textboxDict:
+                                if "Rest" in textbox:
+                                    val = self.coil_layout_dict[coil].textboxDict[textbox].val
+                                    rest = val + dif
+                                    self.coil_layout_dict[coil].textboxDict[textbox].textbox.setText(str(rest))
+                                    print(f"{coil} Rest time has been increased to equate the total times")
+                                    #error_message.append("Rest time has been increased to equate the total times")
+                        index = index + 1
                               
         
     

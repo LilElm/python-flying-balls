@@ -2,7 +2,7 @@
 
 # Import libraries
 import os
-#from shutil import rmtree
+from shutil import rmtree, copy
 import multiprocessing.connection
 multiprocessing.connection.BUFSIZE = 2**32-1 # This is the absolute limit for this PC
 from multiprocessing import Process, Pipe
@@ -70,7 +70,22 @@ def force_profile(sampling_rate, profile, params, coil):
         amp, freq, idle, rest = params
         f_profile = eval_halfsine(amp, freq, idle, rest, sampling_rate, coil)
     elif profile == "Upload Custom":
-        sys.exit()
+        f_profile = []
+        t = 0
+        dt = 1.0 / sampling_rate
+        
+        path_old = params[0]
+        path_new = f"../tmp/{coil}_custom_profile.csv"
+        with open((path_old), "r") as f_old:
+            with open((path_new), 'w') as f_new:
+                f_new.write("Seconds, Profile\n")
+                for line in f_old:
+                    l = float(line.lower().strip("\n"))
+                    f_profile.append(l)
+                    f_new.write(f"{t}, {l}\n")
+                    t = t + dt
+                f_old.seek(0)
+        
     return f_profile
     
 
@@ -78,6 +93,8 @@ def main():
     currentDT = datetime.datetime.now()
     logfolder = "../log/"
     tmpfolder = "../tmp/"
+    if os.path.exists(tmpfolder) and os.path.isdir(tmpfolder):
+        rmtree(tmpfolder)
     os.makedirs(logfolder, exist_ok=True)
     os.makedirs(tmpfolder, exist_ok=True)
     logging.basicConfig(filename = logfolder + "main.log", encoding='utf-8', level=logging.DEBUG)
@@ -171,7 +188,9 @@ def main():
             force_profile_long.append(val)
             len_long = len(force_profile_long)
             
-          
+         
+        #input(str(force_profile_lat))
+        #input(str(force_profile_long))
             
         
     
