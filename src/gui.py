@@ -26,9 +26,11 @@ import pyqtgraph as pg
 
 
 class FileSettingsLayout(QGridLayout):
-    def __init__(self, checkbox, parent=None, *args, **kwargs):
+    def __init__(self, checkbox, path_textbox, db_textbox, parent=None, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
         self.checkbox = checkbox
+        self.path_textbox = path_textbox
+        self.db_textbox = db_textbox
 
         
         #================================================================
@@ -36,13 +38,21 @@ class FileSettingsLayout(QGridLayout):
         # Make default value be read from file
         # If path doesn't exist, make it
         
-        
-        path = "C:\\Users\\ultservi\\Desktop\\FlyingBalls"
+        """
+        path = "C:\\Users\\ultservi\\Desktop\\FlyingBalls\\"
         self.addWidget(QLineEdit(path), 0, 0, 1, 1)
         self.addWidget(QLabel("Path"), 1, 0, 1, 1)
        
-        self.addWidget(QLineEdit(), 0, 1, 1, 1)
+        self.addWidget(QLineEdit(f"{path}.env"), 0, 1, 1, 1)
         self.addWidget(QLabel("DB Environment"), 1, 1, 1, 1)
+        """
+        
+        self.addWidget(self.path_textbox, 0, 0, 1, 1)
+        self.addWidget(QLabel("Path"), 1, 0, 1, 1)
+        
+        self.addWidget(self.db_textbox, 0, 1, 1, 1)
+        self.addWidget(QLabel("DB Environment"), 1, 1, 1, 1)
+        
         
         self.addWidget(self.checkbox, 0, 2, 1, 1)
         self.addWidget(QLabel("Save to File?"), 1, 2, 1, 1)
@@ -178,7 +188,7 @@ class CoilLayout(QGridLayout):
         
 
 class RampSettingsLayout(QVBoxLayout):
-    def __init__(self, pipe_param, signal_start, pipe_signal, checkbox, parent=None, *args, **kwargs):
+    def __init__(self, pipe_param, signal_start, pipe_signal, checkbox, path_textbox, db_textbox, parent=None, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
         #============================================================
         # Layout of Ramp Settings
@@ -192,6 +202,8 @@ class RampSettingsLayout(QVBoxLayout):
         self.signal_start = signal_start
         self.pipe_signal = pipe_signal
         self.checkbox = checkbox
+        self.path_textbox = path_textbox
+        self.db_textbox = db_textbox
 
 
         
@@ -239,6 +251,9 @@ class RampSettingsLayout(QVBoxLayout):
         self.signal_start.signal = True
 
         # Get 'save to file' and sampling rate
+        self.path = self.path_textbox.text()
+        self.db_env = self.db_textbox.text()
+        
         self.save = self.checkbox.isChecked()
         self.sampling_rate = self.textbox_srate.text()
         
@@ -262,6 +277,12 @@ class RampSettingsLayout(QVBoxLayout):
         # If valid, send input parameters through pipe_params to main.py
         # From there, force_profile.py will be called with the parameters
         if success:
+            
+            
+            self.pipe_param.send(self.path)
+            self.pipe_param.send(self.db_env)
+            
+            
             self.pipe_param.send(self.save)
             self.pipe_param.send(self.sampling_rate)
             for coil in self.coil_layout_dict:
@@ -598,11 +619,16 @@ class Layout(QGridLayout):
         self.checkbox = QCheckBox()
         self.checkbox.setChecked(True)
         
+        
+        path = "C:\\Users\\ultservi\\Desktop\\Elmy\\python-flying-balls\\"
+        self.path_textbox = QLineEdit(path)
+        self.db_textbox = QLineEdit(f"{path}.env")
+        
 
         
         
-        layout_fsettings = FileSettingsLayout(self.checkbox)
-        layout_ramp = RampSettingsLayout(self.pipe_param, self.signal_start, self.pipe_signal, self.checkbox)
+        layout_fsettings = FileSettingsLayout(self.checkbox, self.path_textbox, self.db_textbox)
+        layout_ramp = RampSettingsLayout(self.pipe_param, self.signal_start, self.pipe_signal, self.checkbox, self.path_textbox, self.db_textbox)
         layout_output = OutputGraphLayout(self.output_channelDict, self.pipe_output, self.signal_start)
         layout_input = InputGraphLayout(self.input_channelDict, self.pipe_input, self.signal_start)
         

@@ -246,5 +246,7 @@
 
  * Custom profile functional
 
+ * .env textbox functional
+
 
 </sub>

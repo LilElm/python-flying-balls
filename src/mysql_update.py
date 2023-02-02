@@ -27,7 +27,7 @@ class File():
 
 
 
-def update_db():
+def update_db(db_env):
     currentDT = datetime.datetime.now()
     logfolder = "../log/"
     tmpfolder = "../tmp/"
@@ -54,11 +54,17 @@ def update_db():
                 
 
     # Load in environmental parameters
-    load_dotenv()
+    if db_env == None:
+        load_dotenv()
+    else:
+        input(str(db_env))
+        load_dotenv(db_env)
     user = os.environ.get('USERN')
     password = os.environ.get('PASSWORD')
     db_name = os.environ.get('DB_NAME')
 
+    input(str(db_name))
+    input()
 
     # Try to connect to the server
     try:
@@ -307,7 +313,13 @@ def scrub(text):
 
 # Run
 if __name__ == "__main__":
-    update_db()
+    val = sys.argv
+    if len(val) > 1:
+        db_env = val[1]
+    else:
+        db_env = None
+    update_db(db_env)
+    
 
 
   
