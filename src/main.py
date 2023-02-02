@@ -48,7 +48,7 @@ def get_parameters(pipe_parama):
     try:
         # Wait for user input from GUI
         
-        home_path = pipe_parama.recv()
+        out_path = pipe_parama.recv()
         db_env = pipe_parama.recv()
         
         save = pipe_parama.recv()
@@ -60,7 +60,7 @@ def get_parameters(pipe_parama):
         
     except Exception as e:
         print(str(e))
-    return home_path, db_env, save, sampling_rate, lat_profile, lat_params, long_profile, long_params
+    return out_path, db_env, save, sampling_rate, lat_profile, lat_params, long_profile, long_params
 
 
 def force_profile(sampling_rate, profile, params, coil):
@@ -175,7 +175,11 @@ def main():
         running = True
         # Get input parameters from the GUI and evalute the force profile
         pipe_msgb.send(msg1)
-        home_path, db_env, save, sampling_rate, lat_profile, lat_params, long_profile, long_params = get_parameters(pipe_parama)
+        outfolder, db_env, save, sampling_rate, lat_profile, lat_params, long_profile, long_params = get_parameters(pipe_parama)
+        if outfolder == None:
+            outfolder = "../out/"
+            
+        
         pipe_msgb.send(msg2)
         force_profile_lat = force_profile(sampling_rate, lat_profile, lat_params, coil="lat")
         force_profile_long = force_profile(sampling_rate, long_profile, long_params, coil="long")
@@ -202,7 +206,7 @@ def main():
         processlist2 = []
         processlist2.append(Process(target=get_data, args=(pipe_liveb, pipe_timeb, input_channels, measured_channels, output_channels, sampling_rate, force_profile_lat, force_profile_long, input_channelDict, )))
         processlist2.append(Process(target=manipulate_data, args=(pipe_livea, pipe_timea, pipe_manipb, pipe_inputb, pipe_outputb, input_channelDict, output_channelDict, )))
-        processlist2.append(Process(target=store_data, args=(pipe_manipa, pipe_killb, input_channels, measured_channels, save, db_env, )))
+        processlist2.append(Process(target=store_data, args=(pipe_manipa, pipe_killb, input_channels, measured_channels, save, outfolder, db_env, )))
     
         
         # Start camera
@@ -517,7 +521,7 @@ def manipulate_data(p_live, p_time, p_manip, p_inputplot, p_outputplot, input_ch
 
 # Function connects to the server, recieves manipualted data from
 # manipulated_data() and inserts it in the database
-def store_data(p_manip, p_kill, input_channels, measured_channels, save, db_env):
+def store_data(p_manip, p_kill, input_channels, measured_channels, save, outfolder, db_env):
     if save:
         logging.info("Save signal received")
         try:
@@ -538,12 +542,12 @@ def store_data(p_manip, p_kill, input_channels, measured_channels, save, db_env)
                     # Send kill signal
                     # This is not an elegant solution. Consider revising
                     if p_manip.poll() is False:
-                        time.sleep(2)
+                        time.sleep(6)
                     if p_manip.poll() is False:
                         p_kill.send(True)
                         # Store data in a database
                         # This is ran in a separate environment as to not interfere with the camera
-                        os.system(f'start python mysql_update.py {db_env}')
+                        os.system(f'start python mysql_update.py {outfolder} {db_env}')
                         break
                 
                 

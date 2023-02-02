@@ -248,5 +248,7 @@
 
  * .env textbox functional
 
+ * path textbox functional (outfolder)
+
 
 </sub>

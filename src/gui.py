@@ -48,7 +48,7 @@ class FileSettingsLayout(QGridLayout):
         """
         
         self.addWidget(self.path_textbox, 0, 0, 1, 1)
-        self.addWidget(QLabel("Path"), 1, 0, 1, 1)
+        self.addWidget(QLabel("Output Path"), 1, 0, 1, 1)
         
         self.addWidget(self.db_textbox, 0, 1, 1, 1)
         self.addWidget(QLabel("DB Environment"), 1, 1, 1, 1)
@@ -621,7 +621,7 @@ class Layout(QGridLayout):
         
         
         path = "C:\\Users\\ultservi\\Desktop\\Elmy\\python-flying-balls\\"
-        self.path_textbox = QLineEdit(path)
+        self.path_textbox = QLineEdit(f"{path}out\\")
         self.db_textbox = QLineEdit(f"{path}.env")
         
 

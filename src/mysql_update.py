@@ -27,11 +27,14 @@ class File():
 
 
 
-def update_db(db_env):
+def update_db(outfolder, db_env):
+    input(str(outfolder))
+    
+    
     currentDT = datetime.datetime.now()
     logfolder = "../log/"
     tmpfolder = "../tmp/"
-    outfolder = "../out/"
+    #outfolder = "../out/"
     os.makedirs(logfolder, exist_ok=True)
     os.makedirs(outfolder, exist_ok=True)
     logging.basicConfig(filename = logfolder + "mysql_update.log", encoding='utf-8', level=logging.DEBUG)
@@ -57,14 +60,11 @@ def update_db(db_env):
     if db_env == None:
         load_dotenv()
     else:
-        input(str(db_env))
         load_dotenv(db_env)
     user = os.environ.get('USERN')
     password = os.environ.get('PASSWORD')
     db_name = os.environ.get('DB_NAME')
 
-    input(str(db_name))
-    input()
 
     # Try to connect to the server
     try:
@@ -315,10 +315,12 @@ def scrub(text):
 if __name__ == "__main__":
     val = sys.argv
     if len(val) > 1:
-        db_env = val[1]
+        outfolder = val[1]
+        db_env = val[2]
     else:
+        outfolder = "../out/"
         db_env = None
-    update_db(db_env)
+    update_db(outfolder, db_env)
     
 
 
