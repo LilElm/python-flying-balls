@@ -501,6 +501,9 @@ class OutputGraphLayout(QVBoxLayout):
     def update_plots(self):
         if not self.signal_start.signal:
             self.counter = 0
+            if self.pipe_output.poll():
+                while self.pipe_output.poll():
+                    self.pipe_output.recv()
         
         else:
             if self.pipe_output.poll():
@@ -569,7 +572,10 @@ class InputGraphLayout(QVBoxLayout):
     def update_plots(self):
         if not self.signal_start.signal:
             self.counter = 0
-        
+            if self.pipe_input.poll():
+                while self.pipe_input.poll():
+                    self.pipe_input.recv()
+    
         else:
             if self.pipe_input.poll():
                 data = self.pipe_input.recv()

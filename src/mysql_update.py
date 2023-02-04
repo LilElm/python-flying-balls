@@ -28,9 +28,6 @@ class File():
 
 
 def update_db(outfolder, db_env):
-    input(str(outfolder))
-    
-    
     currentDT = datetime.datetime.now()
     logfolder = "../log/"
     tmpfolder = "../tmp/"

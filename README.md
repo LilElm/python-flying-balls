@@ -256,4 +256,8 @@
 
    * The camera doesn't like utf-8
 
+ **04-Feb-23**
+
+ * GUI plot pipes cleared if not self.signal_start.signal to avoid plotting data from previous runs
+
 </sub>

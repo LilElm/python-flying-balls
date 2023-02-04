@@ -288,6 +288,7 @@ def main():
                     
     
             if not p_get_data.is_alive():
+                time.sleep(1.0)
                 pipe_camb.send(False)
                 if p_store_data.is_alive():
                     pipe_store_doneb.send(True)
@@ -375,8 +376,8 @@ def get_data(p_live, p_time, input_channels, measured_channels, output_channels,
             for channel in output_channels:
                 task0.ao_channels.add_ao_voltage_chan(channel)
             
-            task0.ao_channels.all.ao_max = 1.0#0.5 #max_voltage
-            task0.ao_channels.all.ao_min = -1.0#0.5 #min_voltage
+            task0.ao_channels.all.ao_max = 10.0#0.5 #max_voltage
+            task0.ao_channels.all.ao_min = -10.0#0.5 #min_voltage
             task0.timing.cfg_samp_clk_timing(sampling_rate,
                                              active_edge=nidaqmx.constants.Edge.RISING,
                                              sample_mode=nidaqmx.constants.AcquisitionType.FINITE,
