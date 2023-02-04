@@ -260,4 +260,8 @@
 
  * GUI plot pipes cleared if not self.signal_start.signal to avoid plotting data from previous runs
 
+ * Master/GUI branches merged to update Master
+
+ * Ramp branch created to configure the ramp profile
+
 </sub>
