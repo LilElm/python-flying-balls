@@ -14,8 +14,9 @@ import time
 Flopper ramp current - Python translation for flying balls
 """
 
-def eval_ramp(velocity=3.0, time_idle=4.0, time_acc=1.0, time_ramp=1.0, time_rest=1.25, sampling_rate=50000.0, coil=None):
-    #I think velocity is in mm/s, but all times are in seconds.
+def eval_ramp(drive_target=10, drive_current=5, time_idle=4.0, time_acc=1.0, time_ramp=4.0, time_rest=1.25, sampling_rate=10000.0, coil=None, velocity=0.1):
+    # I think velocity is in mm/s, but all times are in seconds.
+    # The program is now normalised and scaled with respect to drive, rendering the velocity parameter redundant
     
     logfolder = "../log/"
     outfolder = "../out/"
@@ -31,7 +32,7 @@ def eval_ramp(velocity=3.0, time_idle=4.0, time_acc=1.0, time_ramp=1.0, time_res
     dt = 1.0 / sampling_rate
     #velocity = 1.0 #mm/s
     df = 0.019 # FWHM I think
-    f0 = 4.0#8.026 # Resonant frequency I think
+    f0 = 8.026#4.0#8.026 # Resonant frequency I think
     k = 0.825 # Spring constant I think
     
     """
@@ -131,10 +132,16 @@ def eval_ramp(velocity=3.0, time_idle=4.0, time_acc=1.0, time_ramp=1.0, time_res
     alpha = (twopif0)**2.0 * k
     
     
-    output = []    
+    output = []
     for i in range(len(ddx)):
         output.append((ddx[i] + dd[i] + pp[i]) / alpha)
     profile = np.array(output, dtype=np.float64)
+    
+    
+    # Normalise profile and scale to target drive
+    val = profile[-1]
+    profile = profile / val
+    profile = profile * (drive_target - drive_current) + drive_current
     
     
     

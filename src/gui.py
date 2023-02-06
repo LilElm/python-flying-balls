@@ -110,13 +110,13 @@ class CoilLayout(QGridLayout):
         
         # Make content for "Ramp Profile"
         if content == self.combo_box_list[0]:
-            textbox_placeholders = ["Velocity", "Idle", "Acc", "Ramp", "Rest"]
+            textbox_placeholders = ["Drive", "Idle", "Acc", "Ramp", "Rest"]
             textbox_locs = [[0, 1, 1, 1],
                             [2, 0, 1, 1],
                             [2, 1, 1, 1],
                             [4, 0, 1, 1],
                             [4, 1, 1, 1]]
-            textbox_labels = ["Velocity\n(mm/s)",
+            textbox_labels = ["Drive\n(V)",
                               "Time Idle\n(s)",
                               "Time Acc\n(s)",
                               "Time Ramp\n(s)",
@@ -356,7 +356,7 @@ class RampSettingsLayout(QVBoxLayout):
                     if error_code == 0:
                         for textbox in self.coil_layout_dict[coil].textboxDict:
                             if error_code == 0:
-                                if "Velo" not in textbox and "Amp" not in textbox and "Phase" not in textbox:  
+                                if "Velo" not in textbox and "Amp" not in textbox and "Phase" not in textbox and "Drive" not in textbox:  
                                     if self.coil_layout_dict[coil].textboxDict[textbox].val < 0.0:
                                         print(str(textbox) + " is negative")
                                         error_message.append(str(textbox) + " is negative")
@@ -417,7 +417,7 @@ class RampSettingsLayout(QVBoxLayout):
                                     t = 0.5 / val
                                 elif self.coil_layout_dict[coil].content == "Sine Profile":
                                     t = 1.0 / val
-                            elif "Velo" not in textbox and "Amp" not in textbox and "Freq" not in textbox and "Phase" not in textbox:
+                            elif "Velo" not in textbox and "Amp" not in textbox and "Freq" not in textbox and "Phase" not in textbox and "Drive" not in textbox:
                                 if "Acc" in textbox:
                                     t = val * 2.0
                                 else:

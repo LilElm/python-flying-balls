@@ -264,4 +264,8 @@
 
  * Ramp branch created to configure the ramp profile
 
+ **06-Feb-23**
+
+ * Ramp profile scaled to reflect drive as opposed to velocity
+
 </sub>

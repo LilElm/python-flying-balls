@@ -63,11 +63,36 @@ def get_parameters(pipe_parama):
     return out_path, db_env, save, sampling_rate, lat_profile, lat_params, long_profile, long_params
 
 
-def force_profile(sampling_rate, profile, params, coil):
+def force_profile(sampling_rate, profile, params, channel, coil):
     f_profile = None
     if profile == "Ramp Profile":
-        velocity, idle, acc, ramp, rest = params
-        f_profile = eval_ramp(velocity, idle, acc, ramp, rest, sampling_rate, coil)
+        drive_tar, idle, acc, ramp, rest = params
+        
+        # Find current drive of coil
+        drive_cur = 0
+        try:
+            with nidaqmx.Task() as task:
+                # Configure input task (Task 1) (Dev1/ai0, Dev1/ai19, Dev1/ai3)
+                num_channels = 1
+                num_samples = 10
+                sampling_rate = 1000
+                data = np.zeros(num_samples)
+                
+                task.ai_channels.add_ai_voltage_chan(channel)
+                task.ai_channels.all.ai_max = 10.0 #max_voltage
+                task.ai_channels.all.ai_min = -10.0 #min_voltage
+                task.timing.cfg_samp_clk_timing(sampling_rate,
+                                                samps_per_chan=num_samples)
+                
+                data = task.read(num_samples, timeout=10.0)
+                drive_cur = data[-1]
+                
+        except KeyboardInterrupt:
+            logging.warning("Data acquisition stopped via keyboard interruption")
+
+        
+        
+        f_profile = eval_ramp(drive_tar, drive_cur, idle, acc, ramp, rest, sampling_rate, coil)
     elif profile == "Sine Profile":
         sys.exit()
     elif profile == "Half-sine Profile":
@@ -182,8 +207,8 @@ def main():
             
         
         pipe_msgb.send(msg2)
-        force_profile_lat = force_profile(sampling_rate, lat_profile, lat_params, coil="lat")
-        force_profile_long = force_profile(sampling_rate, long_profile, long_params, coil="long")
+        force_profile_lat = force_profile(sampling_rate, lat_profile, lat_params, measured_channels[0], coil="lat")
+        force_profile_long = force_profile(sampling_rate, long_profile, long_params, measured_channels[1], coil="long")
         
         # Check length and adjust accordingly
         len_lat = len(force_profile_lat)
