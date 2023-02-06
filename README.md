@@ -270,4 +270,6 @@
 
  * Oscillator parameter inputs added to GUI
 
+ * Ramp profile discontinuity fixed
+
 </sub>

@@ -579,10 +579,10 @@ class OutputGraphLayout(QVBoxLayout):
                     self.output_channelDict[channel].plot.data.append(data[self.output_channelDict[channel].index])
                     
                     
-                    if len(self.elapsed_time) > 500:
+                    if len(self.elapsed_time) > 2500:
                         self.elapsed_time = self.elapsed_time[1:]
                     
-                    if len(self.output_channelDict[channel].plot.data) > 500:
+                    if len(self.output_channelDict[channel].plot.data) > 2500:
                         self.output_channelDict[channel].plot.data = self.output_channelDict[channel].plot.data[1:]
                     self.output_channelDict[channel].plot.line.setData(self.elapsed_time, self.output_channelDict[channel].plot.data)
                     
@@ -649,10 +649,10 @@ class InputGraphLayout(QVBoxLayout):
                 for channel in self.input_channelDict:
                     self.input_channelDict[channel].plot.data.append(data[self.input_channelDict[channel].index])
                     
-                    if len(self.elapsed_time) > 500:
+                    if len(self.elapsed_time) > 2500:
                         self.elapsed_time = self.elapsed_time[1:]
                     
-                    if len(self.input_channelDict[channel].plot.data) > 500:
+                    if len(self.input_channelDict[channel].plot.data) > 2500:
                         self.input_channelDict[channel].plot.data = self.input_channelDict[channel].plot.data[1:]
                     self.input_channelDict[channel].plot.line.setData(self.elapsed_time, self.input_channelDict[channel].plot.data)
         

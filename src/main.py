@@ -76,15 +76,14 @@ def force_profile(sampling_rate, f0, df, k, profile, params, channel, coil):
         try:
             with nidaqmx.Task() as task:
                 # Configure input task (Task 1) (Dev1/ai0, Dev1/ai19, Dev1/ai3)
-                num_channels = 1
                 num_samples = 10
-                sampling_rate = 1000
+                rate = 1000
                 data = np.zeros(num_samples)
                 
                 task.ai_channels.add_ai_voltage_chan(channel)
                 task.ai_channels.all.ai_max = 10.0 #max_voltage
                 task.ai_channels.all.ai_min = -10.0 #min_voltage
-                task.timing.cfg_samp_clk_timing(sampling_rate,
+                task.timing.cfg_samp_clk_timing(rate,
                                                 samps_per_chan=num_samples)
                 
                 data = task.read(num_samples, timeout=10.0)

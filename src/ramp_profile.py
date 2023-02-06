@@ -14,7 +14,7 @@ import time
 Flopper ramp current - Python translation for flying balls
 """
 
-def eval_ramp(f0=7.300, df=0.090, k=0.465, drive_target=10, drive_current=5, time_idle=4.0, time_acc=1.0, time_ramp=4.0, time_rest=1.25, sampling_rate=10000.0, coil=None, velocity=0.1):
+def eval_ramp(f0=7.300, df=0.090, k=0.465, drive_target=1, drive_current=0, time_idle=1.0, time_acc=1.0, time_ramp=5.0, time_rest=1.0, sampling_rate=100.0, coil=None, velocity=0.1):
     # I think velocity is in mm/s, but all times are in seconds.
     # The program is now normalised and scaled with respect to drive, rendering the velocity parameter redundant
     
@@ -58,10 +58,12 @@ def eval_ramp(f0=7.300, df=0.090, k=0.465, drive_target=10, drive_current=5, tim
     """
     
     # Times start at 0, but will be corrected later to reflect the true times
-    times_idle = np.arange(0.0, time_idle, dt)
-    times_acc = np.arange(0.0, time_acc, dt)
-    times_ramp = np.arange(0.0, time_ramp, dt)
-    times_dec = times_acc
+    times_idle = np.arange(0.0, time_idle+dt, dt)
+    times_acc = np.arange(dt, time_acc+dt, dt)
+    times_ramp = np.arange(dt, time_ramp+2.0*dt, dt)
+    #times_ramp = np.arange(dt, time_ramp+dt, dt)
+    #times_dec = times_acc
+    times_dec = np.arange(2.0*dt, time_acc, dt)
     times_rest = np.arange(0.0, time_rest, dt)
         
     len_times_idle = len(times_idle)
@@ -69,6 +71,7 @@ def eval_ramp(f0=7.300, df=0.090, k=0.465, drive_target=10, drive_current=5, tim
     len_times_ramp = len(times_ramp)
     len_times_rest = len(times_rest)
     
+    len_times_dec = len(times_dec)
     
     
     # x is the evaluated position of equilibrium, x = F / (mw^2)    
@@ -77,6 +80,8 @@ def eval_ramp(f0=7.300, df=0.090, k=0.465, drive_target=10, drive_current=5, tim
     xs_ramp = np.zeros(len_times_ramp)
     xs_rest = np.zeros(len_times_rest)
     
+    xs_dec = np.zeros(len_times_dec)
+    
     for i in range(len_times_acc):
         val = velocity * time_acc * (1.0 - times_acc[i] / (time_acc * 2.0)) * (times_acc[i] / time_acc)**3.0
         xs_acc[i] = val
@@ -84,8 +89,11 @@ def eval_ramp(f0=7.300, df=0.090, k=0.465, drive_target=10, drive_current=5, tim
     for i in range(len_times_ramp):
         xs_ramp[i] = velocity * times_ramp[i]
         
-    xs_dec = xs_acc[::-1] * -1.0
+    #xs_dec = xs_acc[::-1] * -1.0
     
+    for i in range(len_times_dec):
+        val = velocity * time_acc * (1.0 - times_dec[i] / (time_acc * 2.0)) * (times_dec[i] / time_acc)**3.0
+        xs_dec[-(1+i)] = -1.0 * val
     
     
     # Find the offsets and remove discontinuities
@@ -109,7 +117,10 @@ def eval_ramp(f0=7.300, df=0.090, k=0.465, drive_target=10, drive_current=5, tim
     dx_idle = np.zeros(len_times_idle)
     dx_acc = np.gradient(xs_acc, dt)
     dx_ramp = np.gradient(xs_ramp, dt)
-    dx_dec = dx_acc[::-1] * -1.0
+    #dx_dec = dx_acc[::-1] * -1.0
+    
+    dx_dec = np.gradient(xs_dec, dt)
+    
     dx_rest = np.zeros(len_times_rest)
     dx = np.concatenate((dx_idle, dx_acc, dx_ramp, dx_dec, dx_rest), axis=None)
     
@@ -117,7 +128,11 @@ def eval_ramp(f0=7.300, df=0.090, k=0.465, drive_target=10, drive_current=5, tim
     ddx_idle = dx_idle
     ddx_acc = np.gradient(dx_acc, dt)
     ddx_ramp = np.gradient(dx_ramp, dt)
-    ddx_dec = ddx_acc[::-1] * -1.0
+    #ddx_dec = ddx_acc[::-1] * -1.0
+    
+    
+    ddx_dec = np.gradient(dx_dec, dt)
+    
     ddx_rest = dx_rest
     ddx = np.concatenate((ddx_idle, ddx_acc, ddx_ramp, ddx_dec, ddx_rest), axis=None)
     
@@ -160,9 +175,9 @@ def eval_ramp(f0=7.300, df=0.090, k=0.465, drive_target=10, drive_current=5, tim
     fig = plt.figure()
     ax = fig.add_subplot(1,1,1)
     ax.plot(times_tot, profile)
-    #plt.show()
+    plt.show()
     fig.savefig(path, bbox_inches="tight", dpi=600)
-    plt.close()
+    #plt.close()
     
     
     
