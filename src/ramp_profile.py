@@ -14,7 +14,7 @@ import time
 Flopper ramp current - Python translation for flying balls
 """
 
-def eval_ramp(drive_target=10, drive_current=5, time_idle=4.0, time_acc=1.0, time_ramp=4.0, time_rest=1.25, sampling_rate=10000.0, coil=None, velocity=0.1):
+def eval_ramp(f0=7.300, df=0.090, k=0.465, drive_target=10, drive_current=5, time_idle=4.0, time_acc=1.0, time_ramp=4.0, time_rest=1.25, sampling_rate=10000.0, coil=None, velocity=0.1):
     # I think velocity is in mm/s, but all times are in seconds.
     # The program is now normalised and scaled with respect to drive, rendering the velocity parameter redundant
     
@@ -31,9 +31,9 @@ def eval_ramp(drive_target=10, drive_current=5, time_idle=4.0, time_acc=1.0, tim
     
     dt = 1.0 / sampling_rate
     #velocity = 1.0 #mm/s
-    df = 0.019 # FWHM I think
-    f0 = 8.026#4.0#8.026 # Resonant frequency I think
-    k = 0.825 # Spring constant I think
+    #df = 0.019 # FWHM I think
+    #f0 = 8.026#4.0#8.026 # Resonant frequency I think
+    #k = 0.825 # Spring constant I think
     
     """
     # Modulo, whether via % of math.fmod() is completely broken

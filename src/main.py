@@ -53,6 +53,9 @@ def get_parameters(pipe_parama):
         
         save = pipe_parama.recv()
         sampling_rate = pipe_parama.recv()
+        f0 = pipe_parama.recv()
+        df = pipe_parama.recv()
+        k = pipe_parama.recv()
         lat_profile = pipe_parama.recv()
         lat_params = pipe_parama.recv()
         long_profile = pipe_parama.recv()
@@ -60,10 +63,10 @@ def get_parameters(pipe_parama):
         
     except Exception as e:
         print(str(e))
-    return out_path, db_env, save, sampling_rate, lat_profile, lat_params, long_profile, long_params
+    return out_path, db_env, save, sampling_rate, f0, df, k, lat_profile, lat_params, long_profile, long_params
 
 
-def force_profile(sampling_rate, profile, params, channel, coil):
+def force_profile(sampling_rate, f0, df, k, profile, params, channel, coil):
     f_profile = None
     if profile == "Ramp Profile":
         drive_tar, idle, acc, ramp, rest = params
@@ -92,7 +95,7 @@ def force_profile(sampling_rate, profile, params, channel, coil):
 
         
         
-        f_profile = eval_ramp(drive_tar, drive_cur, idle, acc, ramp, rest, sampling_rate, coil)
+        f_profile = eval_ramp(f0, df, k, drive_tar, drive_cur, idle, acc, ramp, rest, sampling_rate, coil)
     elif profile == "Sine Profile":
         sys.exit()
     elif profile == "Half-sine Profile":
@@ -201,14 +204,14 @@ def main():
         running = True
         # Get input parameters from the GUI and evalute the force profile
         pipe_msgb.send(msg1)
-        outfolder, db_env, save, sampling_rate, lat_profile, lat_params, long_profile, long_params = get_parameters(pipe_parama)
+        outfolder, db_env, save, sampling_rate, f0, df, k, lat_profile, lat_params, long_profile, long_params = get_parameters(pipe_parama)
         if outfolder == None:
             outfolder = "../out/"
             
         
         pipe_msgb.send(msg2)
-        force_profile_lat = force_profile(sampling_rate, lat_profile, lat_params, measured_channels[0], coil="lat")
-        force_profile_long = force_profile(sampling_rate, long_profile, long_params, measured_channels[1], coil="long")
+        force_profile_lat = force_profile(sampling_rate, f0, df, k, lat_profile, lat_params, measured_channels[0], coil="lat")
+        force_profile_long = force_profile(sampling_rate, f0, df, k, long_profile, long_params, measured_channels[1], coil="long")
         
         # Check length and adjust accordingly
         len_lat = len(force_profile_lat)

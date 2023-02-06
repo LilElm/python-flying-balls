@@ -268,4 +268,6 @@
 
  * Ramp profile scaled to reflect drive as opposed to velocity
 
+ * Oscillator parameter inputs added to GUI
+
 </sub>

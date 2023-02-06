@@ -222,6 +222,9 @@ class RampSettingsLayout(QVBoxLayout):
         
         
         self.textbox_srate = QLineEdit(placeholderText="Sampling Rate")
+        self.textbox_f0 = QLineEdit("7.300", placeholderText="Frequency")
+        self.textbox_df = QLineEdit("0.090", placeholderText="Line Width")
+        self.textbox_k = QLineEdit("0.465", placeholderText="Spring Constant")
         self.start_button = QPushButton("Start")
         self.stop_button = QPushButton("Stop")
         self.start_button.clicked.connect(self.start_on_click)
@@ -229,6 +232,14 @@ class RampSettingsLayout(QVBoxLayout):
     
         layout_start.addWidget(self.textbox_srate)
         layout_start.addWidget(QLabel("Sampling Rate\n(Hz)"))
+        
+        layout_start.addWidget(self.textbox_f0)
+        layout_start.addWidget(QLabel("Frequency\n(Hz)"))
+        layout_start.addWidget(self.textbox_df)
+        layout_start.addWidget(QLabel("Line Width\n(Hz)"))
+        layout_start.addWidget(self.textbox_k)
+        layout_start.addWidget(QLabel("Spring Constant\n(mm/V)"))
+        
         
         layout_start.addWidget(self.start_button)
         layout_start.addWidget(self.stop_button)
@@ -257,6 +268,13 @@ class RampSettingsLayout(QVBoxLayout):
         self.save = self.checkbox.isChecked()
         self.sampling_rate = self.textbox_srate.text()
         
+        self.f0 = self.textbox_f0.text()
+        self.df = self.textbox_df.text()
+        self.k = self.textbox_k.text()
+        
+        
+        
+        
         """
         # Read all textboxes and return the values
         for coil in self.coil_layout_dict:
@@ -282,9 +300,15 @@ class RampSettingsLayout(QVBoxLayout):
             self.pipe_param.send(self.path)
             self.pipe_param.send(self.db_env)
             
-            
             self.pipe_param.send(self.save)
             self.pipe_param.send(self.sampling_rate)
+            
+            self.pipe_param.send(self.f0)
+            self.pipe_param.send(self.df)
+            self.pipe_param.send(self.k)
+            
+            
+            
             for coil in self.coil_layout_dict:
                 # Send profile (ramp, sine, half-sine, custom)
                 self.pipe_param.send(self.coil_layout_dict[coil].content)
@@ -329,6 +353,37 @@ class RampSettingsLayout(QVBoxLayout):
                 print("Please enter a valid sampling rate.")
                 error_message.append("Please enter a valid sampling rate.")
                 error_code = 1
+        
+        
+        # Check if f0 is a float
+        try:
+            self.f0 = float(self.f0)
+        except:
+            print("Please enter a valid frequency.")
+            error_message.append("Please enter a valid frequency.")
+            error_code = 1
+
+        
+        # Check if df is a float
+        try:
+            self.df = float(self.df)
+        except:
+            print("Please enter a valid line width.")
+            error_message.append("Please enter a valid line width.")
+            error_code = 1
+
+        
+        # Check if k is a float
+        try:
+            self.k = float(self.k)
+        except:
+            print("Please enter a valid spring constant.")
+            error_message.append("Please enter a valid spring constant.")
+            error_code = 1
+        
+        
+        
+        
         
         
         # Check if input is a custom profile
