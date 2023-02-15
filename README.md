@@ -272,4 +272,10 @@
 
  * Ramp profile discontinuity fixed
 
+ **15-Feb-23**
+
+ * Freezing issue sorted by replacing 'break' with sys.exit() in processes
+
+ * Database and output folder format modified to allow backups to occur at a later date
+
 </sub>

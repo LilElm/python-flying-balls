@@ -20,22 +20,28 @@ import shutil
 If errno13, add NETWORK SERVICE to folder permissions."""
 
 class File():
-    def __init__(self, root, name, extension):
+    def __init__(self, root, forename, timestamp, extension):
         self.root = root
-        self.name = name
+        self.forename = forename
+        self.timestamp = timestamp
         self.extension = extension
 
 
 
-def update_db(outfolder, db_env):
+def update_db(outfolder, outfolder_pre, outfolder_post, db_env):
     currentDT = datetime.datetime.now()
     logfolder = "../log/"
-    tmpfolder = "../tmp/"
+    #tmpfolder = "../tmp/"
     #outfolder = "../out/"
     os.makedirs(logfolder, exist_ok=True)
     os.makedirs(outfolder, exist_ok=True)
+    os.makedirs(outfolder_pre, exist_ok=True)
+    os.makedirs(outfolder_post, exist_ok=True)
     logging.basicConfig(filename = logfolder + "mysql_update.log", encoding='utf-8', level=logging.DEBUG)
     logging.info(currentDT.strftime("%d/%m/%Y, %H:%M:%S"))    
+
+
+
 
     # Change folder permissions so that the database (NETWORK SERVICE) can access the appropriate files
     os.system('icacls "C:\\Users\\ultservi\\Desktop\Elmy\\python-flying-balls" /T /grant "NETWORK SERVICE":F')
@@ -86,6 +92,7 @@ def update_db(outfolder, db_env):
               exit(1)
     
     
+    
     # Outer loop handles database connection
     try:
         # Try to connect to the database
@@ -106,27 +113,9 @@ def update_db(outfolder, db_env):
                 logging.error(err)
                 exit(1)
 
-        
-        # Load in .CSV file and header names
-        fileDict = {}
-        for root, dirs, files in os.walk(tmpfolder, topdown=False):
-            for name in files:
-                if ".csv" in name:
-                    filename = name.strip(".csv")
-                    with open(os.path.join(root, name), "r") as f:
-                        line = f.readline().lower().strip("\n")
-                        headers = line.split(", ")
-                        headers = [scrub(elem) for elem in headers]
-                        
-                        if "dat" in name:
-                            timestamp = f.readline().lower().strip("\n").split(", ")[0]
-                        f.seek(0)
-                        
-                        # Create fileDict object
-                        fileDict[filename] = File(root=root, name=filename, extension=".csv")
-                        fileDict[filename].headers = headers
-                        
-        
+
+
+    
         # Evaluate 'run' number
         run_list = []
         query = "SHOW TABLES;"
@@ -134,7 +123,7 @@ def update_db(outfolder, db_env):
         tables = cur.fetchall()
         
         if len(tables) == 0:
-            run = 1
+            run = 0
         else:
             tables = [table[0] for table in tables]
     
@@ -149,113 +138,171 @@ def update_db(outfolder, db_env):
                         cur.execute(query2.format(table))
                         ans = cur.fetchone()
                         if ans[0] is None:
-                            run_list.append(1)
+                            run_list.append(0)
                         else:
-                            run_list.append(ans[0] + 1)
+                            run_list.append(ans[0])
                     except:
                         print("Error in fetching run number from database")
-                        print("Run assumed to be 1")
+                        print("Run assumed to be 0")
                         logging.error("Error in fetching run number from database")
-                        logging.info("Run assumed to be 1")
+                        logging.info("Run assumed to be 0")
                         pass
-            run = max(run_list)        
+            run = max(run_list)  
         
-        # Define tables
-        TABLES = {}
-        for name in fileDict:
-            TABLES[name] = ("""CREATE TABLE {} (
-                               run INTEGER NOT NULL
-                               ) ENGINE=InnoDB""").format(name)
-        
-        
-        query1 = "CALL sys.table_exists('{}', '{}', @exists);"
-        query2 = "SELECT @exists;"
-        query3 = """SELECT column_name
-                    FROM information_schema.columns
-                    WHERE table_schema = '{}' AND table_name = '{}'
-                    ORDER BY ordinal_position;"""
-        query4 = """ALTER TABLE {} ADD COLUMN {} DOUBLE;"""
-        query5 = """LOAD DATA INFILE '{}'
-                    INTO TABLE {}
-                    FIELDS TERMINATED BY ','
-                    IGNORE 1 ROWS
-                    ({})
-                    SET run=%s;"""
+
+
+
+        # Load in .CSV file and header names
+        for root, dirs, files in os.walk(outfolder_pre, topdown=False):
+            fileDict = {}
+            # For each folder, run=+1 if folder contains *.csv
+            if any(".csv" in file for file in files):
+                run = run + 1
+                
+            for name in files:
+                if ".csv" in name:
+                    #filename = name.strip(".csv")
+                    forename, timestamp = name.rsplit("_", 1)
+                    timestamp = timestamp.strip(".csv")
                     
-                    
-        # Define force_profile file path
-        dir_path = os.path.dirname(os.getcwd())
-        dir_path=dir_path.replace("\\","/")
-        tmpfolder = "/tmp/"
-        
-        
-        # Check if each table exists
-        for table_name in TABLES:
-            cur.execute(query1.format(db_name, table_name))
-            cur.execute(query2)
-            val = cur.fetchone()
+                    with open(os.path.join(root, name), "r") as f:
+                        line = f.readline().lower().strip("\n")
+                        headers = line.split(", ")
+                        headers = [scrub(elem) for elem in headers]
+                        
+                        #if "dat" in name:
+                        #    timestamp = f.readline().lower().strip("\n").split(", ")[0]
+                        f.seek(0)
+                        
+                        # Create fileDict object
+                        fileDict[forename] = File(root=root, forename=forename, timestamp=timestamp, extension=".csv")
+                        fileDict[forename].headers = headers
             
             
-            if len(val[0]) == 0:
+            # Define tables
+            TABLES = {}
+            for name in fileDict:
+                forename = fileDict[name].forename
+                TABLES[forename] = ("""CREATE TABLE {} (
+                                   run INTEGER NOT NULL,
+                                   INDEX index_run (run)
+                                   ) ENGINE=InnoDB""").format(forename)
+            
+            
+            query1 = "CALL sys.table_exists('{}', '{}', @exists);"
+            query2 = "SELECT @exists;"
+            query3 = """SELECT column_name
+                        FROM information_schema.columns
+                        WHERE table_schema = '{}' AND table_name = '{}'
+                        ORDER BY ordinal_position;"""
+            query4 = """ALTER TABLE {} ADD COLUMN {} DOUBLE;"""
+            query5 = """LOAD DATA INFILE '{}'
+                        INTO TABLE {}
+                        FIELDS TERMINATED BY ','
+                        IGNORE 1 ROWS
+                        ({})
+                        SET run=%s;"""
+                        
+                        
+            # Define force_profile file path
+            dir_path = os.path.dirname(os.getcwd())
+            dir_path=dir_path.replace("\\","/")
+            #tmpfolder = "/tmp/"
+            
+            # Check if each table exists
+            for table_name in TABLES:
+                cur.execute(query1.format(db_name, table_name))
+                cur.execute(query2)
+                val = cur.fetchone()
+                
+                
                 # Create the table if it does not exist
-                table_description = TABLES[table_name]
-                try:
-                    print("Creating table {}: ".format(table_name))
-                    logging.info("Creating table {}: ".format(table_name))
-                    cur.execute(table_description)
-                except mysql.connector.Error as err:
-                    if err.errno == errorcode.ER_TABLE_EXISTS_ERROR:
-                        print("Table already exists")
-                        logging.info("Table already exists")
-                    else:
-                        print(err.msg)
-                        logging.error(err.msg)
-            
-            
-            # Check if the necessary columns exist
-            try:
-                cur.execute(query3.format(db_name, table_name))
-            except mysql.connector.Error as err:
-                input(err)
-            headers = cur.fetchall()
-            headers = [elem[0] for elem in headers]
-            # result = all(elem in headers for elem in fileDict[table_name])
-            # print(str(result))
-
-
-            # Add columns to the table if they do not exist
-            for elem in fileDict[table_name].headers:
-                if elem not in headers:
+                if len(val[0]) == 0:
+                    table_description = TABLES[table_name]
                     try:
-                        cur.execute(query4.format(table_name, elem))
+                        print("Creating table {}: ".format(table_name))
+                        logging.info("Creating table {}: ".format(table_name))
+                        cur.execute(table_description)
                     except mysql.connector.Error as err:
-                        input(err)
-            con.commit()
+                        if err.errno == errorcode.ER_TABLE_EXISTS_ERROR:
+                            print("Table already exists")
+                            logging.info("Table already exists")
+                        else:
+                            print(err.msg)
+                            logging.error(err.msg)
+                
+
+                # Check if the necessary columns exist
+                try:
+                    cur.execute(query3.format(db_name, table_name))
+                except mysql.connector.Error as err:
+                    input(err)
+                headers = cur.fetchall()
+                headers = [elem[0] for elem in headers]
+                # result = all(elem in headers for elem in fileDict[table_name])
+                # print(str(result))
+    
+                # Add columns to the table if they do not exist
+                for elem in fileDict[table_name].headers:
+                    if elem not in headers:
+                        try:
+                            cur.execute(query4.format(table_name, elem))
+                        except mysql.connector.Error as err:
+                            input(err)
+                con.commit()
+
+                
+
+            for file in fileDict:
+                forename = fileDict[file].forename
+                timestamp = fileDict[file].timestamp
+                extension = fileDict[file].extension
+                root = fileDict[file].root
+    
+                
+                # Load data into the table
+                columns = ", ".join(fileDict[file].headers)
+                name_old = f"{forename}_{timestamp}{extension}"
+                root = root.strip("../")
+                filedir = f"{root}/{name_old}"         
+                filedir = filedir.replace('\\', '/')
+                
+       
+                
+                values = run,
+                try:
+                    cur.execute(query5.format(filedir, forename, columns), values)
+                    print(f"File {filedir} uploaded")
+                except mysql.connector.Error as err:
+                    input(str(err))
+                con.commit()
             
+            # Move files to ../outfolder_post/timestamp.csv
+           # dt = datetime.datetime.fromtimestamp(float(timestamp)).strftime("%Y.%m.%d_%H%M%S")
+           # for file in fileDict:
+                #name_old = fileDict[file].name + fileDict[file].extension
+                
+                
+                
+                dt = datetime.datetime.fromtimestamp(float(timestamp)).strftime("%Y.%m.%d_%H%M%S")
+                name_new = "_".join([dt, forename])
+                name_new = name_new + ".csv"
+                
+                #path_old = os.path.join(root, name_old)
+                path_old = filedir
+                path_new = os.path.join(outfolder_post, name_new)
+                
+                ### Change 230214
+                
+                #print(str(name_old))
+                #input()
+                
+               # path_new = os.path.join(outfolder_post, name_new)
+                
+                
+                shutil.move(path_old, path_new)
+             
             
-            # Load data into the table
-            columns = ", ".join(fileDict[table_name].headers)
-            filedir = dir_path + tmpfolder + table_name + ".csv"
-            values = run,
-            try:
-                cur.execute(query5.format(filedir, table_name, columns), values)
-            except mysql.connector.Error as err:
-                input(str(err))
-            con.commit()
-        
-        
-        # Move files to ../out/timestamp.csv
-        dt = datetime.datetime.fromtimestamp(float(timestamp)).strftime("%Y.%m.%d_%H%M%S")
-        for file in fileDict:
-            root = fileDict[file].root
-            name_old = fileDict[file].name + fileDict[file].extension
-            name_new = "_".join([dt, name_old])
-            
-            path_old = os.path.join(root, name_old)
-            path_new = os.path.join(outfolder, name_new)
-            shutil.move(path_old, path_new)
-         
-        
         # Close the database and terminate the program  
         for p in processlist:
             if p:
@@ -312,12 +359,25 @@ def scrub(text):
 if __name__ == "__main__":
     val = sys.argv
     if len(val) > 1:
+        
         outfolder = val[1]
-        db_env = val[2]
+        outfolder0 = val[2]
+        outfolder1 = val[3]
+        
+        outfolder_pre = outfolder + outfolder0
+        outfolder_post = outfolder + outfolder1
+        
+        
+        
+        db_env = val[4]
     else:
-        outfolder = "../out/"
+        outfolder = os.getcwd()
+        outfolder = outfolder.rsplit('\\', 1)[0]
+        outfolder = outfolder + "\\out\\"
+        outfolder_pre = outfolder + "out_unprocessed\\"
+        outfolder_post = outfolder + "out_processed\\"
         db_env = None
-    update_db(outfolder, db_env)
+    update_db(outfolder, outfolder_pre, outfolder_post, db_env)
     
 
 

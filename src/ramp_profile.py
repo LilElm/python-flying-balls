@@ -14,23 +14,22 @@ import time
 Flopper ramp current - Python translation for flying balls
 """
 
-def eval_ramp(f0=7.300, df=0.090, k=0.465, drive_target=1, drive_current=0, time_idle=1.0, time_acc=1.0, time_ramp=5.0, time_rest=1.0, sampling_rate=100.0, coil=None, velocity=0.1):
+def eval_ramp(f0=7.300, df=0.090, k=0.465, drive_target=1, drive_current=0, time_idle=1.0, time_acc=1.0, time_ramp=5.0, time_rest=1.0, sampling_rate=100.0, coil=None, outfolder="../out/", timestamp=None):
     # I think velocity is in mm/s, but all times are in seconds.
     # The program is now normalised and scaled with respect to drive, rendering the velocity parameter redundant
     
     logfolder = "../log/"
-    outfolder = "../out/"
-    tmpfolder = "../tmp/"
+    #tmpfolder = "../tmp/"
     
     os.makedirs(outfolder, exist_ok=True)
     os.makedirs(logfolder, exist_ok=True)
-    os.makedirs(tmpfolder, exist_ok=True)
+    #os.makedirs(tmpfolder, exist_ok=True)
     currentDT = datetime.datetime.now()
     logging.basicConfig(filename = logfolder + "ramp_profile.log", encoding='utf-8', level=logging.DEBUG)
     logging.info(currentDT.strftime("%d/%m/%Y, %H:%M:%S"))  
     
     dt = 1.0 / sampling_rate
-    #velocity = 1.0 #mm/s
+    velocity = 1.0 #mm/s
     #df = 0.019 # FWHM I think
     #f0 = 8.026#4.0#8.026 # Resonant frequency I think
     #k = 0.825 # Spring constant I think
@@ -162,9 +161,16 @@ def eval_ramp(f0=7.300, df=0.090, k=0.465, drive_target=1, drive_current=0, time
     
     # Print to file
     if coil is None:
-        path = f"{tmpfolder}ramp_profile"
+        if timestamp is None:
+            path = f"{outfolder}ramp_profile"
+        else:
+            path = f"{outfolder}ramp_profile_{timestamp}" 
     else:
-        path = f"{tmpfolder}{coil}_ramp_profile"
+        if timestamp is None:
+            path = f"{outfolder}{coil}_ramp_profile"
+        else:
+            path = f"{outfolder}{coil}_ramp_profile_{timestamp}"
+            
     
     with open((path + ".csv"), "w") as f:
         f.write("Seconds, Profile\n")
@@ -175,9 +181,9 @@ def eval_ramp(f0=7.300, df=0.090, k=0.465, drive_target=1, drive_current=0, time
     fig = plt.figure()
     ax = fig.add_subplot(1,1,1)
     ax.plot(times_tot, profile)
-    plt.show()
+    #plt.show()
     fig.savefig(path, bbox_inches="tight", dpi=600)
-    #plt.close()
+    plt.close()
     
     
     

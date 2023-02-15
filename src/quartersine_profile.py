@@ -10,21 +10,21 @@ import logging
 import os
 
 
-def eval_halfsine(amp=1.0, freq=3.0, time_idle=1.0, time_rest=4.0, sampling_rate=100.0, coil=None, outfolder="../out/", timestamp=None):
+def eval_halfsine(amp=1.0, freq=3.0, time_idle=1.0, time_rest=4.0, sampling_rate=100.0, coil=None):
     
     logfolder = "../log/"
-    #tmpfolder = "../tmp/"
+    outfolder = "../out/"
+    tmpfolder = "../tmp/"
             
     os.makedirs(outfolder, exist_ok=True)
     os.makedirs(logfolder, exist_ok=True)
-    #os.makedirs(tmpfolder, exist_ok=True)
+    os.makedirs(tmpfolder, exist_ok=True)
     currentDT = datetime.datetime.now()
     logging.basicConfig(filename = logfolder + "half-sine_profile.log", encoding='utf-8', level=logging.DEBUG)
     logging.info(currentDT.strftime("%d/%m/%Y, %H:%M:%S"))  
     
     
     dt = 1.0 / sampling_rate
-    #time_half = 0.5 / freq
     time_half = 0.5 / freq
     
     """
@@ -82,9 +82,9 @@ def eval_halfsine(amp=1.0, freq=3.0, time_idle=1.0, time_rest=4.0, sampling_rate
     
     # Print to file
     if coil is None:
-        path = f"{outfolder}halfsine_profile"
+        path = f"{tmpfolder}halfsine_profile"
     else:
-        path = f"{outfolder}{coil}_halfsine_profile"
+        path = f"{tmpfolder}{coil}_halfsine_profile"
     
     with open((path + ".csv"), "w") as f:
         f.write("Seconds, Profile\n")

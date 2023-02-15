@@ -11,6 +11,7 @@ import time
 import numpy as np
 from itertools import cycle
 import sys
+import pyvisa
 import nidaqmx
 import nidaqmx.system
 from nidaqmx.stream_readers import AnalogMultiChannelReader
@@ -66,7 +67,7 @@ def get_parameters(pipe_parama):
     return out_path, db_env, save, sampling_rate, f0, df, k, lat_profile, lat_params, long_profile, long_params
 
 
-def force_profile(sampling_rate, f0, df, k, profile, params, channel, coil):
+def force_profile(outfolder, timestamp, sampling_rate, f0, df, k, profile, params, channel, coil):
     f_profile = None
     if profile == "Ramp Profile":
         drive_tar, idle, acc, ramp, rest = params
@@ -94,19 +95,20 @@ def force_profile(sampling_rate, f0, df, k, profile, params, channel, coil):
 
         
         
-        f_profile = eval_ramp(f0, df, k, drive_tar, drive_cur, idle, acc, ramp, rest, sampling_rate, coil)
+        f_profile = eval_ramp(f0, df, k, drive_tar, drive_cur, idle, acc, ramp, rest, sampling_rate, coil, outfolder, timestamp)
     elif profile == "Sine Profile":
         sys.exit()
     elif profile == "Half-sine Profile":
         amp, freq, idle, rest = params
-        f_profile = eval_halfsine(amp, freq, idle, rest, sampling_rate, coil)
+        f_profile = eval_halfsine(amp, freq, idle, rest, sampling_rate, coil, outfolder, timestamp)
     elif profile == "Upload Custom":
         f_profile = []
         t = 0
         dt = 1.0 / sampling_rate
         
         path_old = params[0]
-        path_new = f"../tmp/{coil}_custom_profile.csv"
+        #path_new = f"../tmp/{coil}_custom_profile.csv"
+        path_new = f"{outfolder}{coil}_custom_profile_{timestamp}.csv"
         with open((path_old), "r") as f_old:
             with open((path_new), 'w') as f_new:
                 f_new.write("Seconds, Profile\n")
@@ -123,11 +125,12 @@ def force_profile(sampling_rate, f0, df, k, profile, params, channel, coil):
 def main():
     currentDT = datetime.datetime.now()
     logfolder = "../log/"
-    tmpfolder = "../tmp/"
-    if os.path.exists(tmpfolder) and os.path.isdir(tmpfolder):
-        rmtree(tmpfolder)
+    #tmpfolder = "../tmp/"
+    
+    #if os.path.exists(tmpfolder) and os.path.isdir(tmpfolder):
+     #   rmtree(tmpfolder)
     os.makedirs(logfolder, exist_ok=True)
-    os.makedirs(tmpfolder, exist_ok=True)
+    #os.makedirs(tmpfolder, exist_ok=True)
     logging.basicConfig(filename = logfolder + "main.log", encoding='utf-8', level=logging.DEBUG)
     logging.info(currentDT.strftime("%d/%m/%Y, %H:%M:%S"))   
     
@@ -154,6 +157,15 @@ def main():
         output_channelDict[channel].name = output_names[index]
         index = index + 1
         output_channelDict[channel].index = index
+
+
+    # Define the PSU
+    rm = pyvisa.ResourceManager()
+    #print(rm.list_resources())
+    address = 'GPIB0::10::INSTR'
+    psu = rm.open_resource(address)
+    psulist = [1, 2, 3, 4]
+    psuDict = {}
 
     
     # Create starting signal for GUI plots (deafult=False)
@@ -205,12 +217,45 @@ def main():
         pipe_msgb.send(msg1)
         outfolder, db_env, save, sampling_rate, f0, df, k, lat_profile, lat_params, long_profile, long_params = get_parameters(pipe_parama)
         if outfolder == None:
-            outfolder = "../out/"
-            
+            outfolder = os.getcwd()
+            outfolder = outfolder.rsplit('\\', 1)[0]
+            outfolder = outfolder + "\\out\\"
+        
+        """
+        timestamp = time.time()
+        outfolder0 = outfolder + 'out_unprocessed/'
+        outfolder1 = outfolder0 + f'out_{timestamp}/'
+        outfolder2 = outfolder + 'out_processed/'
+        os.makedirs(outfolder, exist_ok=True)
+        os.makedirs(outfolder0, exist_ok=True)
+        os.makedirs(outfolder1, exist_ok=True)
+        os.makedirs(outfolder2, exist_ok=True)
+        """
+        
+        
+        timestamp = time.time()
+        outfolder0 = "out_unprocessed/"
+        outfolder1 = "out_processed/"
+        outfolder00 = f"out_{timestamp}/"
+        
+        
+        #outfolder = f"{outfolder0}out_{timestamp}/"
+        #outfolder00 = "out_{timestamp}/"
+#        outfolder3 = outfolder + outfolder1
+        
+        outfolder_timestamp = outfolder + outfolder0 + outfolder00
+        
+        os.makedirs(outfolder, exist_ok=True)
+        os.makedirs(f"{outfolder}{outfolder0}", exist_ok=True)
+        os.makedirs(f"{outfolder}{outfolder0}{outfolder00}", exist_ok=True)
+        os.makedirs(f"{outfolder}{outfolder1}", exist_ok=True)
+        
+        
+        
         
         pipe_msgb.send(msg2)
-        force_profile_lat = force_profile(sampling_rate, f0, df, k, lat_profile, lat_params, measured_channels[0], coil="lat")
-        force_profile_long = force_profile(sampling_rate, f0, df, k, long_profile, long_params, measured_channels[1], coil="long")
+        force_profile_lat = force_profile(outfolder_timestamp, timestamp, sampling_rate, f0, df, k, lat_profile, lat_params, measured_channels[0], coil="lat")
+        force_profile_long = force_profile(outfolder_timestamp, timestamp, sampling_rate, f0, df, k, long_profile, long_params, measured_channels[1], coil="long")
         
         # Check length and adjust accordingly
         len_lat = len(force_profile_lat)
@@ -229,11 +274,16 @@ def main():
             len_long = len(force_profile_long)
             
         
+        # Get PSU currents
+        for channel in psulist:
+            psuDict[channel] = float(psu.query(f"ISET? {channel}"))
+        
+        
     
         # Create processes
         p_get_data = Process(target=get_data, args=(pipe_liveb, pipe_timeb, input_channels, measured_channels, output_channels, sampling_rate, force_profile_lat, force_profile_long, input_channelDict, ))
         p_man_data = Process(target=manipulate_data, args=(pipe_livea, pipe_timea, pipe_manipb, pipe_inputb, pipe_outputb, pipe_man_donea, input_channelDict, output_channelDict, ))
-        p_store_data = Process(target=store_data, args=(pipe_manipa, pipe_store_donea, input_channels, measured_channels, save, outfolder, db_env, ))
+        p_store_data = Process(target=store_data, args=(pipe_manipa, pipe_store_donea, input_channels, measured_channels, psuDict, save, outfolder, outfolder0, outfolder_timestamp, outfolder1, db_env, ))
         
         processlist2 = []
         processlist2.append(p_get_data)
@@ -505,7 +555,7 @@ def manipulate_data(p_live, p_time, p_manip, p_inputplot, p_outputplot, p_done, 
             if p_done.poll():
                 while p_done.poll():
                     p_done.recv()
-                break
+                sys.exit(0)
 
             # Unpackage the data
             try:    
@@ -570,31 +620,75 @@ def manipulate_data(p_live, p_time, p_manip, p_inputplot, p_outputplot, p_done, 
 
 # Function connects to the server, recieves manipualted data from
 # manipulated_data() and inserts it in the database
-def store_data(p_manip, p_done, input_channels, measured_channels, save, outfolder, db_env):
+def store_data(p_manip, p_done, input_channels, measured_channels, psuDict, save, outfolder, outfolder0, outfolder_timestamp, outfolder1, db_env):
     try:
         if save:
             logging.info("Save signal received")
-            tmpfolder = '../tmp/'
             channels = input_channels + measured_channels
-                
-            with open((f"{tmpfolder}data.csv"), "w") as f:
+            """
+            with open((f"{outfolder1}data.csv"), "w") as f:
                 f.write("timestamp, " + ", ".join(channels) + "\n")
                 while True:
                     values_in = p_manip.recv()
                     values_out = p_manip.recv()
                     
+                    ### Read first timestamp
+                    timestamp = str(values_in[0][0])
                     
-                    for i in range(len(values_in)):
-                        f.write(', '.join(map(str, values_in[i])) + ", " + ', '.join(map(str, values_out[i])) + "\n")
                     
+                    
+            """
+
+            
+            
+            
+            
+            ### Read first timestamp
+            values_in = p_manip.recv()
+            values_out = p_manip.recv()
+            timestamp = str(values_in[0][0])
+            
+            
+            currents = []
+            for coil in psuDict:
+                currents.append(psuDict[coil])
+            
+            
+            ### Write PSU settings to file
+            with open((f"{outfolder_timestamp}coils_{timestamp}.csv"), "w") as f:
+                f.write("timestamp, coil1, coil2, coil3, coil4\n")
+                f.write(f"{timestamp}, " + ", ".join(map(str, currents)))
+            
+            
+            
+            
+            with open((f"{outfolder_timestamp}data_{timestamp}.csv"), "w") as f:
+                f.write("timestamp, " + ", ".join(channels) + "\n")
+                for i in range(len(values_in)):
+                    f.write(', '.join(map(str, values_in[i])) + ", " + ', '.join(map(str, values_out[i])) + "\n")
+                    
+                while True:
                     # Exit upon signal
                     if p_done.poll():
                         while p_done.poll():
                             p_done.recv()
                         # Store data in a database
                         # This is ran in a separate environment as to not interfere with the camera
-                        os.system(f'start python mysql_update.py {outfolder} {db_env}')
-                        break
+                        os.system(f'start python mysql_update.py {outfolder} {outfolder0} {outfolder1} {db_env}')
+                        sys.exit(0)
+                       
+                    
+                    
+                    if p_manip.poll():
+                        values_in = p_manip.recv()
+                        if p_manip.poll():
+                            values_out = p_manip.recv()
+                    
+                            for i in range(len(values_in)):
+                                f.write(', '.join(map(str, values_in[i])) + ", " + ', '.join(map(str, values_out[i])) + "\n")
+                    
+                   
+                    
         else:
             logging.info("No save signal received")
             sys.exit(0)
