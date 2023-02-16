@@ -278,4 +278,12 @@
 
  * Database and output folder format modified to allow backups to occur at a later date
 
+ **16-Feb-23**
+
+ * All pipes cleared when stopped - allows spamming of start button
+
+ * restore_files.py added to resort files from /out_processed/
+
+   * Means that files can be reuploaded to database (with run number) if database is corrupted
+
 </sub>

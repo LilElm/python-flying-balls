@@ -146,7 +146,7 @@ def main():
         input_channelDict[channel].index = index
     pipe_inputa, pipe_inputb = Pipe(duplex=False)
     
-   
+    """
     # Define all output channels, including pipes for sending and receiving data
     output_channels = ["Dev1/ao0", "Dev1/ao1"]
     measured_channels = ["Dev1/ai3", "Dev1/ai0"]
@@ -157,7 +157,34 @@ def main():
         output_channelDict[channel].name = output_names[index]
         index = index + 1
         output_channelDict[channel].index = index
-
+    """
+    
+    
+    
+     
+    
+    # Define all output channels, including pipes for sending and receiving data
+    output_channels = [("Dev1/ao0", "Dev1/ai3"),
+                       ("Dev1/ao1", "Dev1/ai0")]
+    
+    
+    measured_channels = [x for y,x in output_channels]
+    #input(str(measured_channels))
+    
+    
+    #measured_channels = ["Dev1/ai3", "Dev1/ai0"]
+    output_names = ["Lateral Coils\nao0/ai3", "Longitudinal Coils\nao1/ai0"]
+    output_channelDict = {channel: Channel(channel=channel, measured=measured) for channel,measured in output_channels}
+    index = 0
+    for channel in output_channelDict:
+        output_channelDict[channel].name = output_names[index]
+        index = index + 1
+        output_channelDict[channel].index = index
+    
+    
+    
+    
+    
 
     # Define the PSU
     rm = pyvisa.ResourceManager()
@@ -347,6 +374,54 @@ def main():
 
                 
                 
+                # Clear all pipes (fix attempt 16/02/2023)
+                if pipe_livea.poll():
+                    while pipe_livea.poll():
+                        pipe_livea.recv()
+                        
+                
+                if pipe_timea.poll():
+                    while pipe_timea.poll():
+                        pipe_timea.recv()
+                        
+                
+                if pipe_manipa.poll():
+                    while pipe_manipa.poll():
+                        pipe_manipa.recv()
+                        
+                
+                if pipe_store_donea.poll():
+                    while pipe_store_donea.poll():
+                        pipe_store_donea.recv()
+                        
+                
+                if pipe_man_donea.poll():
+                    while pipe_man_donea.poll():
+                        pipe_man_donea.recv()
+                        
+                
+                if pipe_cama.poll():
+                    while pipe_cama.poll():
+                        pipe_cama.recv()
+                        
+                
+                if pipe_recorda.poll():
+                    while pipe_recorda.poll():
+                        pipe_recorda.recv()
+                        
+                if pipe_parama.poll():
+                    while pipe_parama.poll():
+                        pipe_parama.recv()
+                        
+                
+                
+                
+                
+                
+                
+                
+                
+                
                 """
                 if pipe_recorda:
                     while pipe_recorda.poll():
@@ -450,7 +525,7 @@ def get_data(p_live, p_time, input_channels, measured_channels, output_channels,
             
             # Configure output task (Task 0)
             num_samples0 = np.size(force_profile_lat)
-            for channel in output_channels:
+            for channel, measured in output_channels:
                 task0.ao_channels.add_ao_voltage_chan(channel)
             
             task0.ao_channels.all.ao_max = 10.0#0.5 #max_voltage

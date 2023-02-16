@@ -164,6 +164,12 @@ def update_db(outfolder, outfolder_pre, outfolder_post, db_env):
                     #filename = name.strip(".csv")
                     forename, timestamp = name.rsplit("_", 1)
                     timestamp = timestamp.strip(".csv")
+                    # If timestamp is not a number, correct forename, timestamp
+                    try:
+                        test = float(timestamp)
+                    except:
+                        timestamp = None
+                        forename = name.strip(".csv")
                     
                     with open(os.path.join(root, name), "r") as f:
                         line = f.readline().lower().strip("\n")
@@ -231,7 +237,7 @@ def update_db(outfolder, outfolder_pre, outfolder_post, db_env):
                             print(err.msg)
                             logging.error(err.msg)
                 
-
+                
                 # Check if the necessary columns exist
                 try:
                     cur.execute(query3.format(db_name, table_name))
@@ -241,7 +247,6 @@ def update_db(outfolder, outfolder_pre, outfolder_post, db_env):
                 headers = [elem[0] for elem in headers]
                 # result = all(elem in headers for elem in fileDict[table_name])
                 # print(str(result))
-    
                 # Add columns to the table if they do not exist
                 for elem in fileDict[table_name].headers:
                     if elem not in headers:
@@ -252,7 +257,6 @@ def update_db(outfolder, outfolder_pre, outfolder_post, db_env):
                 con.commit()
 
                 
-
             for file in fileDict:
                 forename = fileDict[file].forename
                 timestamp = fileDict[file].timestamp
@@ -262,11 +266,13 @@ def update_db(outfolder, outfolder_pre, outfolder_post, db_env):
                 
                 # Load data into the table
                 columns = ", ".join(fileDict[file].headers)
-                name_old = f"{forename}_{timestamp}{extension}"
+                if timestamp == None:
+                    name_old = f"{forename}{extension}"
+                else:
+                    name_old = f"{forename}_{timestamp}{extension}"
                 root = root.strip("../")
-                filedir = f"{root}/{name_old}"         
+                filedir = f"{root}/{name_old}"
                 filedir = filedir.replace('\\', '/')
-                
        
                 
                 values = run,
@@ -275,34 +281,21 @@ def update_db(outfolder, outfolder_pre, outfolder_post, db_env):
                     print(f"File {filedir} uploaded")
                 except mysql.connector.Error as err:
                     input(str(err))
+                
                 con.commit()
-            
-            # Move files to ../outfolder_post/timestamp.csv
-           # dt = datetime.datetime.fromtimestamp(float(timestamp)).strftime("%Y.%m.%d_%H%M%S")
-           # for file in fileDict:
-                #name_old = fileDict[file].name + fileDict[file].extension
+                # Move files to ../outfolder_post/timestamp.csv
                 
-                
-                
-                dt = datetime.datetime.fromtimestamp(float(timestamp)).strftime("%Y.%m.%d_%H%M%S")
+                if timestamp == None:
+                    dt = ''
+                else:
+                    dt = datetime.datetime.fromtimestamp(float(timestamp)).strftime("%Y.%m.%d_%H%M%S")
+                    
                 name_new = "_".join([dt, forename])
                 name_new = name_new + ".csv"
-                
-                #path_old = os.path.join(root, name_old)
                 path_old = filedir
                 path_new = os.path.join(outfolder_post, name_new)
+                #shutil.move(path_old, path_new)
                 
-                ### Change 230214
-                
-                #print(str(name_old))
-                #input()
-                
-               # path_new = os.path.join(outfolder_post, name_new)
-                
-                
-                shutil.move(path_old, path_new)
-             
-            
         # Close the database and terminate the program  
         for p in processlist:
             if p:

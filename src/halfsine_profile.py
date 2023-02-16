@@ -80,11 +80,21 @@ def eval_halfsine(amp=1.0, freq=3.0, time_idle=1.0, time_rest=4.0, sampling_rate
     times_tot = np.round(times_tot, dec)
     
     
+    
+    
     # Print to file
     if coil is None:
-        path = f"{outfolder}halfsine_profile"
+        if timestamp is None:
+            path = f"{outfolder}halfsine_profile"
+        else:
+            path = f"{outfolder}halfsine_profile_{timestamp}" 
     else:
-        path = f"{outfolder}{coil}_halfsine_profile"
+        if timestamp is None:
+            path = f"{outfolder}{coil}_halfsine_profile"
+        else:
+            path = f"{outfolder}{coil}_halfsine_profile_{timestamp}"
+            
+    
     
     with open((path + ".csv"), "w") as f:
         f.write("Seconds, Profile\n")
