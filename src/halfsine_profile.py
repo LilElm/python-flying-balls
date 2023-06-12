@@ -19,7 +19,7 @@ def eval_halfsine(amp=1.0, freq=3.0, time_idle=1.0, time_rest=4.0, sampling_rate
     os.makedirs(logfolder, exist_ok=True)
     #os.makedirs(tmpfolder, exist_ok=True)
     currentDT = datetime.datetime.now()
-    logging.basicConfig(filename = logfolder + "half-sine_profile.log", encoding='utf-8', level=logging.DEBUG)
+    logging.basicConfig(filename = logfolder + "halfsine_profile.log", encoding='utf-8', level=logging.DEBUG)
     logging.info(currentDT.strftime("%d/%m/%Y, %H:%M:%S"))  
     
     

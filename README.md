@@ -286,4 +286,16 @@
 
    * Means that files can be reuploaded to database (with run number) if database is corrupted
 
+ **10-Jun-23**
+
+ * VBScript wrapper added to hide terminal whilst running
+
+ * Text display added to GUI to replace terminal output
+
+ **11-Jun-23**
+
+ * Text display functionality improved
+
+ * LED image added to signal state of program (functionality not yet added)
+
 </sub>

@@ -41,8 +41,6 @@ def update_db(outfolder, outfolder_pre, outfolder_post, db_env):
     logging.info(currentDT.strftime("%d/%m/%Y, %H:%M:%S"))    
 
 
-
-
     # Change folder permissions so that the database (NETWORK SERVICE) can access the appropriate files
     os.system('icacls "C:\\Users\\ultservi\\Desktop\Elmy\\python-flying-balls" /T /grant "NETWORK SERVICE":F')
     
@@ -189,6 +187,7 @@ def update_db(outfolder, outfolder_pre, outfolder_post, db_env):
             TABLES = {}
             for name in fileDict:
                 forename = fileDict[name].forename
+                
                 TABLES[forename] = ("""CREATE TABLE {} (
                                    run INTEGER NOT NULL,
                                    INDEX index_run (run)
@@ -220,7 +219,6 @@ def update_db(outfolder, outfolder_pre, outfolder_post, db_env):
                 cur.execute(query1.format(db_name, table_name))
                 cur.execute(query2)
                 val = cur.fetchone()
-                
                 
                 # Create the table if it does not exist
                 if len(val[0]) == 0:
@@ -294,7 +292,7 @@ def update_db(outfolder, outfolder_pre, outfolder_post, db_env):
                 name_new = name_new + ".csv"
                 path_old = filedir
                 path_new = os.path.join(outfolder_post, name_new)
-                #shutil.move(path_old, path_new)
+                shutil.move(path_old, path_new)
                 
         # Close the database and terminate the program  
         for p in processlist:

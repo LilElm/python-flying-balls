@@ -5,6 +5,8 @@ from decimal import *
 getcontext().prec = 10
 import numpy as np
 import sys
+import time
+from itertools import cycle
 from PyQt5.QtWidgets import (QMainWindow,
                              QApplication,
                              QLabel,
@@ -14,11 +16,13 @@ from PyQt5.QtWidgets import (QMainWindow,
                              QCheckBox,
                              QComboBox,
                              QLineEdit,
+                             QTextEdit,
+                             QToolBar,
                              QMessageBox,
                              QVBoxLayout,
                              QGridLayout)
-from PyQt5.QtGui import QIcon
-from PyQt5.QtCore import QTimer
+from PyQt5.QtGui import QIcon, QColor, QPixmap
+from PyQt5.QtCore import QTimer, QTextStream, QProcess, Qt
 import pyqtgraph as pg
 
 
@@ -46,6 +50,7 @@ class FileSettingsLayout(QGridLayout):
         self.addWidget(QLineEdit(f"{path}.env"), 0, 1, 1, 1)
         self.addWidget(QLabel("DB Environment"), 1, 1, 1, 1)
         """
+        
         
         self.addWidget(self.path_textbox, 0, 0, 1, 1)
         self.addWidget(QLabel("Output Path"), 1, 0, 1, 1)
@@ -89,6 +94,7 @@ class CoilLayout(QGridLayout):
 
     def define_combo_box(self):
         self.combo_box = QComboBox()
+#        self.combo_box_list = ["Ramp Profile", "Sine Profile", "Half-sine Profile", "Half-sine Pulses Profile", "Upload Custom"]
         self.combo_box_list = ["Ramp Profile", "Sine Profile", "Half-sine Profile", "Upload Custom"]
         for item in self.combo_box_list:
             self.combo_box.addItem(item)
@@ -142,7 +148,7 @@ class CoilLayout(QGridLayout):
                                  [3, 1, 1, 1]]
         
         
-        # Make content for Sine Profile
+        # Make content for Half-sine Profile
         elif content == self.combo_box_list[2]:
             textbox_placeholders = ["Amplitude", "Freq", "Idle", "Rest"]
             textbox_locs = [[0, 1, 1, 1],
@@ -157,6 +163,51 @@ class CoilLayout(QGridLayout):
                                  [3, 0, 1, 1],
                                  [3, 1, 1, 1],
                                  [5, 0, 1, 1]]
+        
+            """
+        # Make content for Half-sine Pulses Profile
+        elif content == self.combo_box_list[3]:
+            textbox_placeholders = ["Amplitude 1",
+                                    "Freq 1",
+                                    "Amplitude 2",
+                                    "Freq 2",
+                                    "Additional Delay",
+                                    "Ball Freq",
+                                    "Orbits",
+                                    "Idle",
+                                    "Rest"]
+            textbox_locs = [[0, 1, 1, 1],
+                            [2, 0, 1, 1],
+                            [2, 1, 1, 1],
+                            [4, 0, 1, 1],
+                            [4, 1, 1, 1],
+                            [6, 0, 1, 1],
+                            [6, 1, 1, 1],
+                            [8, 0, 1, 1],
+                            [8, 1, 1, 1]]
+            textbox_labels = ["Amplitude 1\n(V)",
+                              "Frequency 1\n(Hz)",
+                              "Amplitude 2\n(V)",
+                              "Frequency 2\n(Hz)",
+                              "Additional Delay\n(s)",
+                              "Ball Frequency\n(Hz)",
+                              "Orbits",
+                              "Time Idle\n(s)",
+                              "Time Rest\n(s)"]
+            textbox_labellocs = [[1, 1, 1, 1],
+                                 [3, 0, 1, 1],
+                                 [3, 1, 1, 1],
+                                 [5, 0, 1, 1],
+                                 [5, 1, 1, 1],
+                                 [7, 0, 1, 1],
+                                 [7, 1, 1, 1],
+                                 [9, 0, 1, 1],
+                                 [9, 1, 1, 1]]
+        
+            """
+        
+        
+        
         
         
         # Make content for Custom Profile
@@ -188,7 +239,7 @@ class CoilLayout(QGridLayout):
         
 
 class RampSettingsLayout(QVBoxLayout):
-    def __init__(self, pipe_param, signal_start, pipe_signal, checkbox, path_textbox, db_textbox, parent=None, *args, **kwargs):
+    def __init__(self, pipe_param, signal_start, pipe_signal, checkbox, path_textbox, db_textbox, console, pipe_console, parent=None, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
         #============================================================
         # Layout of Ramp Settings
@@ -204,6 +255,26 @@ class RampSettingsLayout(QVBoxLayout):
         self.checkbox = checkbox
         self.path_textbox = path_textbox
         self.db_textbox = db_textbox
+        self.console = console
+        self.pipe_console = pipe_console
+        
+        
+        #self.consoleprocess.write("fnlkfnalsk")
+        #self.consoleprocess.setProcessChannelMode(QProcess.MergedChannels)
+        #self.consoleprocess.readyRead.connect(self.update_console)
+        
+        #self.consoleprocess.write("fnlkfnalsk")
+        #connect(self.console)
+        
+        self.counter = 0
+        self.timer = QTimer()
+        self.timer.setInterval(250) #ms
+        self.timer.timeout.connect(self.update_console)
+        self.timer.start()
+    
+    
+    
+
 
 
         
@@ -225,6 +296,9 @@ class RampSettingsLayout(QVBoxLayout):
         self.textbox_f0 = QLineEdit("7.300", placeholderText="Frequency")
         self.textbox_df = QLineEdit("0.090", placeholderText="Line Width")
         self.textbox_k = QLineEdit("0.465", placeholderText="Spring Constant")
+        self.led = QPixmap('../fig/LED_red.png').scaled(20,20)
+        self.led_label = QLabel()
+        self.led_label.setPixmap(self.led)
         self.start_button = QPushButton("Start")
         self.stop_button = QPushButton("Stop")
         self.start_button.clicked.connect(self.start_on_click)
@@ -239,17 +313,34 @@ class RampSettingsLayout(QVBoxLayout):
         layout_start.addWidget(QLabel("Line Width\n(Hz)"))
         layout_start.addWidget(self.textbox_k)
         layout_start.addWidget(QLabel("Spring Constant\n(mm/V)"))
+        layout_start.addWidget(self.led_label)
         
         
         layout_start.addWidget(self.start_button)
         layout_start.addWidget(self.stop_button)
        
   
+        layout_start.addWidget(self.console)
         
         box_start = QGroupBox()
         box_start.setLayout(layout_start)
         box_start.setMaximumWidth(250)
         self.addWidget(box_start)
+
+
+
+
+    def update_console(self):
+        if self.pipe_console.poll():
+            while self.pipe_console.poll():
+                msg = self.pipe_console.recv()
+                self.console.append(msg)
+                    
+                    
+                    
+        
+
+
 
     
     def stop_on_click(self):
@@ -668,7 +759,7 @@ class SignalStart():
 
 
 class Layout(QGridLayout):
-    def __init__(self, input_channelDict, output_channelDict, pipe_param, pipe_input, pipe_output, signal_start, pipe_signal, parent=None, *args, **kwargs):
+    def __init__(self, input_channelDict, output_channelDict, pipe_param, pipe_input, pipe_output, signal_start, pipe_signal, pipe_console, parent=None, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
         self.input_channelDict = input_channelDict
         self.output_channelDict = output_channelDict
@@ -679,6 +770,7 @@ class Layout(QGridLayout):
         self.pipe_output = pipe_output
         self.checkbox = QCheckBox()
         self.checkbox.setChecked(True)
+        self.pipe_console = pipe_console
         
         
         path = "C:\\Users\\ultservi\\Desktop\\Elmy\\python-flying-balls\\"
@@ -686,10 +778,12 @@ class Layout(QGridLayout):
         self.db_textbox = QLineEdit(f"{path}.env")
         
 
+        self.console = QTextEdit()
+        self.console.setStyleSheet("background-color:black; color:lightgray")
         
         
         layout_fsettings = FileSettingsLayout(self.checkbox, self.path_textbox, self.db_textbox)
-        layout_ramp = RampSettingsLayout(self.pipe_param, self.signal_start, self.pipe_signal, self.checkbox, self.path_textbox, self.db_textbox)
+        layout_ramp = RampSettingsLayout(self.pipe_param, self.signal_start, self.pipe_signal, self.checkbox, self.path_textbox, self.db_textbox, self.console, self.pipe_console)
         layout_output = OutputGraphLayout(self.output_channelDict, self.pipe_output, self.signal_start)
         layout_input = InputGraphLayout(self.input_channelDict, self.pipe_input, self.signal_start)
         
@@ -701,10 +795,11 @@ class Layout(QGridLayout):
         self.addLayout(layout_input, 1, 2, 1, 1)
         
 
+        
 
 
 class MainWindow(QMainWindow):
-    def __init__(self, input_channelDict, output_channelDict, pipe_param, pipe_input, pipe_output, signal_start, pipe_signal, parent=None, *args, **kwargs):
+    def __init__(self, input_channelDict, output_channelDict, pipe_param, pipe_input, pipe_output, signal_start, pipe_signal, pipe_console, parent=None, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
         self.input_channelDict = input_channelDict
         self.output_channelDict = output_channelDict
@@ -713,6 +808,7 @@ class MainWindow(QMainWindow):
         self.pipe_signal = pipe_signal
         self.pipe_input = pipe_input
         self.pipe_output = pipe_output
+        self.pipe_console = pipe_console
         self.title = "Flying Balls"
         self.icon = "../fig/icon.png"
         self.setGeometry(40, 40, 1200, 625)
@@ -722,7 +818,7 @@ class MainWindow(QMainWindow):
     def initUI(self):
         self.setWindowTitle(self.title)
         self.setWindowIcon(QIcon(self.icon))
-        grid_layout = Layout(self.input_channelDict, self.output_channelDict, self.pipe_param, self.pipe_input, self.pipe_output, self.signal_start, self.pipe_signal)
+        grid_layout = Layout(self.input_channelDict, self.output_channelDict, self.pipe_param, self.pipe_input, self.pipe_output, self.signal_start, self.pipe_signal, self.pipe_console)
         widget = QWidget()
         widget.setLayout(grid_layout)
         self.setCentralWidget(widget)
@@ -730,9 +826,9 @@ class MainWindow(QMainWindow):
         
         
 
-def start_gui(input_channelDict, output_channelDict, pipe_param, pipe_input, pipe_output, signal_start, pipe_signal):
+def start_gui(input_channelDict, output_channelDict, pipe_param, pipe_input, pipe_output, signal_start, pipe_signal, pipe_console):
     app = QApplication(sys.argv)
-    ex = MainWindow(input_channelDict, output_channelDict, pipe_param, pipe_input, pipe_output, signal_start, pipe_signal)
+    ex = MainWindow(input_channelDict, output_channelDict, pipe_param, pipe_input, pipe_output, signal_start, pipe_signal, pipe_console)
     sys.exit(app.exec_())
 
 if __name__ == '__main__':

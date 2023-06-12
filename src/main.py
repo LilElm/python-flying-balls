@@ -132,7 +132,8 @@ def main():
     os.makedirs(logfolder, exist_ok=True)
     #os.makedirs(tmpfolder, exist_ok=True)
     logging.basicConfig(filename = logfolder + "main.log", encoding='utf-8', level=logging.DEBUG)
-    logging.info(currentDT.strftime("%d/%m/%Y, %H:%M:%S"))   
+    logging.info(currentDT.strftime("%d/%m/%Y, %H:%M:%S"))
+    pipe_consolea, pipe_consoleb = Pipe(duplex=False)
     
     
     # Define all input channels, including pipes for sending and receiving data
@@ -183,16 +184,19 @@ def main():
     
     
     
-    
-    
 
     # Define the PSU
-    rm = pyvisa.ResourceManager()
-    #print(rm.list_resources())
-    address = 'GPIB0::10::INSTR'
-    psu = rm.open_resource(address)
-    psulist = [1, 2, 3, 4]
-    psuDict = {}
+    try:
+        rm = pyvisa.ResourceManager()
+        #print(rm.list_resources())
+        address = 'GPIB0::10::INSTR'
+        psu = rm.open_resource(address)
+        psulist = [1, 2, 3, 4]
+        psuDict = {}
+    except:
+        logging.error("Failed to connect to the PSU")
+        input("Error: Failed to connect to the PSU")
+        sys.exit(1)
 
     
     # Create starting signal for GUI plots (deafult=False)
@@ -217,7 +221,7 @@ def main():
 
     # Start GUI
     processlist = []
-    proc0 = Process(target=start_gui, args=(input_channelDict, output_channelDict, pipe_paramb, pipe_inputa, pipe_outputa, signal_start, pipe_signalb))
+    proc0 = Process(target=start_gui, args=(input_channelDict, output_channelDict, pipe_paramb, pipe_inputa, pipe_outputa, signal_start, pipe_signalb, pipe_consolea))
     processlist.append(proc0)
     proc0.start()
     
@@ -228,7 +232,7 @@ def main():
     msg3 = "Starting acquisition"
     msg4 = "Acquiring data"
     msg5 = "Stop signal received"
-    proc1 = Process(target=message, args=(pipe_msga, msg0, ))
+    proc1 = Process(target=message, args=(pipe_msga, pipe_consoleb, msg0, ))
     processlist.append(proc1)
     proc1.start()
 
@@ -330,7 +334,7 @@ def main():
             else:
                 time_cam2 = time.time()
                 t = time_cam2 - time_cam1
-                if t > 10.0:
+                if t > 5.0:
                     print("Failed to connect to the camera")
                     break
 
@@ -624,7 +628,9 @@ def get_data(p_live, p_time, input_channels, measured_channels, output_channels,
 # it to store_data()
 def manipulate_data(p_live, p_time, p_manip, p_inputplot, p_outputplot, p_done, input_channelDict, output_channelDict):
     try:
-        buffer_rate = 0.0125 #80 data points per channel per sec
+        #buffer_rate = 0.0125 #80 data points per channel per sec
+        #buffer_rate = 0.05 #80 data points per channel per sec
+        buffer_rate = 0.01 #80 data points per channel per sec
         counter = 0
         while True:
             if p_done.poll():
@@ -778,19 +784,22 @@ def store_data(p_manip, p_done, input_channels, measured_channels, psuDict, save
 
 
 # Function shows a pretty pinwheel
-def message(pipe, msg="Loading"):
+def message(pipe, pipe_console, msg="Loading"):
     time.sleep(1)
     while True:
         try:
             for frame in cycle(["|","/","-","\\"]):
                 if pipe.poll():
                     msg = pipe.recv()
+                    pipe_console.send(msg)
                     sys.stdout.write("\n")
                 
                 sys.stdout.write("\r" + msg + " " + frame)
                 sys.stdout.flush()
+                #pipe_console.send("\r" + msg + " " + frame)
                 time.sleep(0.15)
             sys.stdout.write("\r")
+            #pipe_console.send("\r")
 
         except KeyboardInterrupt:
             logging.warning("Pinwheel stopped via keyboard interruption")
@@ -799,6 +808,7 @@ def message(pipe, msg="Loading"):
 
 # Run
 if __name__ == "__main__":
+    #os.system('@echo off')#' start python mysql_update.py {outfolder} {outfolder0} {outfolder1} {db_env}')
     main()
 
 

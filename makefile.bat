@@ -1,3 +1,5 @@
+@echo off
+
 set root=C:\Users\ultservi\Anaconda3\Scripts
 call %root%\activate.bat
 
