@@ -26,6 +26,9 @@ from PyQt5.QtCore import QTimer, QTextStream, QProcess, Qt
 import pyqtgraph as pg
 
 
+import multiprocessing.connection
+multiprocessing.connection.BUFSIZE = 2**32-1 # This is the absolute limit for this PC
+from multiprocessing import Process, Pipe
 
 
 
@@ -239,7 +242,7 @@ class CoilLayout(QGridLayout):
         
 
 class RampSettingsLayout(QVBoxLayout):
-    def __init__(self, pipe_param, signal_start, pipe_signal, checkbox, path_textbox, db_textbox, console, pipe_console, parent=None, *args, **kwargs):
+    def __init__(self, pipe_param, signal_start, pipe_signal, checkbox, path_textbox, db_textbox, console, pipe_console, pipe_outputplotb, pipe_inputplotb, parent=None, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
         #============================================================
         # Layout of Ramp Settings
@@ -250,13 +253,15 @@ class RampSettingsLayout(QVBoxLayout):
         # QGroupBox.setLayout(layout)
         
         self.pipe_param = pipe_param
-        self.signal_start = signal_start
+        #self.signal_start = signal_start
         self.pipe_signal = pipe_signal
         self.checkbox = checkbox
         self.path_textbox = path_textbox
         self.db_textbox = db_textbox
         self.console = console
         self.pipe_console = pipe_console
+        self.pipe_outputplotb = pipe_outputplotb
+        self.pipe_inputplotb = pipe_inputplotb
         
         
         #self.consoleprocess.write("fnlkfnalsk")
@@ -344,13 +349,17 @@ class RampSettingsLayout(QVBoxLayout):
 
     
     def stop_on_click(self):
-        self.signal_start.signal = False # Tell GUI plot to stop
-        self.pipe_signal.send(False) # Send signal to main.py to restart
+        #self.signal_start.signal = False # Tell GUI plot to stop #############12/06/2023
+        #self.pipe_signal.send(False) # Send signal to main.py to restart
+        self.pipe_inputplotb.send(False) ######12/06/2023
+        self.pipe_outputplotb.send(False) ######12/06/2023
 
 
     def start_on_click(self):
         # Send start signal to graphs
-        self.signal_start.signal = True
+        #self.signal_start.signal = True ###########12/06/2023
+        self.pipe_inputplotb.send(True) ######12/06/2023
+        self.pipe_outputplotb.send(True) ######12/06/2023
 
         # Get 'save to file' and sampling rate
         self.path = self.path_textbox.text()
@@ -612,30 +621,32 @@ class RampSettingsLayout(QVBoxLayout):
                         
         
 class OutputGraphLayout(QVBoxLayout):
-    def __init__(self, output_channelDict, pipe_output, signal_start, parent=None, *args, **kwargs):
+    def __init__(self, channelDict, pipe_output, signal_start, pipe_plota, parent=None, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
-        self.output_channelDict = output_channelDict
+        self.channelDict = channelDict
         self.pipe_output = pipe_output
-        self.signal_start = signal_start
+       # self.signal_start = signal_start
+        self.pipe_plota = pipe_plota
 
         # Create a plot for each input channel
-        for channel in self.output_channelDict:
-            self.output_channelDict[channel].plot = pg.PlotWidget(title=self.output_channelDict[channel].name)
-            self.output_channelDict[channel].plot.setLabel('left', 'Voltage (V)')
-            self.output_channelDict[channel].plot.setLabel('bottom', 'Elapsed Time (s)')
-            self.output_channelDict[channel].plot.addLegend()
-            self.output_channelDict[channel].plot.data = []
+        for channel in self.channelDict:
+            self.channelDict[channel].plot = pg.PlotWidget(title=self.channelDict[channel].name)
+            self.channelDict[channel].plot.setLabel('left', 'Voltage (V)')
+            self.channelDict[channel].plot.setLabel('bottom', 'Elapsed Time (s)')
+            self.channelDict[channel].plot.addLegend()
+            self.channelDict[channel].plot.data = []
             self.elapsed_time = []
-            self.output_channelDict[channel].plot.line = self.output_channelDict[channel].plot.plot(self.elapsed_time,
-                                                                                                    self.output_channelDict[channel].plot.data)
-                                                                                                    #name=self.output_channelDict[channel].name)
-            self.addWidget(self.output_channelDict[channel].plot, 1)
+            self.channelDict[channel].plot.line = self.channelDict[channel].plot.plot(self.elapsed_time,
+                                                                                      self.channelDict[channel].plot.data)
+                                                                                      #name=self.channelDict[channel].name)
+            self.addWidget(self.channelDict[channel].plot, 1)
             
             # Annotation for the x and y coordinates
-            self.output_channelDict[channel].label = pg.LabelItem()
-            self.output_channelDict[channel].label.setParentItem(self.output_channelDict[channel].plot.getPlotItem())
-            self.output_channelDict[channel].label.anchor(itemPos=(1,0), parentPos=(1,0), offset=(-10,10))
+            self.channelDict[channel].label = pg.LabelItem()
+            self.channelDict[channel].label.setParentItem(self.channelDict[channel].plot.getPlotItem())
+            self.channelDict[channel].label.anchor(itemPos=(1,0), parentPos=(1,0), offset=(-10,10))
         
+        self.on = False
         self.counter = 0
         self.timer = QTimer()
         self.timer.setInterval(10) #ms
@@ -645,68 +656,86 @@ class OutputGraphLayout(QVBoxLayout):
     
     
     def update_plots(self):
-        if not self.signal_start.signal:
+        if self.pipe_plota.poll():                 # If start/stop button pressed
+            self.counter = 0
+            while self.pipe_plota.poll():          # Receive start/stop signal
+                self.on = self.pipe_plota.recv()
+        
+        if self.on:
+            # Receive data
+            if self.pipe_output.poll():
+                data = self.pipe_output.recv()
+            
+                # Clear all data if start button press just pressed
+                if self.counter == 0:
+                    self.time_start = data[0]
+                    self.elapsed_time = []
+                    for channel in self.channelDict:
+                        self.channelDict[channel].plot.data = []
+                        self.channelDict[channel].plot.line.setData(self.elapsed_time, self.channelDict[channel].plot.data)
+                    self.counter = 1
+                elapsed_time = data[0] - self.time_start
+                self.elapsed_time.append(elapsed_time)
+                
+                
+                # Plot data
+                for channel in self.channelDict:
+                    self.channelDict[channel].plot.data.append(data[self.channelDict[channel].index])
+                    if len(self.elapsed_time) > 2500:
+                        self.elapsed_time = self.elapsed_time[1:]
+                    if len(self.channelDict[channel].plot.data) > 2500:
+                        self.channelDict[channel].plot.data = self.channelDict[channel].plot.data[1:]
+                    self.channelDict[channel].plot.line.setData(self.elapsed_time, self.channelDict[channel].plot.data)
+                    
+                    # Update label
+                    self.channelDict[channel].label.setText(f"x: {elapsed_time:5.2f}, y: {data[self.channelDict[channel].index]:5.2f}")
+            
+        
+        
+        else:
             self.counter = 0
             if self.pipe_output.poll():
                 while self.pipe_output.poll():
                     self.pipe_output.recv()
         
-        else:
-            if self.pipe_output.poll():
-                data = self.pipe_output.recv()
-                # Clear all data on start button press
-                if self.counter == 0:
-                    self.time_start = data[0]
-                    self.elapsed_time = []
-                    for channel in self.output_channelDict:
-                        self.output_channelDict[channel].plot.data = []
-                        self.output_channelDict[channel].plot.line.setData(self.elapsed_time, self.output_channelDict[channel].plot.data)
-                    self.counter = 1
-                elapsed_time = data[0] - self.time_start
-                self.elapsed_time.append(elapsed_time)
-                
-                
-                for channel in self.output_channelDict:
-                    self.output_channelDict[channel].plot.data.append(data[self.output_channelDict[channel].index])
+        
+        
                     
                     
-                    if len(self.elapsed_time) > 2500:
-                        self.elapsed_time = self.elapsed_time[1:]
                     
-                    if len(self.output_channelDict[channel].plot.data) > 2500:
-                        self.output_channelDict[channel].plot.data = self.output_channelDict[channel].plot.data[1:]
-                    self.output_channelDict[channel].plot.line.setData(self.elapsed_time, self.output_channelDict[channel].plot.data)
-                    
-                    # Update label
-                    self.output_channelDict[channel].label.setText(f"x: {elapsed_time:5.2f}, y: {data[self.output_channelDict[channel].index]:5.2f}")
+                  
+        
+     
                     
 
 class InputGraphLayout(QVBoxLayout):
-    def __init__(self, input_channelDict, pipe_input, signal_start, parent=None, *args, **kwargs):
+    def __init__(self, channelDict, pipe_input, signal_start, pipe_plota, parent=None, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
         self.pipe_input = pipe_input
-        self.signal_start = signal_start
-        self.input_channelDict = input_channelDict
+       # self.signal_start = signal_start
+        self.channelDict = channelDict
+        self.pipe_plota = pipe_plota
         
         
         # Create a plot for each input channel
-        for channel in self.input_channelDict:
-            self.input_channelDict[channel].plot = pg.PlotWidget(title=self.input_channelDict[channel].name)
-            self.input_channelDict[channel].plot.setLabel('left', 'Voltage (V)')
-            self.input_channelDict[channel].plot.setLabel('bottom', 'Elapsed Time (s)')
-            self.input_channelDict[channel].plot.addLegend()
-            self.input_channelDict[channel].plot.data = []
+        for channel in self.channelDict:
+            self.channelDict[channel].plot = pg.PlotWidget(title=self.channelDict[channel].name)
+            self.channelDict[channel].plot.setLabel('left', 'Voltage (V)')
+            self.channelDict[channel].plot.setLabel('bottom', 'Elapsed Time (s)')
+            self.channelDict[channel].plot.addLegend()
+            self.channelDict[channel].plot.data = []
             self.elapsed_time = []
-            self.input_channelDict[channel].plot.line = self.input_channelDict[channel].plot.plot(self.elapsed_time,
-                                                                                      self.input_channelDict[channel].plot.data)
-            self.addWidget(self.input_channelDict[channel].plot, 1)
+            self.channelDict[channel].plot.line = self.channelDict[channel].plot.plot(self.elapsed_time,
+                                                                                      self.channelDict[channel].plot.data)
+            self.addWidget(self.channelDict[channel].plot, 1)
             
             # Annotation for the x and y coordinates
-            self.input_channelDict[channel].label = pg.LabelItem()
-            self.input_channelDict[channel].label.setParentItem(self.input_channelDict[channel].plot.getPlotItem())
-            self.input_channelDict[channel].label.anchor(itemPos=(1,0), parentPos=(1,0), offset=(-10,10))
+            self.channelDict[channel].label = pg.LabelItem()
+            self.channelDict[channel].label.setParentItem(self.channelDict[channel].plot.getPlotItem())
+            self.channelDict[channel].label.anchor(itemPos=(1,0), parentPos=(1,0), offset=(-10,10))
         
         
+        self.on = False
         self.counter = 0
         self.timer = QTimer()
         self.timer.setInterval(10) #ms
@@ -715,40 +744,52 @@ class InputGraphLayout(QVBoxLayout):
     
     
     
+    
     def update_plots(self):
-        if not self.signal_start.signal:
+        if self.pipe_plota.poll():                 # If start/stop button pressed
+            self.counter = 0
+            while self.pipe_plota.poll():          # Receive start/stop signal
+                self.on = self.pipe_plota.recv()
+        
+        if self.on:
+            # Receive data
+            if self.pipe_input.poll():
+                data = self.pipe_input.recv()
+            
+                # Clear all data if start button press just pressed
+                if self.counter == 0:
+                    self.time_start = data[0]
+                    self.elapsed_time = []
+                    for channel in self.channelDict:
+                        self.channelDict[channel].plot.data = []
+                        self.channelDict[channel].plot.line.setData(self.elapsed_time, self.channelDict[channel].plot.data)
+                    self.counter = 1
+                elapsed_time = data[0] - self.time_start
+                self.elapsed_time.append(elapsed_time)
+                
+                
+                # Plot data
+                for channel in self.channelDict:
+                    self.channelDict[channel].plot.data.append(data[self.channelDict[channel].index])
+                    if len(self.elapsed_time) > 2500:
+                        self.elapsed_time = self.elapsed_time[1:]
+                    if len(self.channelDict[channel].plot.data) > 2500:
+                        self.channelDict[channel].plot.data = self.channelDict[channel].plot.data[1:]
+                    self.channelDict[channel].plot.line.setData(self.elapsed_time, self.channelDict[channel].plot.data)
+                    
+                    # Update label
+                    self.channelDict[channel].label.setText(f"x: {elapsed_time:5.2f}, y: {data[self.channelDict[channel].index]:5.2f}")
+            
+        
+        
+        else:
             self.counter = 0
             if self.pipe_input.poll():
                 while self.pipe_input.poll():
                     self.pipe_input.recv()
-    
-        else:
-            if self.pipe_input.poll():
-                data = self.pipe_input.recv()
-                # Clear all data on start button press
-                if self.counter == 0:
-                    self.time_start = data[0]
-                    self.elapsed_time = []
-                    for channel in self.input_channelDict:
-                        self.input_channelDict[channel].plot.data = []
-                        self.input_channelDict[channel].plot.line.setData(self.elapsed_time, self.input_channelDict[channel].plot.data)
-                    self.counter = 1
-                elapsed_time = data[0] - self.time_start
-                self.elapsed_time.append(elapsed_time)
         
-                
-                for channel in self.input_channelDict:
-                    self.input_channelDict[channel].plot.data.append(data[self.input_channelDict[channel].index])
-                    
-                    if len(self.elapsed_time) > 2500:
-                        self.elapsed_time = self.elapsed_time[1:]
-                    
-                    if len(self.input_channelDict[channel].plot.data) > 2500:
-                        self.input_channelDict[channel].plot.data = self.input_channelDict[channel].plot.data[1:]
-                    self.input_channelDict[channel].plot.line.setData(self.elapsed_time, self.input_channelDict[channel].plot.data)
         
-                    # Update label
-                    self.input_channelDict[channel].label.setText(f"x: {elapsed_time:5.2f}, y: {data[self.input_channelDict[channel].index]:5.2f}")
+        
                     
                
 class SignalStart():
@@ -764,13 +805,18 @@ class Layout(QGridLayout):
         self.input_channelDict = input_channelDict
         self.output_channelDict = output_channelDict
         self.pipe_param = pipe_param
-        self.signal_start = signal_start
+        #self.signal_start = signal_start
         self.pipe_signal = pipe_signal
         self.pipe_input = pipe_input
         self.pipe_output = pipe_output
         self.checkbox = QCheckBox()
         self.checkbox.setChecked(True)
         self.pipe_console = pipe_console
+        
+        
+        
+        self.pipe_inputplota, self.pipe_inputplotb = Pipe(duplex=False)
+        self.pipe_outputplota, self.pipe_outputplotb = Pipe(duplex=False)
         
         
         path = "C:\\Users\\ultservi\\Desktop\\Elmy\\python-flying-balls\\"
@@ -783,9 +829,9 @@ class Layout(QGridLayout):
         
         
         layout_fsettings = FileSettingsLayout(self.checkbox, self.path_textbox, self.db_textbox)
-        layout_ramp = RampSettingsLayout(self.pipe_param, self.signal_start, self.pipe_signal, self.checkbox, self.path_textbox, self.db_textbox, self.console, self.pipe_console)
-        layout_output = OutputGraphLayout(self.output_channelDict, self.pipe_output, self.signal_start)
-        layout_input = InputGraphLayout(self.input_channelDict, self.pipe_input, self.signal_start)
+        layout_ramp = RampSettingsLayout(self.pipe_param, self.signal_start, self.pipe_signal, self.checkbox, self.path_textbox, self.db_textbox, self.console, self.pipe_console, self.pipe_outputplotb, self.pipe_inputplotb)
+        layout_output = OutputGraphLayout(self.output_channelDict, self.pipe_output, self.signal_start, self.pipe_outputplota)
+        layout_input = InputGraphLayout(self.input_channelDict, self.pipe_input, self.signal_start, self.pipe_inputplota)
         
                 
         
@@ -804,7 +850,7 @@ class MainWindow(QMainWindow):
         self.input_channelDict = input_channelDict
         self.output_channelDict = output_channelDict
         self.pipe_param = pipe_param
-        self.signal_start = signal_start
+        #self.signal_start = signal_start
         self.pipe_signal = pipe_signal
         self.pipe_input = pipe_input
         self.pipe_output = pipe_output

@@ -298,4 +298,8 @@
 
  * LED image added to signal state of program (functionality not yet added)
 
+ **12-Jun-23**
+
+ * Pipes have replaced signal_start so that the program can stop automatically
+
 </sub>

@@ -375,9 +375,10 @@ def main():
                     pipe_signala.recv()
                 pipe_msgb.send(msg5)
                 signal_start.signal = False
-
                 
                 
+                clear_pipes([pipe_livea, pipe_timea, pipe_manipa, pipe_store_donea, pipe_cama, pipe_recorda, pipe_parama])
+                """
                 # Clear all pipes (fix attempt 16/02/2023)
                 if pipe_livea.poll():
                     while pipe_livea.poll():
@@ -416,7 +417,7 @@ def main():
                 if pipe_parama.poll():
                     while pipe_parama.poll():
                         pipe_parama.recv()
-                        
+                """
                 
                 
                 
@@ -444,6 +445,9 @@ def main():
                     
     
             if not p_get_data.is_alive():
+                running = False ####### added 12/06/23 to reset program automatically automatically
+                signal_start.signal = False ######### also added
+                clear_pipes([pipe_livea, pipe_timea, pipe_manipa, pipe_store_donea, pipe_cama, pipe_recorda, pipe_parama])
                 time.sleep(1.0)
                 pipe_camb.send(False)
                 if p_store_data.is_alive():
@@ -781,6 +785,18 @@ def store_data(p_manip, p_done, input_channels, measured_channels, psuDict, save
         logging.info("Leaving store_data()")
         print("Leaving store_data()")
         
+
+
+def clear_pipes(pipes):
+    for pipe in pipes:
+        if pipe.poll():
+            while pipe.poll():
+                pipe.recv()
+                
+
+
+
+
 
 
 # Function shows a pretty pinwheel
