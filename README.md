@@ -302,4 +302,8 @@
 
  * Pipes have replaced signal_start so that the program can stop automatically
 
+ **13-Jun-23**
+
+ * Toolbar added (without much functionality)
+
 </sub>

@@ -200,7 +200,7 @@ def main():
 
     
     # Create starting signal for GUI plots (deafult=False)
-    signal_start = SignalStart()
+    #signal_start = SignalStart()
     
     # Create pipes for the GUI
     pipe_outputa, pipe_outputb = Pipe(duplex=False)
@@ -221,7 +221,7 @@ def main():
 
     # Start GUI
     processlist = []
-    proc0 = Process(target=start_gui, args=(input_channelDict, output_channelDict, pipe_paramb, pipe_inputa, pipe_outputa, signal_start, pipe_signalb, pipe_consolea))
+    proc0 = Process(target=start_gui, args=(input_channelDict, output_channelDict, pipe_paramb, pipe_inputa, pipe_outputa, pipe_signalb, pipe_consolea))
     processlist.append(proc0)
     proc0.start()
     
@@ -365,7 +365,7 @@ def main():
     
         # Turn on the GUI plots
         pipe_msgb.send(msg4)
-        signal_start.signal = True
+        #signal_start.signal = True
     
 
         while running:
@@ -374,7 +374,7 @@ def main():
                 while pipe_signala.poll():
                     pipe_signala.recv()
                 pipe_msgb.send(msg5)
-                signal_start.signal = False
+                #signal_start.signal = False
                 
                 
                 clear_pipes([pipe_livea, pipe_timea, pipe_manipa, pipe_store_donea, pipe_cama, pipe_recorda, pipe_parama])
@@ -446,7 +446,7 @@ def main():
     
             if not p_get_data.is_alive():
                 running = False ####### added 12/06/23 to reset program automatically automatically
-                signal_start.signal = False ######### also added
+                #signal_start.signal = False ######### also added
                 clear_pipes([pipe_livea, pipe_timea, pipe_manipa, pipe_store_donea, pipe_cama, pipe_recorda, pipe_parama])
                 time.sleep(1.0)
                 pipe_camb.send(False)

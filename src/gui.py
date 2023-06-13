@@ -17,8 +17,11 @@ from PyQt5.QtWidgets import (QMainWindow,
                              QComboBox,
                              QLineEdit,
                              QTextEdit,
-                             QToolBar,
+                             QMenuBar,
+                             QMenu,
+                             QAction,
                              QMessageBox,
+                             QHBoxLayout,
                              QVBoxLayout,
                              QGridLayout)
 from PyQt5.QtGui import QIcon, QColor, QPixmap
@@ -30,6 +33,40 @@ import multiprocessing.connection
 multiprocessing.connection.BUFSIZE = 2**32-1 # This is the absolute limit for this PC
 from multiprocessing import Process, Pipe
 
+
+
+class MenuLayout(QHBoxLayout):
+    def __init__(self, parent=None, *args, **kwargs):
+        super().__init__(parent, *args, **kwargs)
+
+
+        # This doesn't seem like an ideal solution. There's a big gap at the top
+        
+        #================================================================
+        # create menu
+        menubar = QMenuBar()
+        self.addWidget(menubar)#, 0, 0)
+        actionFile = menubar.addMenu("File")
+        actionFile.addAction("New")
+        actionFile.addAction("Open")
+        actionFile.addAction("Save")
+        actionFile.addSeparator()
+        actionFile.addAction("Quit")
+        menubar.addMenu("Edit")
+        menubar.addMenu("View")
+        menubar.addMenu("Help")
+        
+        
+       # self.addWidget(self.path_textbox, 0, 0, 1, 1)
+        #self.addWidget(QLabel("Output Path"), 1, 0, 1, 1)
+        
+     #   self.addWidget(self.db_textbox, 0, 1, 1, 1)
+      #  self.addWidget(QLabel("DB Environment"), 1, 1, 1, 1)
+        
+        
+       # self.addWidget(self.checkbox, 0, 2, 1, 1)
+        #self.addWidget(QLabel("Save to File?"), 1, 2, 1, 1)
+        
 
 
 class FileSettingsLayout(QGridLayout):
@@ -66,6 +103,7 @@ class FileSettingsLayout(QGridLayout):
         self.addWidget(QLabel("Save to File?"), 1, 2, 1, 1)
         
 
+        
 
 class TextBox():
     def __init__(self, placeholder, loc, label_text, label_loc, parent=None, *args, **kwargs):
@@ -242,7 +280,7 @@ class CoilLayout(QGridLayout):
         
 
 class RampSettingsLayout(QVBoxLayout):
-    def __init__(self, pipe_param, signal_start, pipe_signal, checkbox, path_textbox, db_textbox, console, pipe_console, pipe_outputplotb, pipe_inputplotb, parent=None, *args, **kwargs):
+    def __init__(self, pipe_param, pipe_signal, checkbox, path_textbox, db_textbox, console, pipe_console, pipe_outputplotb, pipe_inputplotb, parent=None, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
         #============================================================
         # Layout of Ramp Settings
@@ -253,7 +291,6 @@ class RampSettingsLayout(QVBoxLayout):
         # QGroupBox.setLayout(layout)
         
         self.pipe_param = pipe_param
-        #self.signal_start = signal_start
         self.pipe_signal = pipe_signal
         self.checkbox = checkbox
         self.path_textbox = path_textbox
@@ -349,7 +386,6 @@ class RampSettingsLayout(QVBoxLayout):
 
     
     def stop_on_click(self):
-        #self.signal_start.signal = False # Tell GUI plot to stop #############12/06/2023
         #self.pipe_signal.send(False) # Send signal to main.py to restart
         self.pipe_inputplotb.send(False) ######12/06/2023
         self.pipe_outputplotb.send(False) ######12/06/2023
@@ -357,7 +393,6 @@ class RampSettingsLayout(QVBoxLayout):
 
     def start_on_click(self):
         # Send start signal to graphs
-        #self.signal_start.signal = True ###########12/06/2023
         self.pipe_inputplotb.send(True) ######12/06/2023
         self.pipe_outputplotb.send(True) ######12/06/2023
 
@@ -621,11 +656,10 @@ class RampSettingsLayout(QVBoxLayout):
                         
         
 class OutputGraphLayout(QVBoxLayout):
-    def __init__(self, channelDict, pipe_output, signal_start, pipe_plota, parent=None, *args, **kwargs):
+    def __init__(self, channelDict, pipe_output, pipe_plota, parent=None, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
         self.channelDict = channelDict
         self.pipe_output = pipe_output
-       # self.signal_start = signal_start
         self.pipe_plota = pipe_plota
 
         # Create a plot for each input channel
@@ -709,10 +743,9 @@ class OutputGraphLayout(QVBoxLayout):
                     
 
 class InputGraphLayout(QVBoxLayout):
-    def __init__(self, channelDict, pipe_input, signal_start, pipe_plota, parent=None, *args, **kwargs):
+    def __init__(self, channelDict, pipe_input, pipe_plota, parent=None, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
         self.pipe_input = pipe_input
-       # self.signal_start = signal_start
         self.channelDict = channelDict
         self.pipe_plota = pipe_plota
         
@@ -800,12 +833,11 @@ class SignalStart():
 
 
 class Layout(QGridLayout):
-    def __init__(self, input_channelDict, output_channelDict, pipe_param, pipe_input, pipe_output, signal_start, pipe_signal, pipe_console, parent=None, *args, **kwargs):
+    def __init__(self, input_channelDict, output_channelDict, pipe_param, pipe_input, pipe_output, pipe_signal, pipe_console, parent=None, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
         self.input_channelDict = input_channelDict
         self.output_channelDict = output_channelDict
         self.pipe_param = pipe_param
-        #self.signal_start = signal_start
         self.pipe_signal = pipe_signal
         self.pipe_input = pipe_input
         self.pipe_output = pipe_output
@@ -829,28 +861,23 @@ class Layout(QGridLayout):
         
         
         layout_fsettings = FileSettingsLayout(self.checkbox, self.path_textbox, self.db_textbox)
-        layout_ramp = RampSettingsLayout(self.pipe_param, self.signal_start, self.pipe_signal, self.checkbox, self.path_textbox, self.db_textbox, self.console, self.pipe_console, self.pipe_outputplotb, self.pipe_inputplotb)
-        layout_output = OutputGraphLayout(self.output_channelDict, self.pipe_output, self.signal_start, self.pipe_outputplota)
-        layout_input = InputGraphLayout(self.input_channelDict, self.pipe_input, self.signal_start, self.pipe_inputplota)
+        layout_ramp = RampSettingsLayout(self.pipe_param, self.pipe_signal, self.checkbox, self.path_textbox, self.db_textbox, self.console, self.pipe_console, self.pipe_outputplotb, self.pipe_inputplotb)
+        layout_output = OutputGraphLayout(self.output_channelDict, self.pipe_output, self.pipe_outputplota)
+        layout_input = InputGraphLayout(self.input_channelDict, self.pipe_input, self.pipe_inputplota)
         
-                
-        
+
         self.addLayout(layout_fsettings, 0, 0, 1, 3)
         self.addLayout(layout_ramp, 1, 0, 1, 1)
         self.addLayout(layout_output, 1, 1, 1, 1)
         self.addLayout(layout_input, 1, 2, 1, 1)
         
 
-        
-
-
 class MainWindow(QMainWindow):
-    def __init__(self, input_channelDict, output_channelDict, pipe_param, pipe_input, pipe_output, signal_start, pipe_signal, pipe_console, parent=None, *args, **kwargs):
+    def __init__(self, input_channelDict, output_channelDict, pipe_param, pipe_input, pipe_output, pipe_signal, pipe_console, parent=None, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
         self.input_channelDict = input_channelDict
         self.output_channelDict = output_channelDict
         self.pipe_param = pipe_param
-        #self.signal_start = signal_start
         self.pipe_signal = pipe_signal
         self.pipe_input = pipe_input
         self.pipe_output = pipe_output
@@ -859,22 +886,56 @@ class MainWindow(QMainWindow):
         self.icon = "../fig/icon.png"
         self.setGeometry(40, 40, 1200, 625)
         self.initUI()
+        self._createMenuBar()
+
+    
+    def _createMenuBar(self):
+        menuBar = self.menuBar()
+        # Creating menus using a QMenu object
+        fileMenu = QMenu("&File", self)
+        menuBar.addMenu(fileMenu)
+        # Creating menus using a title
+        editMenu = menuBar.addMenu("&Edit")
+        helpMenu = menuBar.addMenu("&Help")
+        toolsMenu = menuBar.addMenu("&Tools")
+        fileMenu.addAction("Ooga Booga")
+        helpMenu.addAction("Documentation")
+        #toolsMenu.addAction("Buffer Properties")
+
+        self.bufferAction = QAction(self)
+        self.bufferAction.setText("Buffer Properties")
+        self.bufferAction.triggered.connect(self.buffer_on_click)
+        toolsMenu.addAction(self.bufferAction)
+        
+
+    def buffer_on_click(self):
+        print("haskfaslkfajbflasjbflasbjlfa")
+    
+   # def createMenuBar(self):
+    #    menubar = QMenuBar(self)
+     #   self.setMenuBar(menubar)
+      #  fileMenu = QMenu("&File", self)
+       # menubar.addMenu(fileMenu)
+        #editMenu = menubar.addMenu("&Edit")
     
     
     def initUI(self):
         self.setWindowTitle(self.title)
         self.setWindowIcon(QIcon(self.icon))
-        grid_layout = Layout(self.input_channelDict, self.output_channelDict, self.pipe_param, self.pipe_input, self.pipe_output, self.signal_start, self.pipe_signal, self.pipe_console)
+        grid_layout = Layout(self.input_channelDict, self.output_channelDict, self.pipe_param, self.pipe_input, self.pipe_output, self.pipe_signal, self.pipe_console)
         widget = QWidget()
         widget.setLayout(grid_layout)
         self.setCentralWidget(widget)
+    #    self.createMenuBar
         self.show()
         
+
+
         
 
-def start_gui(input_channelDict, output_channelDict, pipe_param, pipe_input, pipe_output, signal_start, pipe_signal, pipe_console):
+def start_gui(input_channelDict, output_channelDict, pipe_param, pipe_input, pipe_output, pipe_signal, pipe_console):
     app = QApplication(sys.argv)
-    ex = MainWindow(input_channelDict, output_channelDict, pipe_param, pipe_input, pipe_output, signal_start, pipe_signal, pipe_console)
+    ex = MainWindow(input_channelDict, output_channelDict, pipe_param, pipe_input, pipe_output, pipe_signal, pipe_console)
     sys.exit(app.exec_())
 
 if __name__ == '__main__':
