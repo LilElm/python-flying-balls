@@ -9,6 +9,7 @@ import time
 from itertools import cycle
 from PyQt5.QtWidgets import (QMainWindow,
                              QApplication,
+                             QSplashScreen,
                              QLabel,
                              QWidget,
                              QPushButton,
@@ -17,14 +18,18 @@ from PyQt5.QtWidgets import (QMainWindow,
                              QComboBox,
                              QLineEdit,
                              QTextEdit,
+                             QTabWidget,
                              QMenuBar,
                              QMenu,
+                             QDialog,
+                             QDialogButtonBox,
                              QAction,
                              QMessageBox,
                              QHBoxLayout,
                              QVBoxLayout,
-                             QGridLayout)
-from PyQt5.QtGui import QIcon, QColor, QPixmap
+                             QGridLayout,
+                             QFormLayout)
+from PyQt5.QtGui import QIcon, QColor, QPixmap, QPainter, QMovie
 from PyQt5.QtCore import QTimer, QTextStream, QProcess, Qt
 import pyqtgraph as pg
 
@@ -872,6 +877,89 @@ class Layout(QGridLayout):
         self.addLayout(layout_input, 1, 2, 1, 1)
         
 
+
+
+
+
+class PreferencesTab(QWidget):
+    def __init__(self):
+        super().__init__()
+        
+        # Create a tab widget for the buffer
+        self.setWindowTitle("Preferences")
+        layout_main = QGridLayout()
+        self.setLayout(layout_main)
+        tabwidget = QTabWidget()
+        
+        
+        # Create a populate the buffer page
+        page_buffer = QWidget()
+        #layout_buffer = QFormLayout()
+        layout_buffer = QGridLayout()
+        page_buffer.setLayout(layout_buffer)
+        
+        textbox_ni = QLineEdit(placeholderText="NIDAQmx buffer size per channel")
+        label_ni = QLabel("NIDAQmx buffer size per channel")
+        layout_buffer.addWidget(label_ni, 1, 0, 1, 1)
+        layout_buffer.addWidget(textbox_ni, 1, 1, 1, 1)
+        
+        checkbox_ni = QCheckBox()
+        checkbox_ni.setChecked(False)
+        label_checkbox_ni = QLabel("Override automatic values?")
+        layout_buffer.addWidget(label_checkbox_ni, 1, 2, 1, 1)
+        layout_buffer.addWidget(checkbox_ni, 1, 3, 1, 1)
+        
+        
+        
+        
+        
+        
+        textbox_guiresolution = QLineEdit(placeholderText="GUI resolution (ms)")
+        label_guiresolution = QLabel("GUI resolution (ms)")
+        layout_buffer.addWidget(label_guiresolution, 2, 0, 1, 1)
+        layout_buffer.addWidget(textbox_guiresolution, 2, 1, 1, 1)
+        
+        textbox_guirefresh = QLineEdit(placeholderText="GUI refresh rate (ms)")
+        label_guirefresh = QLabel("GUI refresh rate (ms)")
+        layout_buffer.addWidget(label_guirefresh, 3, 0, 1, 1)
+        layout_buffer.addWidget(textbox_guirefresh, 3, 1, 1, 1)
+
+        
+        
+        
+        
+        
+        
+        tabwidget.addTab(page_buffer, "Buffer")
+        layout_main.addWidget(tabwidget, 0, 0, 1, 6)
+        
+        button_buffer_ok = QPushButton('OK')
+        button_buffer_cancel = QPushButton('Cancel')
+        button_buffer_apply = QPushButton('Apply')
+        
+        
+        layout_main.addWidget(button_buffer_ok, 2, 3, 1, 1)
+        layout_main.addWidget(button_buffer_cancel, 2, 4, 1, 1)
+        layout_main.addWidget(button_buffer_apply, 2, 5, 1, 1)
+        
+        
+        
+        
+
+        
+        """
+        QBtn = QDialogButtonBox.Ok | QDialogButtonBox.Cancel
+
+        self.buttonBox = QDialogButtonBox(QBtn)
+        self.buttonBox.accepted.connect(dialog_buffer.accept)
+        self.buttonBox.rejected.connect(dialog_buffer.reject)
+        
+        #self.layout_dialog_buffer.addWidget(self.buttonBox)
+        """
+        
+
+        
+
 class MainWindow(QMainWindow):
     def __init__(self, input_channelDict, output_channelDict, pipe_param, pipe_input, pipe_output, pipe_signal, pipe_console, parent=None, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
@@ -902,14 +990,27 @@ class MainWindow(QMainWindow):
         helpMenu.addAction("Documentation")
         #toolsMenu.addAction("Buffer Properties")
 
-        self.bufferAction = QAction(self)
-        self.bufferAction.setText("Buffer Properties")
-        self.bufferAction.triggered.connect(self.buffer_on_click)
-        toolsMenu.addAction(self.bufferAction)
+        self.preferencesAction = QAction(self)
+        self.preferencesAction.setText("Preferences")
+        self.preferencesAction.triggered.connect(self.preferences_on_click)
+        toolsMenu.addAction(self.preferencesAction)
         
 
-    def buffer_on_click(self):
+
+
+
+
+    def preferences_on_click(self):
         print("haskfaslkfajbflasjbflasbjlfa")
+        #dlg = QDialog(self)
+        #dlg.setWindowTitle("HELLO!")
+        #dlg.exec()
+        self.dlg = PreferencesTab()
+        self.dlg.show()
+#        self.setCentralWidget(dlg)
+        #dlg.exec_()
+        #dlg.exec()
+    
     
    # def createMenuBar(self):
     #    menubar = QMenuBar(self)
@@ -927,16 +1028,61 @@ class MainWindow(QMainWindow):
         widget.setLayout(grid_layout)
         self.setCentralWidget(widget)
     #    self.createMenuBar
-        self.show()
+        #self.show()
         
+
+
+
+class MovieSplashScreen(QSplashScreen):
+
+	def __init__(self, pathToGIF):
+		self.movie = QMovie(pathToGIF)
+		self.movie.jumpToFrame(0)
+		pixmap = QPixmap(self.movie.frameRect().size())
+		QSplashScreen.__init__(self, pixmap)
+		self.movie.frameChanged.connect(self.repaint)
+
+	def showEvent(self, event):
+		self.movie.start()
+
+	def hideEvent(self, event):
+		self.movie.stop()
+
+	def paintEvent(self, event):
+		painter = QPainter(self)
+		pixmap = self.movie.currentPixmap()
+		self.setMask(pixmap.mask())
+		painter.drawPixmap(0, 0, pixmap)
+
 
 
         
 
 def start_gui(input_channelDict, output_channelDict, pipe_param, pipe_input, pipe_output, pipe_signal, pipe_console):
+    # Splash screen
     app = QApplication(sys.argv)
+    pathToGIF = "../fig/loading/loading.gif"
+    splash = MovieSplashScreen(pathToGIF)
+    splash.show()
+
+    def showWindow():        
+        splash.close()
+        ex.show()
+
+    QTimer.singleShot(1000, showWindow)
     ex = MainWindow(input_channelDict, output_channelDict, pipe_param, pipe_input, pipe_output, pipe_signal, pipe_console)
+    app.exec_()
     sys.exit(app.exec_())
 
 if __name__ == '__main__':
     start_gui()
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    

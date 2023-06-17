@@ -23,8 +23,6 @@ from camera import start_camera
 from ramp_profile import eval_ramp
 from halfsine_profile import eval_halfsine
 from gui import start_gui
-from gui import SignalStart
-
 
 """Flying balls"""
 
@@ -122,7 +120,16 @@ def force_profile(outfolder, timestamp, sampling_rate, f0, df, k, profile, param
     return f_profile
     
 
+
+
+
+
+
 def main():
+    
+    
+    
+    
     currentDT = datetime.datetime.now()
     logfolder = "../log/"
     #tmpfolder = "../tmp/"
@@ -225,6 +232,8 @@ def main():
     processlist.append(proc0)
     proc0.start()
     
+
+    
     # Start message function
     msg0 = "Waiting for the camera"
     msg1 = "Waiting for user input"
@@ -235,11 +244,14 @@ def main():
     proc1 = Process(target=message, args=(pipe_msga, pipe_consoleb, msg0, ))
     processlist.append(proc1)
     proc1.start()
+    
+
 
     # Start camera
     proc3 = Process(target=start_camera, args=(pipe_cama, pipe_recordb, ))
     processlist.append(proc3)
     proc3.start()
+
 
 
     while True:
@@ -822,10 +834,17 @@ def message(pipe, pipe_console, msg="Loading"):
     
 
 
+
+
+
+
+
 # Run
 if __name__ == "__main__":
     #os.system('@echo off')#' start python mysql_update.py {outfolder} {outfolder0} {outfolder1} {db_env}')
     main()
+    
+
 
 
   

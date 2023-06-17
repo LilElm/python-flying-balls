@@ -306,4 +306,12 @@
 
  * Toolbar added (without much functionality)
 
+ **16-Jun-23**
+
+ * Splash screen added
+
+ **17-Jun-23**
+
+ * Preferences widget added (not connected)
+
 </sub>
