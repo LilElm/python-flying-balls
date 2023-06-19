@@ -285,7 +285,22 @@ class CoilLayout(QGridLayout):
         
 
 class RampSettingsLayout(QVBoxLayout):
-    def __init__(self, pipe_param, pipe_signal, checkbox, path_textbox, db_textbox, console, pipe_console, pipe_outputplotb, pipe_inputplotb, parent=None, *args, **kwargs):
+    def __init__(self,
+                 pipe_param,
+                 pipe_signal,
+                 checkbox,
+                 path_textbox,
+                 db_textbox,
+                 console,
+                 pipe_console,
+                 pipe_outputplotb,
+                 pipe_inputplotb,
+                 textbox_ni,
+                 checkbox_ni,
+                 textbox_guiresolution,
+                 #textbox_guirefresh,
+                 pipe_buffer,
+                 parent=None, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
         #============================================================
         # Layout of Ramp Settings
@@ -305,6 +320,11 @@ class RampSettingsLayout(QVBoxLayout):
         self.pipe_outputplotb = pipe_outputplotb
         self.pipe_inputplotb = pipe_inputplotb
         
+        self.textbox_ni = textbox_ni
+        self.checkbox_ni = checkbox_ni
+        self.textbox_guiresolution = textbox_guiresolution
+        #self.textbox_guirefresh = textbox_guirefresh
+        self.pipe_buffer = pipe_buffer
         
         #self.consoleprocess.write("fnlkfnalsk")
         #self.consoleprocess.setProcessChannelMode(QProcess.MergedChannels)
@@ -401,6 +421,17 @@ class RampSettingsLayout(QVBoxLayout):
         self.pipe_inputplotb.send(True) ######12/06/2023
         self.pipe_outputplotb.send(True) ######12/06/2023
 
+        # Get all parameters from preferences menu
+        #self.textbox_ni_val = int(self.textbox_ni.text())
+        #self.checkbox_ni_val = self.checkbox_ni.isChecked()
+        #self.textbox_guiresolution_val = float(self.textbox_guiresolution.text())
+        
+
+
+
+
+
+
         # Get 'save to file' and sampling rate
         self.path = self.path_textbox.text()
         self.db_env = self.db_textbox.text()
@@ -435,6 +466,14 @@ class RampSettingsLayout(QVBoxLayout):
         # If valid, send input parameters through pipe_params to main.py
         # From there, force_profile.py will be called with the parameters
         if success:
+            
+            # Send preferences data
+            self.pipe_buffer.send([self.textbox_ni_val,
+                                   self.checkbox_ni_val,
+                                   self.textbox_guiresolution_val])#,
+                                   #self.textbox_guirefresh_val])
+            
+            
             
             
             self.pipe_param.send(self.path)
@@ -475,6 +514,34 @@ class RampSettingsLayout(QVBoxLayout):
         error_code = 0
         error_message = []
         tot_times = []
+        
+        
+        # Check preferences data
+        try:
+            self.textbox_ni_val = int(self.textbox_ni.text())
+            self.checkbox_ni_val = self.checkbox_ni.isChecked()
+        except:
+            self.textbox_ni_val = 0
+            self.checkbox_ni_val = False
+            self.textbox_ni.setText("")
+            self.checkbox_ni.setChecked(False)
+
+        try:
+            self.textbox_guiresolution_val = float(self.textbox_guiresolution.text())
+        except:
+            self.textbox_guiresolution_val = 20.0
+            self.textbox_guiresolution.setText("100")
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
         
         
         # Check if sampling rate is a float
@@ -659,7 +726,7 @@ class RampSettingsLayout(QVBoxLayout):
         return success
 
                         
-        
+"""        
 class OutputGraphLayout(QVBoxLayout):
     def __init__(self, channelDict, pipe_output, pipe_plota, parent=None, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
@@ -748,11 +815,12 @@ class OutputGraphLayout(QVBoxLayout):
                     
 
 class InputGraphLayout(QVBoxLayout):
-    def __init__(self, channelDict, pipe_input, pipe_plota, parent=None, *args, **kwargs):
+    def __init__(self, channelDict, pipe_input, pipe_plota, guirefresh, parent=None, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
         self.pipe_input = pipe_input
         self.channelDict = channelDict
         self.pipe_plota = pipe_plota
+        self.guirefresh = guirefresh
         
         
         # Create a plot for each input channel
@@ -776,7 +844,7 @@ class InputGraphLayout(QVBoxLayout):
         self.on = False
         self.counter = 0
         self.timer = QTimer()
-        self.timer.setInterval(10) #ms
+        self.timer.setInterval(self.guirefresh) #ms
         self.timer.timeout.connect(self.update_plots)
         self.timer.start()
     
@@ -827,6 +895,121 @@ class InputGraphLayout(QVBoxLayout):
                     self.pipe_input.recv()
         
         
+"""
+
+class GraphLayout(QVBoxLayout):
+    def __init__(self, channelDict, pipe_input, pipe_plota, guirefresh, pipe_guirefresha, parent=None, *args, **kwargs):
+        super().__init__(parent, *args, **kwargs)
+        self.pipe_input = pipe_input
+        self.channelDict = channelDict
+        self.pipe_plota = pipe_plota
+        self.guirefresh = guirefresh
+        self.pipe_guirefresha = pipe_guirefresha
+        
+        
+        # Create a plot for each input channel
+        for channel in self.channelDict:
+            self.channelDict[channel].plot = pg.PlotWidget(title=self.channelDict[channel].name)
+            self.channelDict[channel].plot.setLabel('left', 'Voltage (V)')
+            self.channelDict[channel].plot.setLabel('bottom', 'Elapsed Time (s)')
+            self.channelDict[channel].plot.addLegend()
+            self.channelDict[channel].plot.data = []
+            self.elapsed_time = []
+            self.channelDict[channel].plot.line = self.channelDict[channel].plot.plot(self.elapsed_time,
+                                                                                      self.channelDict[channel].plot.data)
+            self.addWidget(self.channelDict[channel].plot, 1)
+            
+            # Annotation for the x and y coordinates
+            self.channelDict[channel].label = pg.LabelItem()
+            self.channelDict[channel].label.setParentItem(self.channelDict[channel].plot.getPlotItem())
+            self.channelDict[channel].label.anchor(itemPos=(1,0), parentPos=(1,0), offset=(-10,10))
+        
+        
+        self.on = False
+        self.counter = 0
+        
+        
+        
+        self.timer_refresh = QTimer()
+        self.timer_refresh.setInterval(100) #ms
+        self.timer_refresh.timeout.connect(self.update_refresh_rate)
+        self.timer_refresh.start()
+        
+        
+        
+        
+        
+        
+        self.timer = QTimer()
+        self.timer.setInterval(self.guirefresh) #ms
+        self.timer.timeout.connect(self.update_plots)
+        self.timer.start()
+    
+    
+    
+    
+    
+    def update_refresh_rate(self):
+        if self.pipe_guirefresha.poll():
+            while self.pipe_guirefresha.poll():
+                self.guirefresh = self.pipe_guirefresha.recv()
+            try:
+                self.guirefresh = float(self.guirefresh)
+            except:
+                pass
+            self.timer.setInterval(self.guirefresh)
+        
+    
+    
+    def update_plots(self):
+        if self.pipe_plota.poll():                 # If start/stop button pressed
+            self.counter = 0
+            while self.pipe_plota.poll():          # Receive start/stop signal
+                self.on = self.pipe_plota.recv()
+        
+        if self.on:
+            # Receive data
+            if self.pipe_input.poll():
+                data = self.pipe_input.recv()
+            
+                # Clear all data if start button press just pressed
+                if self.counter == 0:
+                    self.time_start = data[0]
+                    self.elapsed_time = []
+                    for channel in self.channelDict:
+                        self.channelDict[channel].plot.data = []
+                        self.channelDict[channel].plot.line.setData(self.elapsed_time, self.channelDict[channel].plot.data)
+                    self.counter = 1
+                elapsed_time = data[0] - self.time_start
+                self.elapsed_time.append(elapsed_time)
+                
+                
+                # Plot data
+                for channel in self.channelDict:
+                    
+                    time_now = time.time()
+                    time_delay = time_now - data[0]
+                    #print(str(time_delay))
+                    
+                    self.channelDict[channel].plot.data.append(data[self.channelDict[channel].index])
+                    if len(self.elapsed_time) > 2500:
+                        self.elapsed_time = self.elapsed_time[1:]
+                    if len(self.channelDict[channel].plot.data) > 2500:
+                        self.channelDict[channel].plot.data = self.channelDict[channel].plot.data[1:]
+                    self.channelDict[channel].plot.line.setData(self.elapsed_time, self.channelDict[channel].plot.data)
+                    
+                    # Update label
+                    self.channelDict[channel].label.setText(f"x: {elapsed_time:5.2f}, y: {data[self.channelDict[channel].index]:5.2f}")
+            
+        
+        
+        else:
+            self.counter = 0
+            if self.pipe_input.poll():
+                while self.pipe_input.poll():
+                    self.pipe_input.recv()
+        
+        
         
                     
                
@@ -838,7 +1021,25 @@ class SignalStart():
 
 
 class Layout(QGridLayout):
-    def __init__(self, input_channelDict, output_channelDict, pipe_param, pipe_input, pipe_output, pipe_signal, pipe_console, parent=None, *args, **kwargs):
+    def __init__(self,
+                 input_channelDict,
+                 output_channelDict,
+                 pipe_param,
+                 pipe_input,
+                 pipe_output,
+                 pipe_signal,
+                 pipe_console,
+                 guirefresh,
+                 pipe_guirefresha_output,
+                 pipe_guirefresha_input,
+                 textbox_ni,
+                 checkbox_ni,
+                 textbox_guiresolution,
+                 #textbox_guirefresh,
+                 pipe_buffer,
+                 parent=None,
+                 *args,
+                 **kwargs):
         super().__init__(parent, *args, **kwargs)
         self.input_channelDict = input_channelDict
         self.output_channelDict = output_channelDict
@@ -849,12 +1050,21 @@ class Layout(QGridLayout):
         self.checkbox = QCheckBox()
         self.checkbox.setChecked(True)
         self.pipe_console = pipe_console
+        self.guirefresh = guirefresh
+        self.pipe_guirefresha_output = pipe_guirefresha_output
+        self.pipe_guirefresha_input = pipe_guirefresha_input
         
         
         
         self.pipe_inputplota, self.pipe_inputplotb = Pipe(duplex=False)
         self.pipe_outputplota, self.pipe_outputplotb = Pipe(duplex=False)
         
+        
+        self.textbox_ni = textbox_ni
+        self.checkbox_ni = checkbox_ni
+        self.textbox_guiresolution = textbox_guiresolution
+        #self.textbox_guirefresh = textbox_guirefresh
+        self.pipe_buffer = pipe_buffer
         
         path = "C:\\Users\\ultservi\\Desktop\\Elmy\\python-flying-balls\\"
         self.path_textbox = QLineEdit(f"{path}out\\")
@@ -866,9 +1076,26 @@ class Layout(QGridLayout):
         
         
         layout_fsettings = FileSettingsLayout(self.checkbox, self.path_textbox, self.db_textbox)
-        layout_ramp = RampSettingsLayout(self.pipe_param, self.pipe_signal, self.checkbox, self.path_textbox, self.db_textbox, self.console, self.pipe_console, self.pipe_outputplotb, self.pipe_inputplotb)
-        layout_output = OutputGraphLayout(self.output_channelDict, self.pipe_output, self.pipe_outputplota)
-        layout_input = InputGraphLayout(self.input_channelDict, self.pipe_input, self.pipe_inputplota)
+        layout_ramp = RampSettingsLayout(self.pipe_param,
+                                         self.pipe_signal,
+                                         self.checkbox,
+                                         self.path_textbox,
+                                         self.db_textbox,
+                                         self.console,
+                                         self.pipe_console,
+                                         self.pipe_outputplotb,
+                                         self.pipe_inputplotb,
+                                         self.textbox_ni,
+                                         self.checkbox_ni,
+                                         self.textbox_guiresolution,
+                                         #self.textbox_guirefresh,
+                                         self.pipe_buffer)
+        #layout_output = OutputGraphLayout(self.output_channelDict, self.pipe_output, self.pipe_outputplota)
+        #layout_input = InputGraphLayout(self.input_channelDict, self.pipe_input, self.pipe_inputplota, self.guirefresh)
+
+
+        layout_output = GraphLayout(self.output_channelDict, self.pipe_output, self.pipe_outputplota, self.guirefresh, self.pipe_guirefresha_output)
+        layout_input = GraphLayout(self.input_channelDict, self.pipe_input, self.pipe_inputplota, self.guirefresh, self.pipe_guirefresha_input)
         
 
         self.addLayout(layout_fsettings, 0, 0, 1, 3)
@@ -882,86 +1109,125 @@ class Layout(QGridLayout):
 
 
 class PreferencesTab(QWidget):
-    def __init__(self):
+    def __init__(self, guirefresh, pipe_guirefresh_output, pipe_guirefresh_input, textbox_ni, checkbox_ni, textbox_guiresolution, textbox_guirefresh):
         super().__init__()
+        self.pipe_guirefresh_output = pipe_guirefresh_output
+        self.pipe_guirefresh_input = pipe_guirefresh_input
+        self.val_guirefresh = guirefresh
+        #self.pipe_buffer = pipe_buffer
+        self.textbox_ni = textbox_ni
+        self.checkbox_ni = checkbox_ni
+        self.textbox_guiresolution = textbox_guiresolution
+        self.textbox_guirefresh = textbox_guirefresh
         
-        # Create a tab widget for the buffer
+        
+        
+        # Create a tab widget
         self.setWindowTitle("Preferences")
         layout_main = QGridLayout()
         self.setLayout(layout_main)
         tabwidget = QTabWidget()
         
         
-        # Create a populate the buffer page
+        # Create and populate the buffer page
         page_buffer = QWidget()
-        #layout_buffer = QFormLayout()
         layout_buffer = QGridLayout()
         page_buffer.setLayout(layout_buffer)
         
-        textbox_ni = QLineEdit(placeholderText="NIDAQmx buffer size per channel")
+        #self.textbox_ni = QLineEdit(placeholderText="NIDAQmx buffer size per channel")
         label_ni = QLabel("NIDAQmx buffer size per channel")
         layout_buffer.addWidget(label_ni, 1, 0, 1, 1)
-        layout_buffer.addWidget(textbox_ni, 1, 1, 1, 1)
+        layout_buffer.addWidget(self.textbox_ni, 1, 1, 1, 1)
         
-        checkbox_ni = QCheckBox()
-        checkbox_ni.setChecked(False)
+        #self.checkbox_ni = QCheckBox()
+        #self.checkbox_ni.setChecked(False)
         label_checkbox_ni = QLabel("Override automatic values?")
         layout_buffer.addWidget(label_checkbox_ni, 1, 2, 1, 1)
-        layout_buffer.addWidget(checkbox_ni, 1, 3, 1, 1)
+        layout_buffer.addWidget(self.checkbox_ni, 1, 3, 1, 1)
         
-        
-        
-        
-        
-        
-        textbox_guiresolution = QLineEdit(placeholderText="GUI resolution (ms)")
-        label_guiresolution = QLabel("GUI resolution (ms)")
+        #self.textbox_guiresolution = QLineEdit(placeholderText="GUI resolution (ms)")
+        label_guiresolution = QLabel("GUI resolution (points per sec)")
         layout_buffer.addWidget(label_guiresolution, 2, 0, 1, 1)
-        layout_buffer.addWidget(textbox_guiresolution, 2, 1, 1, 1)
+        layout_buffer.addWidget(self.textbox_guiresolution, 2, 1, 1, 1)
         
-        textbox_guirefresh = QLineEdit(placeholderText="GUI refresh rate (ms)")
+        #self.textbox_guirefresh = QLineEdit(str(self.val_guirefresh), placeholderText="GUI refresh rate (ms)")
         label_guirefresh = QLabel("GUI refresh rate (ms)")
         layout_buffer.addWidget(label_guirefresh, 3, 0, 1, 1)
-        layout_buffer.addWidget(textbox_guirefresh, 3, 1, 1, 1)
+        layout_buffer.addWidget(self.textbox_guirefresh, 3, 1, 1, 1)
 
         
         
-        
-        
-        
-        
+        # Add the buffer page to the tab widget
         tabwidget.addTab(page_buffer, "Buffer")
         layout_main.addWidget(tabwidget, 0, 0, 1, 6)
         
+        
+        # Add buttons to the tab widget
         button_buffer_ok = QPushButton('OK')
         button_buffer_cancel = QPushButton('Cancel')
         button_buffer_apply = QPushButton('Apply')
+        
+        button_buffer_ok.clicked.connect(self.click_okay)
+        button_buffer_cancel.clicked.connect(self.click_cancel)
+        button_buffer_apply.clicked.connect(self.click_apply)
         
         
         layout_main.addWidget(button_buffer_ok, 2, 3, 1, 1)
         layout_main.addWidget(button_buffer_cancel, 2, 4, 1, 1)
         layout_main.addWidget(button_buffer_apply, 2, 5, 1, 1)
         
+
+
+    
+    def click_okay(self):
+        # Get values, then close
+        self.val_ni = self.textbox_ni.text()
+        self.val_ni_checkbox = self.checkbox_ni.isChecked()
+        self.val_guiresolution = self.textbox_guiresolution.text()
+        self.val_guirefresh = self.textbox_guirefresh.text()
         
+        # Pipe these somewhere
+        print(f"{self.val_ni} {self.val_ni_checkbox} {self.val_guiresolution} {self.val_guirefresh}")
+        self.pipe_guirefresh_output.send(self.val_guirefresh)
+        self.pipe_guirefresh_input.send(self.val_guirefresh)
         
+        #self.pipe_buffer.send([self.val_ni, self.val_ni_checkbox, self.val_guiresolution])
+        
+        self.hide()
+
+
+    def click_cancel(self):
+        # Reset textbox values and hide the preferences window
+        self.textbox_guirefresh.setText(str(self.val_guirefresh))
+        #self.textbox_guiresolution.setText(str(self.val_guiresolution))
+        #self.textbox_ni.setText(str(self.val_ni))
+        self.textbox_ni.setText("")
+        #self.checkbox_ni.setChecked(self.val_ni_checkbox)
+        self.hide()       
+        
+ 
+
+    def click_apply(self):
+        # Get values
+        self.val_ni = self.textbox_ni.text()
+        self.val_ni_checkbox = self.checkbox_ni.isChecked()
+        self.val_guiresolution = self.textbox_guiresolution.text()
+        self.val_guirefresh = self.textbox_guirefresh.text()
+        
+        # Pipe these somewhere
+        print(f"{self.val_ni} {self.val_ni_checkbox} {self.val_guiresolution} {self.val_guirefresh}")
+        self.pipe_guirefresh_output.send(self.val_guirefresh)
+        self.pipe_guirefresh_input.send(self.val_guirefresh)
+        
+        #self.pipe_buffer.send([self.val_ni, self.val_ni_checkbox, self.val_guiresolution])
         
 
         
-        """
-        QBtn = QDialogButtonBox.Ok | QDialogButtonBox.Cancel
-
-        self.buttonBox = QDialogButtonBox(QBtn)
-        self.buttonBox.accepted.connect(dialog_buffer.accept)
-        self.buttonBox.rejected.connect(dialog_buffer.reject)
         
-        #self.layout_dialog_buffer.addWidget(self.buttonBox)
-        """
-        
-
         
 
 class MainWindow(QMainWindow):
-    def __init__(self, input_channelDict, output_channelDict, pipe_param, pipe_input, pipe_output, pipe_signal, pipe_console, parent=None, *args, **kwargs):
+    def __init__(self, input_channelDict, output_channelDict, pipe_param, pipe_input, pipe_output, pipe_signal, pipe_console, pipe_buffer, parent=None, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
         self.input_channelDict = input_channelDict
         self.output_channelDict = output_channelDict
@@ -970,9 +1236,38 @@ class MainWindow(QMainWindow):
         self.pipe_input = pipe_input
         self.pipe_output = pipe_output
         self.pipe_console = pipe_console
+        self.pipe_buffer = pipe_buffer
         self.title = "Flying Balls"
         self.icon = "../fig/icon.png"
         self.setGeometry(40, 40, 1200, 625)
+        
+        
+        # Parameters for GUI refresh rate
+        self.guirefresh = 10 #ms
+        self.pipe_guirefresha_output, self.pipe_guirefreshb_output = Pipe(duplex=False)
+        self.pipe_guirefresha_input, self.pipe_guirefreshb_input = Pipe(duplex=False)
+        
+        
+        
+        
+        
+        # Create all textboxes for the Preferences menu
+        self.textbox_ni = QLineEdit(placeholderText="NIDAQmx buffer size per channel")
+        self.checkbox_ni = QCheckBox()
+        self.checkbox_ni.setChecked(False)
+        self.textbox_guiresolution = QLineEdit(placeholderText="GUI resolution (points per sec)")
+        self.textbox_guirefresh = QLineEdit(str(self.guirefresh), placeholderText="GUI refresh rate (ms)")
+        
+        
+        
+        
+        # Create the preferences menu
+        self.menu_preferences = PreferencesTab(self.guirefresh, self.pipe_guirefreshb_output, self.pipe_guirefreshb_input, self.textbox_ni, self.checkbox_ni, self.textbox_guiresolution, self.textbox_guirefresh)
+        
+        
+        
+        
+        
         self.initUI()
         self._createMenuBar()
 
@@ -1001,29 +1296,29 @@ class MainWindow(QMainWindow):
 
 
     def preferences_on_click(self):
-        print("haskfaslkfajbflasjbflasbjlfa")
-        #dlg = QDialog(self)
-        #dlg.setWindowTitle("HELLO!")
-        #dlg.exec()
-        self.dlg = PreferencesTab()
-        self.dlg.show()
-#        self.setCentralWidget(dlg)
-        #dlg.exec_()
-        #dlg.exec()
-    
-    
-   # def createMenuBar(self):
-    #    menubar = QMenuBar(self)
-     #   self.setMenuBar(menubar)
-      #  fileMenu = QMenu("&File", self)
-       # menubar.addMenu(fileMenu)
-        #editMenu = menubar.addMenu("&Edit")
+        # Show the preferences menu
+        self.menu_preferences.show()
+        
     
     
     def initUI(self):
         self.setWindowTitle(self.title)
         self.setWindowIcon(QIcon(self.icon))
-        grid_layout = Layout(self.input_channelDict, self.output_channelDict, self.pipe_param, self.pipe_input, self.pipe_output, self.pipe_signal, self.pipe_console)
+        grid_layout = Layout(self.input_channelDict,
+                             self.output_channelDict,
+                             self.pipe_param,
+                             self.pipe_input,
+                             self.pipe_output,
+                             self.pipe_signal,
+                             self.pipe_console,
+                             self.guirefresh,
+                             self.pipe_guirefresha_output,
+                             self.pipe_guirefresha_input,
+                             self.textbox_ni,
+                             self.checkbox_ni,
+                             self.textbox_guiresolution,
+                             #self.textbox_guirefresh,
+                             self.pipe_buffer)
         widget = QWidget()
         widget.setLayout(grid_layout)
         self.setCentralWidget(widget)
@@ -1058,7 +1353,7 @@ class MovieSplashScreen(QSplashScreen):
 
         
 
-def start_gui(input_channelDict, output_channelDict, pipe_param, pipe_input, pipe_output, pipe_signal, pipe_console):
+def start_gui(input_channelDict, output_channelDict, pipe_param, pipe_input, pipe_output, pipe_signal, pipe_console, pipe_buffer):
     # Splash screen
     app = QApplication(sys.argv)
     pathToGIF = "../fig/loading/loading.gif"
@@ -1070,7 +1365,7 @@ def start_gui(input_channelDict, output_channelDict, pipe_param, pipe_input, pip
         ex.show()
 
     QTimer.singleShot(1000, showWindow)
-    ex = MainWindow(input_channelDict, output_channelDict, pipe_param, pipe_input, pipe_output, pipe_signal, pipe_console)
+    ex = MainWindow(input_channelDict, output_channelDict, pipe_param, pipe_input, pipe_output, pipe_signal, pipe_console, pipe_buffer)
     app.exec_()
     sys.exit(app.exec_())
 

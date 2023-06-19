@@ -43,7 +43,7 @@ def gen_numbers(channelDict):
         time.sleep(1)
 
 
-def get_parameters(pipe_parama):
+def get_parameters(pipe_parama, pipe_buffera):
     try:
         # Wait for user input from GUI
         
@@ -60,9 +60,22 @@ def get_parameters(pipe_parama):
         long_profile = pipe_parama.recv()
         long_params = pipe_parama.recv()
         
+        
+        val_ni, val_ni_checkbox, val_guiresolution = pipe_buffera.recv()
+        print(f"val_ni = {val_ni}")
+
+        #val_ni_checkbox = pipe_buffera.recv()
+        print(f"val_ni_checkbox = {val_ni_checkbox}")
+        #val_guiresolution = pipe_buffera.recv()
+        print(f"val_guiresolution = {val_guiresolution}")
+        
+       # print(f"val_ni = {val_ni}")
+       # print(f"val_ni_checkbox = {val_ni_checkbox}")
+       # print(f"val_guiresolution = {val_guiresolution}")
+        
     except Exception as e:
         print(str(e))
-    return out_path, db_env, save, sampling_rate, f0, df, k, lat_profile, lat_params, long_profile, long_params
+    return out_path, db_env, save, sampling_rate, f0, df, k, lat_profile, lat_params, long_profile, long_params, val_ni, val_ni_checkbox, val_guiresolution
 
 
 def force_profile(outfolder, timestamp, sampling_rate, f0, df, k, profile, params, channel, coil):
@@ -224,11 +237,12 @@ def main():
     pipe_cama, pipe_camb = Pipe(duplex=False)
     pipe_recorda, pipe_recordb = Pipe(duplex=False)
     pipe_msga, pipe_msgb = Pipe(duplex=False)
+    pipe_buffera, pipe_bufferb = Pipe(duplex=False)
 
 
     # Start GUI
     processlist = []
-    proc0 = Process(target=start_gui, args=(input_channelDict, output_channelDict, pipe_paramb, pipe_inputa, pipe_outputa, pipe_signalb, pipe_consolea))
+    proc0 = Process(target=start_gui, args=(input_channelDict, output_channelDict, pipe_paramb, pipe_inputa, pipe_outputa, pipe_signalb, pipe_consolea, pipe_bufferb))
     processlist.append(proc0)
     proc0.start()
     
@@ -258,7 +272,7 @@ def main():
         running = True
         # Get input parameters from the GUI and evalute the force profile
         pipe_msgb.send(msg1)
-        outfolder, db_env, save, sampling_rate, f0, df, k, lat_profile, lat_params, long_profile, long_params = get_parameters(pipe_parama)
+        outfolder, db_env, save, sampling_rate, f0, df, k, lat_profile, lat_params, long_profile, long_params, val_ni, val_ni_checkbox, val_guiresolution = get_parameters(pipe_parama, pipe_buffera)
         if outfolder == None:
             outfolder = os.getcwd()
             outfolder = outfolder.rsplit('\\', 1)[0]
@@ -324,8 +338,8 @@ def main():
         
     
         # Create processes
-        p_get_data = Process(target=get_data, args=(pipe_liveb, pipe_timeb, input_channels, measured_channels, output_channels, sampling_rate, force_profile_lat, force_profile_long, input_channelDict, ))
-        p_man_data = Process(target=manipulate_data, args=(pipe_livea, pipe_timea, pipe_manipb, pipe_inputb, pipe_outputb, pipe_man_donea, input_channelDict, output_channelDict, ))
+        p_get_data = Process(target=get_data, args=(pipe_liveb, pipe_timeb, input_channels, measured_channels, output_channels, sampling_rate, force_profile_lat, force_profile_long, input_channelDict, val_ni, val_ni_checkbox, ))
+        p_man_data = Process(target=manipulate_data, args=(pipe_livea, pipe_timea, pipe_manipb, pipe_inputb, pipe_outputb, pipe_man_donea, input_channelDict, output_channelDict, val_guiresolution, ))
         p_store_data = Process(target=store_data, args=(pipe_manipa, pipe_store_donea, input_channels, measured_channels, psuDict, save, outfolder, outfolder0, outfolder_timestamp, outfolder1, db_env, ))
         
         processlist2 = []
@@ -538,7 +552,17 @@ def main():
 
 # Function acquires and buffers live data from DAQ board and pipes it
 # to manipualte_data()
-def get_data(p_live, p_time, input_channels, measured_channels, output_channels, sampling_rate, force_profile_lat, force_profile_long, channelDict):
+def get_data(p_live,
+             p_time,
+             input_channels,
+             measured_channels,
+             output_channels,
+             sampling_rate,
+             force_profile_lat,
+             force_profile_long,
+             channelDict,
+             val_ni,
+             val_ni_checkbox):
     try:
         with nidaqmx.Task() as task0, nidaqmx.Task() as task1:
             
@@ -577,12 +601,16 @@ def get_data(p_live, p_time, input_channels, measured_channels, output_channels,
             # However, if the buffer size is large, so too will be the delay
             # The number of tasks the computer has seems to affect this, so it's safer to set these too high
             
-            if sampling_rate <= 10000:
-                num_samples1 = int(sampling_rate * 6)
-            elif sampling_rate <= 50000:
-                num_samples1 = int(sampling_rate * 10)
-            else:
-                num_samples1 = int(sampling_rate * 20)
+            if val_ni_checkbox:
+                num_samples1 = val_ni
+                print("eyyyyyyy")
+            else:                
+                if sampling_rate <= 10000:
+                    num_samples1 = int(sampling_rate * 6)
+                elif sampling_rate <= 50000:
+                    num_samples1 = int(sampling_rate * 10)
+                else:
+                    num_samples1 = int(sampling_rate * 20)
             
             for channel in input_channels:
                 task1.ai_channels.add_ai_voltage_chan(channel)
@@ -642,11 +670,21 @@ def get_data(p_live, p_time, input_channels, measured_channels, output_channels,
 
 # Function recieves buffered data from get_data(), restructures it and pipes
 # it to store_data()
-def manipulate_data(p_live, p_time, p_manip, p_inputplot, p_outputplot, p_done, input_channelDict, output_channelDict):
+def manipulate_data(p_live,
+                    p_time,
+                    p_manip,
+                    p_inputplot,
+                    p_outputplot,
+                    p_done,
+                    input_channelDict,
+                    output_channelDict,
+                    val_guiresolution):
     try:
         #buffer_rate = 0.0125 #80 data points per channel per sec
         #buffer_rate = 0.05 #80 data points per channel per sec
-        buffer_rate = 0.01 #80 data points per channel per sec
+        #buffer_rate = 0.01
+        buffer_rate = 1.0 / val_guiresolution
+        
         counter = 0
         while True:
             if p_done.poll():
@@ -704,6 +742,10 @@ def manipulate_data(p_live, p_time, p_manip, p_inputplot, p_outputplot, p_done, 
                     # Send data to store_data()
                     p_manip.send(input_man)
                     p_manip.send(output_man)
+                    
+                    time_now = time.time()
+                    time_delay = time_now - time_start
+                    #print(str(time_delay))
             except:
                 print("Error in data manipulation")
                 break

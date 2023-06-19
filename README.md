@@ -314,4 +314,8 @@
 
  * Preferences widget added (not connected)
 
+ **19-Jun-23**
+
+ * Preferences widget functionality added for all parameters
+
 </sub>
