@@ -300,6 +300,7 @@ class RampSettingsLayout(QVBoxLayout):
                  textbox_guiresolution,
                  #textbox_guirefresh,
                  pipe_buffer,
+                 pipe_getdatab,
                  parent=None, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
         #============================================================
@@ -325,6 +326,8 @@ class RampSettingsLayout(QVBoxLayout):
         self.textbox_guiresolution = textbox_guiresolution
         #self.textbox_guirefresh = textbox_guirefresh
         self.pipe_buffer = pipe_buffer
+        
+        self.pipe_getdatab = pipe_getdatab
         
         #self.consoleprocess.write("fnlkfnalsk")
         #self.consoleprocess.setProcessChannelMode(QProcess.MergedChannels)
@@ -414,6 +417,7 @@ class RampSettingsLayout(QVBoxLayout):
         #self.pipe_signal.send(False) # Send signal to main.py to restart
         self.pipe_inputplotb.send(False) ######12/06/2023
         self.pipe_outputplotb.send(False) ######12/06/2023
+        self.pipe_getdatab.send(False)
 
 
     def start_on_click(self):
@@ -963,7 +967,9 @@ class GraphLayout(QVBoxLayout):
     
     def update_plots(self):
         if self.pipe_plota.poll():                 # If start/stop button pressed
-            self.counter = 0
+            
+            if not self.on:                        # If not already on, counter = 0
+                self.counter = 0
             while self.pipe_plota.poll():          # Receive start/stop signal
                 self.on = self.pipe_plota.recv()
         
@@ -1037,6 +1043,7 @@ class Layout(QGridLayout):
                  textbox_guiresolution,
                  #textbox_guirefresh,
                  pipe_buffer,
+                 pipe_getdatab,
                  parent=None,
                  *args,
                  **kwargs):
@@ -1053,6 +1060,7 @@ class Layout(QGridLayout):
         self.guirefresh = guirefresh
         self.pipe_guirefresha_output = pipe_guirefresha_output
         self.pipe_guirefresha_input = pipe_guirefresha_input
+        self.pipe_getdatab = pipe_getdatab
         
         
         
@@ -1089,7 +1097,8 @@ class Layout(QGridLayout):
                                          self.checkbox_ni,
                                          self.textbox_guiresolution,
                                          #self.textbox_guirefresh,
-                                         self.pipe_buffer)
+                                         self.pipe_buffer,
+                                         self.pipe_getdatab)
         #layout_output = OutputGraphLayout(self.output_channelDict, self.pipe_output, self.pipe_outputplota)
         #layout_input = InputGraphLayout(self.input_channelDict, self.pipe_input, self.pipe_inputplota, self.guirefresh)
 
@@ -1227,7 +1236,19 @@ class PreferencesTab(QWidget):
         
 
 class MainWindow(QMainWindow):
-    def __init__(self, input_channelDict, output_channelDict, pipe_param, pipe_input, pipe_output, pipe_signal, pipe_console, pipe_buffer, parent=None, *args, **kwargs):
+    def __init__(self,
+                 input_channelDict,
+                 output_channelDict,
+                 pipe_param,
+                 pipe_input,
+                 pipe_output,
+                 pipe_signal,
+                 pipe_console,
+                 pipe_buffer,
+                 pipe_getdatab,
+                 parent=None,
+                 *args,
+                 **kwargs):
         super().__init__(parent, *args, **kwargs)
         self.input_channelDict = input_channelDict
         self.output_channelDict = output_channelDict
@@ -1237,6 +1258,7 @@ class MainWindow(QMainWindow):
         self.pipe_output = pipe_output
         self.pipe_console = pipe_console
         self.pipe_buffer = pipe_buffer
+        self.pipe_getdatab = pipe_getdatab
         self.title = "Flying Balls"
         self.icon = "../fig/icon.png"
         self.setGeometry(40, 40, 1200, 625)
@@ -1318,7 +1340,8 @@ class MainWindow(QMainWindow):
                              self.checkbox_ni,
                              self.textbox_guiresolution,
                              #self.textbox_guirefresh,
-                             self.pipe_buffer)
+                             self.pipe_buffer,
+                             self.pipe_getdatab)
         widget = QWidget()
         widget.setLayout(grid_layout)
         self.setCentralWidget(widget)
@@ -1353,7 +1376,7 @@ class MovieSplashScreen(QSplashScreen):
 
         
 
-def start_gui(input_channelDict, output_channelDict, pipe_param, pipe_input, pipe_output, pipe_signal, pipe_console, pipe_buffer):
+def start_gui(input_channelDict, output_channelDict, pipe_param, pipe_input, pipe_output, pipe_signal, pipe_console, pipe_buffer, pipe_getdatab):
     # Splash screen
     app = QApplication(sys.argv)
     pathToGIF = "../fig/loading/loading.gif"
@@ -1365,7 +1388,15 @@ def start_gui(input_channelDict, output_channelDict, pipe_param, pipe_input, pip
         ex.show()
 
     QTimer.singleShot(1000, showWindow)
-    ex = MainWindow(input_channelDict, output_channelDict, pipe_param, pipe_input, pipe_output, pipe_signal, pipe_console, pipe_buffer)
+    ex = MainWindow(input_channelDict,
+                    output_channelDict,
+                    pipe_param,
+                    pipe_input,
+                    pipe_output,
+                    pipe_signal,
+                    pipe_console,
+                    pipe_buffer,
+                    pipe_getdatab)
     app.exec_()
     sys.exit(app.exec_())
 

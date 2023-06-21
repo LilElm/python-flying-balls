@@ -156,14 +156,14 @@ def eval_halfsinepulses(amp=0.4,
     # Print to file
     if coil is None:
         if timestamp is None:
-            path = f"{outfolder}halfsinepulses_profile{num}"
+            path = f"{outfolder}halfsinepulses_profile_23.06.21.{num}"
         else:
-            path = f"{outfolder}halfsinepulses_profile{num}_{timestamp}" 
+            path = f"{outfolder}halfsinepulses_profile_23.06.21.{num}_{timestamp}" 
     else:
         if timestamp is None:
-            path = f"{outfolder}{coil}_halfsinepulses_profile{num}"
+            path = f"{outfolder}{coil}_halfsinepulses_profile_23.06.21.{num}"
         else:
-            path = f"{outfolder}{coil}_halfsinepulses_profile{num}_{timestamp}"
+            path = f"{outfolder}{coil}_halfsinepulses_profile_23.06.21.{num}_{timestamp}"
             
     
     

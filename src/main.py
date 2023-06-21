@@ -43,7 +43,7 @@ def gen_numbers(channelDict):
         time.sleep(1)
 
 
-def get_parameters(pipe_parama, pipe_buffera):
+def get_parameters(pipe_parama, pipe_buffera, pipe_consoleb):
     try:
         # Wait for user input from GUI
         
@@ -75,6 +75,7 @@ def get_parameters(pipe_parama, pipe_buffera):
         
     except Exception as e:
         print(str(e))
+        pipe_consoleb.send(str(e))
     return out_path, db_env, save, sampling_rate, f0, df, k, lat_profile, lat_params, long_profile, long_params, val_ni, val_ni_checkbox, val_guiresolution
 
 
@@ -169,9 +170,9 @@ def main():
     
     """
     # Define all output channels, including pipes for sending and receiving data
-    output_channels = ["Dev1/ao0", "Dev1/ao1"]
+    output_channels = ["Dev1/ao3", "Dev1/ao1"]
     measured_channels = ["Dev1/ai3", "Dev1/ai0"]
-    output_names = ["Lateral Coils\nao0/ai3", "Longitudinal Coils\nao1/ai0"]
+    output_names = ["Lateral Coils\nao3/ai3", "Longitudinal Coils\nao1/ai0"]
     output_channelDict = {channel: Channel(channel=channel, measured=measured) for channel in output_channels for measured in measured_channels}
     index = 0
     for channel in output_channelDict:
@@ -185,7 +186,7 @@ def main():
      
     
     # Define all output channels, including pipes for sending and receiving data
-    output_channels = [("Dev1/ao0", "Dev1/ai3"),
+    output_channels = [("Dev1/ao3", "Dev1/ai3"),
                        ("Dev1/ao1", "Dev1/ai0")]
     
     
@@ -194,7 +195,7 @@ def main():
     
     
     #measured_channels = ["Dev1/ai3", "Dev1/ai0"]
-    output_names = ["Lateral Coils\nao0/ai3", "Longitudinal Coils\nao1/ai0"]
+    output_names = ["Lateral Coils\nao3/ai3", "Longitudinal Coils\nao1/ai0"]
     output_channelDict = {channel: Channel(channel=channel, measured=measured) for channel,measured in output_channels}
     index = 0
     for channel in output_channelDict:
@@ -238,11 +239,12 @@ def main():
     pipe_recorda, pipe_recordb = Pipe(duplex=False)
     pipe_msga, pipe_msgb = Pipe(duplex=False)
     pipe_buffera, pipe_bufferb = Pipe(duplex=False)
+    pipe_getdataa, pipe_getdatab = Pipe(duplex=False)
 
 
     # Start GUI
     processlist = []
-    proc0 = Process(target=start_gui, args=(input_channelDict, output_channelDict, pipe_paramb, pipe_inputa, pipe_outputa, pipe_signalb, pipe_consolea, pipe_bufferb))
+    proc0 = Process(target=start_gui, args=(input_channelDict, output_channelDict, pipe_paramb, pipe_inputa, pipe_outputa, pipe_signalb, pipe_consolea, pipe_bufferb, pipe_getdatab))
     processlist.append(proc0)
     proc0.start()
     
@@ -261,229 +263,260 @@ def main():
     
 
 
-    # Start camera
+    # Connect to camera
     proc3 = Process(target=start_camera, args=(pipe_cama, pipe_recordb, ))
     processlist.append(proc3)
     proc3.start()
 
 
-
     while True:
-        running = True
-        # Get input parameters from the GUI and evalute the force profile
-        pipe_msgb.send(msg1)
-        outfolder, db_env, save, sampling_rate, f0, df, k, lat_profile, lat_params, long_profile, long_params, val_ni, val_ni_checkbox, val_guiresolution = get_parameters(pipe_parama, pipe_buffera)
-        if outfolder == None:
-            outfolder = os.getcwd()
-            outfolder = outfolder.rsplit('\\', 1)[0]
-            outfolder = outfolder + "\\out\\"
-        
-        """
-        timestamp = time.time()
-        outfolder0 = outfolder + 'out_unprocessed/'
-        outfolder1 = outfolder0 + f'out_{timestamp}/'
-        outfolder2 = outfolder + 'out_processed/'
-        os.makedirs(outfolder, exist_ok=True)
-        os.makedirs(outfolder0, exist_ok=True)
-        os.makedirs(outfolder1, exist_ok=True)
-        os.makedirs(outfolder2, exist_ok=True)
-        """
-        
-        
-        timestamp = time.time()
-        outfolder0 = "out_unprocessed/"
-        outfolder1 = "out_processed/"
-        outfolder00 = f"out_{timestamp}/"
-        
-        
-        #outfolder = f"{outfolder0}out_{timestamp}/"
-        #outfolder00 = "out_{timestamp}/"
-#        outfolder3 = outfolder + outfolder1
-        
-        outfolder_timestamp = outfolder + outfolder0 + outfolder00
-        
-        os.makedirs(outfolder, exist_ok=True)
-        os.makedirs(f"{outfolder}{outfolder0}", exist_ok=True)
-        os.makedirs(f"{outfolder}{outfolder0}{outfolder00}", exist_ok=True)
-        os.makedirs(f"{outfolder}{outfolder1}", exist_ok=True)
-        
-        
-        
-        
-        pipe_msgb.send(msg2)
-        force_profile_lat = force_profile(outfolder_timestamp, timestamp, sampling_rate, f0, df, k, lat_profile, lat_params, measured_channels[0], coil="lat")
-        force_profile_long = force_profile(outfolder_timestamp, timestamp, sampling_rate, f0, df, k, long_profile, long_params, measured_channels[1], coil="long")
-        
-        # Check length and adjust accordingly
-        len_lat = len(force_profile_lat)
-        len_long = len(force_profile_long)
-
-                  
-        while len_lat < len_long:
-            val = force_profile_lat[-1]
-            force_profile_lat = np.append(force_profile_lat, val)
+        while True:
+            running = True
+            # Get input parameters from the GUI and evalute the force profile
+            pipe_msgb.send(msg1)
+            outfolder, db_env, save, sampling_rate, f0, df, k, lat_profile, lat_params, long_profile, long_params, val_ni, val_ni_checkbox, val_guiresolution = get_parameters(pipe_parama, pipe_buffera, pipe_consoleb)
+            clear_pipes([pipe_livea, pipe_timea, pipe_manipa, pipe_store_donea, pipe_cama, pipe_recorda, pipe_parama, pipe_getdataa])
+            
+            if outfolder == None:
+                outfolder = os.getcwd()
+                outfolder = outfolder.rsplit('\\', 1)[0]
+                outfolder = outfolder + "\\out\\"
+            
+            """
+            timestamp = time.time()
+            outfolder0 = outfolder + 'out_unprocessed/'
+            outfolder1 = outfolder0 + f'out_{timestamp}/'
+            outfolder2 = outfolder + 'out_processed/'
+            os.makedirs(outfolder, exist_ok=True)
+            os.makedirs(outfolder0, exist_ok=True)
+            os.makedirs(outfolder1, exist_ok=True)
+            os.makedirs(outfolder2, exist_ok=True)
+            """
+            
+            
+            timestamp = time.time()
+            outfolder0 = "out_unprocessed/"
+            outfolder1 = "out_processed/"
+            outfolder00 = f"out_{timestamp}/"
+            
+            
+            #outfolder = f"{outfolder0}out_{timestamp}/"
+            #outfolder00 = "out_{timestamp}/"
+    #        outfolder3 = outfolder + outfolder1
+            
+            outfolder_timestamp = outfolder + outfolder0 + outfolder00
+            
+            os.makedirs(outfolder, exist_ok=True)
+            os.makedirs(f"{outfolder}{outfolder0}", exist_ok=True)
+            os.makedirs(f"{outfolder}{outfolder0}{outfolder00}", exist_ok=True)
+            os.makedirs(f"{outfolder}{outfolder1}", exist_ok=True)
+            
+            
+            if pipe_getdataa.poll():
+                while pipe_getdataa.poll():
+                    pipe_getdataa.recv()
+                break
+            
+            
+            pipe_msgb.send(msg2)
+            force_profile_lat = force_profile(outfolder_timestamp, timestamp, sampling_rate, f0, df, k, lat_profile, lat_params, measured_channels[0], coil="lat")
+            force_profile_long = force_profile(outfolder_timestamp, timestamp, sampling_rate, f0, df, k, long_profile, long_params, measured_channels[1], coil="long")
+            
+            # Check length and adjust accordingly
             len_lat = len(force_profile_lat)
-            
-            
-        while len_long < len_lat:
-            val = force_profile_long[-1]
-            force_profile_long = np.append(force_profile_long, val, axis=None)
             len_long = len(force_profile_long)
+    
+                      
+            while len_lat < len_long:
+                val = force_profile_lat[-1]
+                force_profile_lat = np.append(force_profile_lat, val)
+                len_lat = len(force_profile_lat)
+                
+                
+            while len_long < len_lat:
+                val = force_profile_long[-1]
+                force_profile_long = np.append(force_profile_long, val, axis=None)
+                len_long = len(force_profile_long)
+                
+            
+            # Get PSU currents
+            for channel in psulist:
+                psuDict[channel] = float(psu.query(f"ISET? {channel}"))
+            
+            
+            
+            if pipe_getdataa.poll():
+                while pipe_getdataa.poll():
+                    pipe_getdataa.recv()
+                break
             
         
-        # Get PSU currents
-        for channel in psulist:
-            psuDict[channel] = float(psu.query(f"ISET? {channel}"))
+            # Create processes
+            p_get_data = Process(target=get_data, args=(pipe_liveb, pipe_timeb, input_channels, measured_channels, output_channels, sampling_rate, force_profile_lat, force_profile_long, input_channelDict, val_ni, val_ni_checkbox, pipe_getdataa, pipe_consoleb, ))
+            p_man_data = Process(target=manipulate_data, args=(pipe_livea, pipe_timea, pipe_manipb, pipe_inputb, pipe_outputb, pipe_man_donea, input_channelDict, output_channelDict, val_guiresolution, pipe_consoleb, ))
+            p_store_data = Process(target=store_data, args=(pipe_manipa, pipe_store_donea, input_channels, measured_channels, psuDict, save, outfolder, outfolder0, outfolder_timestamp, outfolder1, db_env, pipe_consoleb, ))
+            
+            processlist2 = []
+            processlist2.append(p_get_data)
+            processlist2.append(p_man_data)
+            processlist2.append(p_store_data)
+        
+            
+            if pipe_getdataa.poll():
+                while pipe_getdataa.poll():
+                    pipe_getdataa.recv()
+                break
         
         
-    
-        # Create processes
-        p_get_data = Process(target=get_data, args=(pipe_liveb, pipe_timeb, input_channels, measured_channels, output_channels, sampling_rate, force_profile_lat, force_profile_long, input_channelDict, val_ni, val_ni_checkbox, ))
-        p_man_data = Process(target=manipulate_data, args=(pipe_livea, pipe_timea, pipe_manipb, pipe_inputb, pipe_outputb, pipe_man_donea, input_channelDict, output_channelDict, val_guiresolution, ))
-        p_store_data = Process(target=store_data, args=(pipe_manipa, pipe_store_donea, input_channels, measured_channels, psuDict, save, outfolder, outfolder0, outfolder_timestamp, outfolder1, db_env, ))
-        
-        processlist2 = []
-        processlist2.append(p_get_data)
-        processlist2.append(p_man_data)
-        processlist2.append(p_store_data)
-    
-        
-        # Start camera
-        pipe_camb.send(True)
-        cam = False
-        pipe_msgb.send(msg0)
-        time_cam1 = time.time()
-        while not cam:
-            if pipe_recorda.poll():
-                while pipe_recorda.poll():
-                    cam = pipe_recorda.recv()
-            else:
-                time_cam2 = time.time()
-                t = time_cam2 - time_cam1
-                if t > 5.0:
-                    print("Failed to connect to the camera")
-                    break
-
-        
-        pipe_msgb.send(msg3)
-        for p in processlist2:
-            try:
-                logging.info("Starting process {}".format(p))
-                p.start()
-                print(str(p))
-            except:
-                running = False
-                print("Error starting {}".format(p))
-                logging.error("Error starting {}".format(p))
-                # Stop all processes
-                for p in processlist2:
-                    try:
-                        p.kill()
-                    except:
-                        print(f"error killing process {p}")
-                 
-                # Clear stop signals in case of build-up
-                while pipe_signala.poll():
-                    pipe_signala.recv()
-                
-                
-        
-    
-        # Turn on the GUI plots
-        pipe_msgb.send(msg4)
-        #signal_start.signal = True
-    
-
-        while running:
-            # If stop signal
-            if pipe_signala.poll():
-                while pipe_signala.poll():
-                    pipe_signala.recv()
-                pipe_msgb.send(msg5)
-                #signal_start.signal = False
-                
-                
-                clear_pipes([pipe_livea, pipe_timea, pipe_manipa, pipe_store_donea, pipe_cama, pipe_recorda, pipe_parama])
-                """
-                # Clear all pipes (fix attempt 16/02/2023)
-                if pipe_livea.poll():
-                    while pipe_livea.poll():
-                        pipe_livea.recv()
-                        
-                
-                if pipe_timea.poll():
-                    while pipe_timea.poll():
-                        pipe_timea.recv()
-                        
-                
-                if pipe_manipa.poll():
-                    while pipe_manipa.poll():
-                        pipe_manipa.recv()
-                        
-                
-                if pipe_store_donea.poll():
-                    while pipe_store_donea.poll():
-                        pipe_store_donea.recv()
-                        
-                
-                if pipe_man_donea.poll():
-                    while pipe_man_donea.poll():
-                        pipe_man_donea.recv()
-                        
-                
-                if pipe_cama.poll():
-                    while pipe_cama.poll():
-                        pipe_cama.recv()
-                        
-                
+            # Start camera
+            pipe_camb.send(True)
+            cam = False
+            pipe_msgb.send(msg0)
+            time_cam1 = time.time()
+            while not cam:
                 if pipe_recorda.poll():
                     while pipe_recorda.poll():
-                        pipe_recorda.recv()
-                        
-                if pipe_parama.poll():
-                    while pipe_parama.poll():
-                        pipe_parama.recv()
-                """
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                """
-                if pipe_recorda:
-                    while pipe_recorda.poll():
-                        cam = pipe_recorda.recv()"""
-                
-                
-                # Stop camera
-                pipe_camb.send(False)
-                # Stop all processes
-                for p in processlist2:
-                    try:
-                        p.kill()
-                    except:
-                        print("error killing process")
-                running = False
+                        cam = pipe_recorda.recv()
+                else:
+                    time_cam2 = time.time()
+                    t = time_cam2 - time_cam1
+                    if t > 5.0:
+                        print("Failed to connect to the camera")
+                        pipe_consoleb.send("Failed to connect to the camera")
+                        break
+    
+            
+    
+            pipe_msgb.send(msg3)
+            for p in processlist2:
+                try:
+                    logging.info("Starting process {}".format(p))
+                    p.start()
+                    print(str(p))
+                except:
+                    running = False
+                    print("Error starting {}".format(p))
+                    pipe_consoleb.send("Error starting {}".format(p))
+                    logging.error("Error starting {}".format(p))
+                    # Stop all processes
+                    for p in processlist2:
+                        try:
+                            p.kill()
+                        except:
+                            print(f"error killing process {p}")
+                            pipe_consoleb.send(f"error killing process {p}")
+                     
+                    # Clear stop signals in case of build-up
+                    while pipe_signala.poll():
+                        pipe_signala.recv()
+                    
+                    if pipe_getdataa.poll():
+                        while pipe_getdataa.poll():
+                            pipe_getdataa.recv()
+                        break
+            
+        
+            # Turn on the GUI plots
+            pipe_msgb.send(msg4)
+            #signal_start.signal = True
+        
+            if pipe_getdataa.poll():
+                while pipe_getdataa.poll():
+                    pipe_getdataa.recv()
+                break
+    
+            while running:
+                # If stop signal
+                if pipe_signala.poll():
+                    while pipe_signala.poll():
+                        pipe_signala.recv()
+                    pipe_msgb.send(msg5)
+                    #signal_start.signal = False
                     
     
-            if not p_get_data.is_alive():
-                running = False ####### added 12/06/23 to reset program automatically automatically
-                #signal_start.signal = False ######### also added
-                clear_pipes([pipe_livea, pipe_timea, pipe_manipa, pipe_store_donea, pipe_cama, pipe_recorda, pipe_parama])
-                time.sleep(1.0)
-                pipe_camb.send(False)
-                if p_store_data.is_alive():
-                    pipe_store_doneb.send(True)
-                    p_store_data.join()
-                if p_man_data.is_alive():
-                    pipe_man_doneb.send(True)
-                    p_man_data.join()
                     
-                
+                    clear_pipes([pipe_livea, pipe_timea, pipe_manipa, pipe_store_donea, pipe_cama, pipe_recorda, pipe_parama, pipe_getdataa])
+                    """
+                    # Clear all pipes (fix attempt 16/02/2023)
+                    if pipe_livea.poll():
+                        while pipe_livea.poll():
+                            pipe_livea.recv()
+                            
+                    
+                    if pipe_timea.poll():
+                        while pipe_timea.poll():
+                            pipe_timea.recv()
+                            
+                    
+                    if pipe_manipa.poll():
+                        while pipe_manipa.poll():
+                            pipe_manipa.recv()
+                            
+                    
+                    if pipe_store_donea.poll():
+                        while pipe_store_donea.poll():
+                            pipe_store_donea.recv()
+                            
+                    
+                    if pipe_man_donea.poll():
+                        while pipe_man_donea.poll():
+                            pipe_man_donea.recv()
+                            
+                    
+                    if pipe_cama.poll():
+                        while pipe_cama.poll():
+                            pipe_cama.recv()
+                            
+                    
+                    if pipe_recorda.poll():
+                        while pipe_recorda.poll():
+                            pipe_recorda.recv()
+                            
+                    if pipe_parama.poll():
+                        while pipe_parama.poll():
+                            pipe_parama.recv()
+                    """
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    """
+                    if pipe_recorda:
+                        while pipe_recorda.poll():
+                            cam = pipe_recorda.recv()"""
+                    
+                    
+                    # Stop camera
+                    pipe_camb.send(False)
+                    # Stop all processes
+                    for p in processlist2:
+                        try:
+                            p.kill()
+                        except:
+                            print(f"error killing process {p}")
+                            pipe_consoleb.send(f"error killing process {p}")
+                    running = False
+                        
+        
+                if not p_get_data.is_alive():
+                    running = False ####### added 12/06/23 to reset program automatically automatically
+                    #signal_start.signal = False ######### also added
+                    clear_pipes([pipe_livea, pipe_timea, pipe_manipa, pipe_store_donea, pipe_cama, pipe_recorda, pipe_parama])
+                    time.sleep(1.0)
+                    pipe_camb.send(False)
+                    if p_store_data.is_alive():
+                        pipe_store_doneb.send(True)
+                        p_store_data.join()
+                    if p_man_data.is_alive():
+                        pipe_man_doneb.send(True)
+                        p_man_data.join()
+                        
+                    
     
     
     """
@@ -491,12 +524,12 @@ def main():
             
     # If store_data() has ended, end all
     # Nota bene, the 'msvcrt' method will only work with Windows
-    print("Press RETURN to stop data acquisition\n")
+    ("Press RETURN to stop data acquisition\n")
     try:
         while True:
             if msvcrt.kbhit():
                 if msvcrt.getch()==b'\r':
-                    print("Data acquisition stopped via keyboard interruption")
+                    ("Data acquisition stopped via keyboard interruption")
                     logging.warning("Data acquisition stopped via keyboard interruption")
                     break
             if pipe_killa.poll():
@@ -562,7 +595,9 @@ def get_data(p_live,
              force_profile_long,
              channelDict,
              val_ni,
-             val_ni_checkbox):
+             val_ni_checkbox,
+             pipe_getdataa,
+             pipe_consoleb):
     try:
         with nidaqmx.Task() as task0, nidaqmx.Task() as task1:
             
@@ -586,6 +621,7 @@ def get_data(p_live,
                 writer0.write_many_sample(buffer0, timeout=60)
             except nidaqmx.errors.DaqError as err:
                 print(err)
+                pipe_consoleb.send(str(err))
                 logging.error(err)
                 if task0:
                     task0.close()
@@ -603,7 +639,6 @@ def get_data(p_live,
             
             if val_ni_checkbox:
                 num_samples1 = val_ni
-                print("eyyyyyyy")
             else:                
                 if sampling_rate <= 10000:
                     num_samples1 = int(sampling_rate * 6)
@@ -650,9 +685,16 @@ def get_data(p_live,
                     
                     if task0.is_task_done():
                         break
+                    
+                    
+                    if pipe_getdataa.poll():
+                        while pipe_getdataa.poll():
+                            pipe_getdataa.recv()
+                        break
 
                 except nidaqmx.errors.DaqError as err:
                     print(err)
+                    pipe_consoleb.send(str(err))
                     logging.error(err)
                     if task0:
                         task0.close()
@@ -664,6 +706,7 @@ def get_data(p_live,
         logging.warning("Data acquisition stopped via keyboard interruption")
     finally:
         print("Leaving get_data()")
+        pipe_consoleb.send("Leaving get_data()")
         logging.info("Leaving get_data()")
 
 
@@ -678,7 +721,9 @@ def manipulate_data(p_live,
                     p_done,
                     input_channelDict,
                     output_channelDict,
-                    val_guiresolution):
+                    val_guiresolution,
+                    pipe_consoleb):
+    
     try:
         #buffer_rate = 0.0125 #80 data points per channel per sec
         #buffer_rate = 0.05 #80 data points per channel per sec
@@ -747,19 +792,21 @@ def manipulate_data(p_live,
                     time_delay = time_now - time_start
                     #print(str(time_delay))
             except:
-                print("Error in data manipulation")
+                print("Error in manipulate_data")
+                pipe_consoleb.send("Error in manipulate_data()")
                 break
     except KeyboardInterrupt:
         logging.warning("Data manipulation stopped via keyboard interruption")
     finally:
         logging.info("Leaving manipulate_data()")
         print("Leaving manipulate_data()")
+        pipe_consoleb.send("Leaving manipulate_data()")
 
 
 
 # Function connects to the server, recieves manipualted data from
 # manipulated_data() and inserts it in the database
-def store_data(p_manip, p_done, input_channels, measured_channels, psuDict, save, outfolder, outfolder0, outfolder_timestamp, outfolder1, db_env):
+def store_data(p_manip, p_done, input_channels, measured_channels, psuDict, save, outfolder, outfolder0, outfolder_timestamp, outfolder1, db_env, pipe_consoleb):
     try:
         if save:
             logging.info("Save signal received")
@@ -838,6 +885,7 @@ def store_data(p_manip, p_done, input_channels, measured_channels, psuDict, save
     finally:
         logging.info("Leaving store_data()")
         print("Leaving store_data()")
+        pipe_consoleb.send("Leaving store_data()")
         
 
 

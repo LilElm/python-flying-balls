@@ -318,4 +318,13 @@
 
  * Preferences widget functionality added for all parameters
 
+ **21-Jun-23**
+
+ * GraphLayout() checks if the display is on before resetting the display on the start button
+
+ * The stop button now sends a signal to stop the data acquisition as well as the GUI
+
+ * More info sent to GUI console
+
+
 </sub>
