@@ -220,8 +220,6 @@ def main():
         sys.exit(1)
 
     
-    # Create starting signal for GUI plots (deafult=False)
-    #signal_start = SignalStart()
     
     # Create pipes for the GUI
     pipe_outputa, pipe_outputb = Pipe(duplex=False)
@@ -240,11 +238,15 @@ def main():
     pipe_msga, pipe_msgb = Pipe(duplex=False)
     pipe_buffera, pipe_bufferb = Pipe(duplex=False)
     pipe_getdataa, pipe_getdatab = Pipe(duplex=False)
+    
+    # Pipes to start and stop the GUI
+    pipe_inputplota, pipe_inputplotb = Pipe(duplex=False)
+    pipe_outputplota, pipe_outputplotb = Pipe(duplex=False)
 
 
     # Start GUI
     processlist = []
-    proc0 = Process(target=start_gui, args=(input_channelDict, output_channelDict, pipe_paramb, pipe_inputa, pipe_outputa, pipe_signalb, pipe_consolea, pipe_bufferb, pipe_getdatab))
+    proc0 = Process(target=start_gui, args=(input_channelDict, output_channelDict, pipe_paramb, pipe_inputa, pipe_outputa, pipe_signalb, pipe_consolea, pipe_bufferb, pipe_getdatab, pipe_inputplota, pipe_inputplotb, pipe_outputplota, pipe_outputplotb, ))
     processlist.append(proc0)
     proc0.start()
     
@@ -380,12 +382,15 @@ def main():
                 else:
                     time_cam2 = time.time()
                     t = time_cam2 - time_cam1
-                    if t > 5.0:
+                    if t > 1.0:
                         print("Failed to connect to the camera")
                         pipe_consoleb.send("Failed to connect to the camera")
                         break
     
             
+    
+            #pipe_inputplotb.send(False)
+            #pipe_outputplotb.send(False)
     
             pipe_msgb.send(msg3)
             for p in processlist2:
@@ -505,6 +510,9 @@ def main():
         
                 if not p_get_data.is_alive():
                     running = False ####### added 12/06/23 to reset program automatically automatically
+                    #pipe_inputplotb.send(False)
+                    #pipe_outputplotb.send(False)
+                    
                     #signal_start.signal = False ######### also added
                     clear_pipes([pipe_livea, pipe_timea, pipe_manipa, pipe_store_donea, pipe_cama, pipe_recorda, pipe_parama])
                     time.sleep(1.0)
@@ -735,6 +743,10 @@ def manipulate_data(p_live,
             if p_done.poll():
                 while p_done.poll():
                     p_done.recv()
+                
+                # Send 'done' signal to GUI plots
+                p_inputplot.send(False)
+                p_outputplot.send(False)
                 sys.exit(0)
 
             # Unpackage the data

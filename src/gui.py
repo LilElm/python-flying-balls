@@ -422,6 +422,11 @@ class RampSettingsLayout(QVBoxLayout):
 
     def start_on_click(self):
         # Send start signal to graphs
+        self.pipe_inputplotb.send(False) ######12/06/2023
+        self.pipe_outputplotb.send(False) ######12/06/2023
+        
+        
+        
         self.pipe_inputplotb.send(True) ######12/06/2023
         self.pipe_outputplotb.send(True) ######12/06/2023
 
@@ -729,177 +734,9 @@ class RampSettingsLayout(QVBoxLayout):
             success = True
         return success
 
-                        
-"""        
-class OutputGraphLayout(QVBoxLayout):
-    def __init__(self, channelDict, pipe_output, pipe_plota, parent=None, *args, **kwargs):
-        super().__init__(parent, *args, **kwargs)
-        self.channelDict = channelDict
-        self.pipe_output = pipe_output
-        self.pipe_plota = pipe_plota
+      
 
-        # Create a plot for each input channel
-        for channel in self.channelDict:
-            self.channelDict[channel].plot = pg.PlotWidget(title=self.channelDict[channel].name)
-            self.channelDict[channel].plot.setLabel('left', 'Voltage (V)')
-            self.channelDict[channel].plot.setLabel('bottom', 'Elapsed Time (s)')
-            self.channelDict[channel].plot.addLegend()
-            self.channelDict[channel].plot.data = []
-            self.elapsed_time = []
-            self.channelDict[channel].plot.line = self.channelDict[channel].plot.plot(self.elapsed_time,
-                                                                                      self.channelDict[channel].plot.data)
-                                                                                      #name=self.channelDict[channel].name)
-            self.addWidget(self.channelDict[channel].plot, 1)
-            
-            # Annotation for the x and y coordinates
-            self.channelDict[channel].label = pg.LabelItem()
-            self.channelDict[channel].label.setParentItem(self.channelDict[channel].plot.getPlotItem())
-            self.channelDict[channel].label.anchor(itemPos=(1,0), parentPos=(1,0), offset=(-10,10))
-        
-        self.on = False
-        self.counter = 0
-        self.timer = QTimer()
-        self.timer.setInterval(10) #ms
-        self.timer.timeout.connect(self.update_plots)
-        self.timer.start()
-    
-    
-    
-    def update_plots(self):
-        if self.pipe_plota.poll():                 # If start/stop button pressed
-            self.counter = 0
-            while self.pipe_plota.poll():          # Receive start/stop signal
-                self.on = self.pipe_plota.recv()
-        
-        if self.on:
-            # Receive data
-            if self.pipe_output.poll():
-                data = self.pipe_output.recv()
-            
-                # Clear all data if start button press just pressed
-                if self.counter == 0:
-                    self.time_start = data[0]
-                    self.elapsed_time = []
-                    for channel in self.channelDict:
-                        self.channelDict[channel].plot.data = []
-                        self.channelDict[channel].plot.line.setData(self.elapsed_time, self.channelDict[channel].plot.data)
-                    self.counter = 1
-                elapsed_time = data[0] - self.time_start
-                self.elapsed_time.append(elapsed_time)
-                
-                
-                # Plot data
-                for channel in self.channelDict:
-                    self.channelDict[channel].plot.data.append(data[self.channelDict[channel].index])
-                    if len(self.elapsed_time) > 2500:
-                        self.elapsed_time = self.elapsed_time[1:]
-                    if len(self.channelDict[channel].plot.data) > 2500:
-                        self.channelDict[channel].plot.data = self.channelDict[channel].plot.data[1:]
-                    self.channelDict[channel].plot.line.setData(self.elapsed_time, self.channelDict[channel].plot.data)
-                    
-                    # Update label
-                    self.channelDict[channel].label.setText(f"x: {elapsed_time:5.2f}, y: {data[self.channelDict[channel].index]:5.2f}")
-            
-        
-        
-        else:
-            self.counter = 0
-            if self.pipe_output.poll():
-                while self.pipe_output.poll():
-                    self.pipe_output.recv()
-        
-        
-        
-                    
-                    
-                    
-                  
-        
-     
-                    
 
-class InputGraphLayout(QVBoxLayout):
-    def __init__(self, channelDict, pipe_input, pipe_plota, guirefresh, parent=None, *args, **kwargs):
-        super().__init__(parent, *args, **kwargs)
-        self.pipe_input = pipe_input
-        self.channelDict = channelDict
-        self.pipe_plota = pipe_plota
-        self.guirefresh = guirefresh
-        
-        
-        # Create a plot for each input channel
-        for channel in self.channelDict:
-            self.channelDict[channel].plot = pg.PlotWidget(title=self.channelDict[channel].name)
-            self.channelDict[channel].plot.setLabel('left', 'Voltage (V)')
-            self.channelDict[channel].plot.setLabel('bottom', 'Elapsed Time (s)')
-            self.channelDict[channel].plot.addLegend()
-            self.channelDict[channel].plot.data = []
-            self.elapsed_time = []
-            self.channelDict[channel].plot.line = self.channelDict[channel].plot.plot(self.elapsed_time,
-                                                                                      self.channelDict[channel].plot.data)
-            self.addWidget(self.channelDict[channel].plot, 1)
-            
-            # Annotation for the x and y coordinates
-            self.channelDict[channel].label = pg.LabelItem()
-            self.channelDict[channel].label.setParentItem(self.channelDict[channel].plot.getPlotItem())
-            self.channelDict[channel].label.anchor(itemPos=(1,0), parentPos=(1,0), offset=(-10,10))
-        
-        
-        self.on = False
-        self.counter = 0
-        self.timer = QTimer()
-        self.timer.setInterval(self.guirefresh) #ms
-        self.timer.timeout.connect(self.update_plots)
-        self.timer.start()
-    
-    
-    
-    
-    def update_plots(self):
-        if self.pipe_plota.poll():                 # If start/stop button pressed
-            self.counter = 0
-            while self.pipe_plota.poll():          # Receive start/stop signal
-                self.on = self.pipe_plota.recv()
-        
-        if self.on:
-            # Receive data
-            if self.pipe_input.poll():
-                data = self.pipe_input.recv()
-            
-                # Clear all data if start button press just pressed
-                if self.counter == 0:
-                    self.time_start = data[0]
-                    self.elapsed_time = []
-                    for channel in self.channelDict:
-                        self.channelDict[channel].plot.data = []
-                        self.channelDict[channel].plot.line.setData(self.elapsed_time, self.channelDict[channel].plot.data)
-                    self.counter = 1
-                elapsed_time = data[0] - self.time_start
-                self.elapsed_time.append(elapsed_time)
-                
-                
-                # Plot data
-                for channel in self.channelDict:
-                    self.channelDict[channel].plot.data.append(data[self.channelDict[channel].index])
-                    if len(self.elapsed_time) > 2500:
-                        self.elapsed_time = self.elapsed_time[1:]
-                    if len(self.channelDict[channel].plot.data) > 2500:
-                        self.channelDict[channel].plot.data = self.channelDict[channel].plot.data[1:]
-                    self.channelDict[channel].plot.line.setData(self.elapsed_time, self.channelDict[channel].plot.data)
-                    
-                    # Update label
-                    self.channelDict[channel].label.setText(f"x: {elapsed_time:5.2f}, y: {data[self.channelDict[channel].index]:5.2f}")
-            
-        
-        
-        else:
-            self.counter = 0
-            if self.pipe_input.poll():
-                while self.pipe_input.poll():
-                    self.pipe_input.recv()
-        
-        
-"""
 
 class GraphLayout(QVBoxLayout):
     def __init__(self, channelDict, pipe_input, pipe_plota, guirefresh, pipe_guirefresha, parent=None, *args, **kwargs):
@@ -976,37 +813,44 @@ class GraphLayout(QVBoxLayout):
         if self.on:
             # Receive data
             if self.pipe_input.poll():
+                
+                # Check if input is 'done' signal sent from 'manipulate_data' process from main.py
                 data = self.pipe_input.recv()
-            
-                # Clear all data if start button press just pressed
-                if self.counter == 0:
-                    self.time_start = data[0]
-                    self.elapsed_time = []
+                if data == False:
+                    self.on = False
+                else:
+                
+                
+                    # Clear all data if start button press just pressed
+                    if self.counter == 0:
+                        self.time_start = data[0]
+                        self.elapsed_time = []
+                        for channel in self.channelDict:
+                            self.channelDict[channel].plot.data = []
+                            self.channelDict[channel].plot.line.setData(self.elapsed_time, self.channelDict[channel].plot.data)
+                            #self.channelDict[channel].plot.line.setData([5], [1])
+                        self.counter = 1
+                    elapsed_time = data[0] - self.time_start
+                    self.elapsed_time.append(elapsed_time)
+                    
+                    
+                    # Plot data
                     for channel in self.channelDict:
-                        self.channelDict[channel].plot.data = []
+                        
+                        time_now = time.time()
+                        time_delay = time_now - data[0]
+                        #print(str(time_delay))
+                        
+                        self.channelDict[channel].plot.data.append(data[self.channelDict[channel].index])
+                        if len(self.elapsed_time) > 2500:
+                            self.elapsed_time = self.elapsed_time[1:]
+                        if len(self.channelDict[channel].plot.data) > 2500:
+                            self.channelDict[channel].plot.data = self.channelDict[channel].plot.data[1:]
                         self.channelDict[channel].plot.line.setData(self.elapsed_time, self.channelDict[channel].plot.data)
-                    self.counter = 1
-                elapsed_time = data[0] - self.time_start
-                self.elapsed_time.append(elapsed_time)
+                        
+                        # Update label
+                        self.channelDict[channel].label.setText(f"x: {elapsed_time:5.2f}, y: {data[self.channelDict[channel].index]:5.2f}")
                 
-                
-                # Plot data
-                for channel in self.channelDict:
-                    
-                    time_now = time.time()
-                    time_delay = time_now - data[0]
-                    #print(str(time_delay))
-                    
-                    self.channelDict[channel].plot.data.append(data[self.channelDict[channel].index])
-                    if len(self.elapsed_time) > 2500:
-                        self.elapsed_time = self.elapsed_time[1:]
-                    if len(self.channelDict[channel].plot.data) > 2500:
-                        self.channelDict[channel].plot.data = self.channelDict[channel].plot.data[1:]
-                    self.channelDict[channel].plot.line.setData(self.elapsed_time, self.channelDict[channel].plot.data)
-                    
-                    # Update label
-                    self.channelDict[channel].label.setText(f"x: {elapsed_time:5.2f}, y: {data[self.channelDict[channel].index]:5.2f}")
-            
         
         
         else:
@@ -1016,13 +860,7 @@ class GraphLayout(QVBoxLayout):
                     self.pipe_input.recv()
         
         
-        
                     
-               
-class SignalStart():
-    def __init__(self, signal=False):
-        self.signal = signal        
-        
         
 
 
@@ -1044,6 +882,10 @@ class Layout(QGridLayout):
                  #textbox_guirefresh,
                  pipe_buffer,
                  pipe_getdatab,
+                 pipe_inputplota,
+                 pipe_inputplotb,
+                 pipe_outputplota,
+                 pipe_outputplotb,
                  parent=None,
                  *args,
                  **kwargs):
@@ -1064,8 +906,13 @@ class Layout(QGridLayout):
         
         
         
-        self.pipe_inputplota, self.pipe_inputplotb = Pipe(duplex=False)
-        self.pipe_outputplota, self.pipe_outputplotb = Pipe(duplex=False)
+        self.pipe_inputplota = pipe_inputplota
+        self.pipe_inputplotb = pipe_inputplotb
+        self.pipe_outputplota = pipe_outputplota
+        self.pipe_outputplotb = pipe_outputplotb
+        
+        #self.pipe_inputplota, self.pipe_inputplotb = Pipe(duplex=False)
+        #self.pipe_outputplota, self.pipe_outputplotb = Pipe(duplex=False)
         
         
         self.textbox_ni = textbox_ni
@@ -1107,6 +954,12 @@ class Layout(QGridLayout):
         layout_input = GraphLayout(self.input_channelDict, self.pipe_input, self.pipe_inputplota, self.guirefresh, self.pipe_guirefresha_input)
         
 
+
+
+
+    #def __init__(self, channelDict, pipe_input, pipe_plota, guirefresh, pipe_guirefresha, parent=None, *args, **kwargs):
+
+
         self.addLayout(layout_fsettings, 0, 0, 1, 3)
         self.addLayout(layout_ramp, 1, 0, 1, 1)
         self.addLayout(layout_output, 1, 1, 1, 1)
@@ -1118,7 +971,19 @@ class Layout(QGridLayout):
 
 
 class PreferencesTab(QWidget):
-    def __init__(self, guirefresh, pipe_guirefresh_output, pipe_guirefresh_input, textbox_ni, checkbox_ni, textbox_guiresolution, textbox_guirefresh):
+    def __init__(self,
+                 guirefresh,
+                 pipe_guirefresh_output,
+                 pipe_guirefresh_input,
+                 textbox_ni,
+                 checkbox_ni,
+                 textbox_guiresolution,
+                 textbox_guirefresh,
+                 ##############################################################
+                 checkbox_camera
+                 
+                 
+                 ):
         super().__init__()
         self.pipe_guirefresh_output = pipe_guirefresh_output
         self.pipe_guirefresh_input = pipe_guirefresh_input
@@ -1168,8 +1033,30 @@ class PreferencesTab(QWidget):
         
         # Add the buffer page to the tab widget
         tabwidget.addTab(page_buffer, "Buffer")
-        layout_main.addWidget(tabwidget, 0, 0, 1, 6)
         
+        
+        ######################################################################
+        
+        # Create and populate the camera page
+        page_camera = QWidget()
+        layout_camera = QGridLayout()
+        page_camera.setLayout(layout_camera)
+        
+        #self.textbox_ni = QLineEdit(placeholderText="NIDAQmx buffer size per channel")
+        label_camera_use = QLabel("NIDAQmx buffer size per channel")
+        layout_camera.addWidget(label_camera_use, 1, 0, 1, 1)
+        layout_buffer.addWidget(self.checkbox_ni, 1, 3, 1, 1)
+        #layout_camera.addWidget(self.textbox_ni, 1, 1, 1, 1)
+        
+        
+        
+        # Add the camera page to the tab widget
+        tabwidget.addTab(page_camera, "Camera")
+        
+        
+        
+        # Add the tab widget to the main layout
+        layout_main.addWidget(tabwidget, 0, 0, 1, 6)
         
         # Add buttons to the tab widget
         button_buffer_ok = QPushButton('OK')
@@ -1246,6 +1133,10 @@ class MainWindow(QMainWindow):
                  pipe_console,
                  pipe_buffer,
                  pipe_getdatab,
+                 pipe_inputplota,
+                 pipe_inputplotb,
+                 pipe_outputplota,
+                 pipe_outputplotb,
                  parent=None,
                  *args,
                  **kwargs):
@@ -1269,6 +1160,13 @@ class MainWindow(QMainWindow):
         self.pipe_guirefresha_output, self.pipe_guirefreshb_output = Pipe(duplex=False)
         self.pipe_guirefresha_input, self.pipe_guirefreshb_input = Pipe(duplex=False)
         
+        
+        
+        # Pipes for clearing the GUI
+        self.pipe_inputplota = pipe_inputplota
+        self.pipe_inputplotb = pipe_inputplotb
+        self.pipe_outputplota = pipe_outputplota
+        self.pipe_outputplotb = pipe_outputplotb
         
         
         
@@ -1341,7 +1239,11 @@ class MainWindow(QMainWindow):
                              self.textbox_guiresolution,
                              #self.textbox_guirefresh,
                              self.pipe_buffer,
-                             self.pipe_getdatab)
+                             self.pipe_getdatab,
+                             self.pipe_inputplota,
+                             self.pipe_inputplotb,
+                             self.pipe_outputplota,
+                             self.pipe_outputplotb)
         widget = QWidget()
         widget.setLayout(grid_layout)
         self.setCentralWidget(widget)
@@ -1376,7 +1278,19 @@ class MovieSplashScreen(QSplashScreen):
 
         
 
-def start_gui(input_channelDict, output_channelDict, pipe_param, pipe_input, pipe_output, pipe_signal, pipe_console, pipe_buffer, pipe_getdatab):
+def start_gui(input_channelDict,
+              output_channelDict,
+              pipe_param,
+              pipe_input,
+              pipe_output,
+              pipe_signal,
+              pipe_console,
+              pipe_buffer,
+              pipe_getdatab,
+              pipe_inputplota,
+              pipe_inputplotb,
+              pipe_outputplota,
+              pipe_outputplotb):
     # Splash screen
     app = QApplication(sys.argv)
     pathToGIF = "../fig/loading/loading.gif"
@@ -1396,7 +1310,11 @@ def start_gui(input_channelDict, output_channelDict, pipe_param, pipe_input, pip
                     pipe_signal,
                     pipe_console,
                     pipe_buffer,
-                    pipe_getdatab)
+                    pipe_getdatab,
+                    pipe_inputplota,
+                    pipe_inputplotb,
+                    pipe_outputplota,
+                    pipe_outputplotb)
     app.exec_()
     sys.exit(app.exec_())
 

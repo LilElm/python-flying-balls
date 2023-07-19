@@ -12,7 +12,7 @@ import os
 
 def main(double=True, doubledelay=0.075):
     
-    time_idle = 1.0
+    time_idle = 0.5
     time_idle2 = time_idle + doubledelay
     
     
@@ -24,15 +24,18 @@ def main(double=True, doubledelay=0.075):
         times_tot1, profile1 = eval_halfsinepulses(time_idle=time_idle, double=False, negative=True)#, ax=ax)
         times_tot2, profile2 = eval_halfsinepulses(time_idle=time_idle2, double=True, negative=True)#, ax=ax)
         
-   #     ax.plot(times_tot1, profile1)
-   #     ax.plot(times_tot2, profile2)
+        ax.plot(times_tot1, profile1, label='Lateral Coils')
+        ax.plot(times_tot2, profile2, label='Longitudinal Coils')
         
     else:
         times_tot1, profile1 = eval_halfsinepulses(time_idle=time_idle)
    #     ax.plot(times_tot1, profile1)
         
    # plt.show()    
-    
+    ax.legend()
+    ax.set_title('The Current Applied to Achieve Circular Motion')
+    ax.set_xlabel('Time (s)')
+    ax.set_ylabel('Current (A)')
     path = "../out/halfsinepulses_profile.png"
     fig.savefig(path, bbox_inches="tight", dpi=600)
    # plt.show()
@@ -49,10 +52,10 @@ def eval_halfsinepulses(amp=0.4,
                         delay=0.0,
                         ballfreq=3.5,
                         #time_idle=1.175,
-                        time_idle=1.1,
-                        orbits=25,
+                        time_idle=0.5,
+                        orbits=5,
                         time_rest=10.0,
-                        sampling_rate=5000.0, # DonIf lowered beneath 100, lengths won't match
+                        sampling_rate=1000.0, # If lowered beneath 100, lengths won't match
                         coil=None,
                         outfolder="../out/",
                         timestamp=None,

@@ -326,5 +326,14 @@
 
  * More info sent to GUI console
 
+ **19-Jul-23**
+
+ * Fixed bug with clearing the plots before data had been plotted
+
+   * 'done' signal sent from 'mainpulate_data' in main to 'update_plots' in GUI
+
+   * Signal sent via data pipe once all data has been sent
+
+
 
 </sub>
