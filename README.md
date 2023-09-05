@@ -343,6 +343,10 @@
 
  * Program neatened
 
+ * Unnecessary branches deleted
+
+ * New branch (lock-in) created
+
 
 
 </sub>
