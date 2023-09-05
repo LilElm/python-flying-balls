@@ -743,6 +743,9 @@ def get_data2(p_live,
             
         
         # Write data to disk
+        pipe_consoleb.send("Writing data to disk")
+        print("Writing data to disk")
+        logging.info("Writing data to disk")
         channels = input_channels + measured_channels
         index = 0
         with open((f"{outfolder_timestamp}data_{timestamp}.csv"), "w+") as f:
