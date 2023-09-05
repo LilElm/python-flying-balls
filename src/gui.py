@@ -980,10 +980,10 @@ class PreferencesTab(QWidget):
                  textbox_guiresolution,
                  textbox_guirefresh,
                  ##############################################################
-                 checkbox_camera
-                 
-                 
-                 ):
+                 checkbox_camera,
+                 textbox_cameratimeout,
+                 camera_button_connect,
+                 camera_button_disconnect):
         super().__init__()
         self.pipe_guirefresh_output = pipe_guirefresh_output
         self.pipe_guirefresh_input = pipe_guirefresh_input
@@ -993,6 +993,16 @@ class PreferencesTab(QWidget):
         self.checkbox_ni = checkbox_ni
         self.textbox_guiresolution = textbox_guiresolution
         self.textbox_guirefresh = textbox_guirefresh
+        
+        
+        
+        self.checkbox_camera = checkbox_camera
+        self.textbox_cameratimeout = textbox_cameratimeout
+        self.camera_button_connect = camera_button_connect
+        self.camera_button_disconnect = camera_button_disconnect
+        
+        
+        
         
         
         
@@ -1043,15 +1053,46 @@ class PreferencesTab(QWidget):
         page_camera.setLayout(layout_camera)
         
         #self.textbox_ni = QLineEdit(placeholderText="NIDAQmx buffer size per channel")
-        label_camera_use = QLabel("NIDAQmx buffer size per channel")
+        label_camera_use = QLabel("Record via the camera?")
         layout_camera.addWidget(label_camera_use, 1, 0, 1, 1)
-        layout_buffer.addWidget(self.checkbox_ni, 1, 3, 1, 1)
+        layout_camera.addWidget(self.checkbox_camera, 1, 1, 1, 1)
+        
+        
+        label_camera_use = QLabel("Camera timeout (s)")
+        layout_camera.addWidget(label_camera_use, 2, 0, 1, 1)
+        layout_camera.addWidget(self.textbox_cameratimeout, 2, 1, 1, 1)
+        
+        
         #layout_camera.addWidget(self.textbox_ni, 1, 1, 1, 1)
         
+        
+        layout_camera.addWidget(self.camera_button_connect, 3, 0, 1, 1)
+        layout_camera.addWidget(self.camera_button_disconnect, 3, 1, 1, 1)
+        
+                 #checkbox_camera,
+                # textbox_cameratimeout,
+              #   camera_button_connect,
+               #  camera_button_disconnect
         
         
         # Add the camera page to the tab widget
         tabwidget.addTab(page_camera, "Camera")
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
         
         
         
@@ -1119,8 +1160,6 @@ class PreferencesTab(QWidget):
         
 
         
-        
-        
 
 class MainWindow(QMainWindow):
     def __init__(self,
@@ -1132,6 +1171,7 @@ class MainWindow(QMainWindow):
                  pipe_signal,
                  pipe_console,
                  pipe_buffer,
+                 pipe_camb,
                  pipe_getdatab,
                  pipe_inputplota,
                  pipe_inputplotb,
@@ -1149,6 +1189,7 @@ class MainWindow(QMainWindow):
         self.pipe_output = pipe_output
         self.pipe_console = pipe_console
         self.pipe_buffer = pipe_buffer
+        self.pipe_camb = pipe_camb
         self.pipe_getdatab = pipe_getdatab
         self.title = "Flying Balls"
         self.icon = "../fig/icon.png"
@@ -1171,7 +1212,7 @@ class MainWindow(QMainWindow):
         
         
         
-        # Create all textboxes for the Preferences menu
+        # Create all textboxes for the Preferences menu (Buffer)
         self.textbox_ni = QLineEdit(placeholderText="NIDAQmx buffer size per channel")
         self.checkbox_ni = QCheckBox()
         self.checkbox_ni.setChecked(False)
@@ -1181,8 +1222,37 @@ class MainWindow(QMainWindow):
         
         
         
+        # Create all textboxes for the Preferences menu (Camera)
+        self.cameratimeout = 4.0 #sec
+        self.checkbox_camera = QCheckBox()
+        self.checkbox_camera.setChecked(True)
+        self.textbox_cameratimeout = QLineEdit(str(self.cameratimeout), placeholderText="Camera timeout (sec)")
+        self.camera_button_connect = QPushButton("Connect")
+        self.camera_button_disconnect = QPushButton("Disconnect")
+                
+        
+        
+        self.camera_button_connect.clicked.connect(self.camera_connect_on_click)
+        self.camera_button_disconnect.clicked.connect(self.camera_disconnect_on_click)
+        
+        
+        
+        
+        
+        
         # Create the preferences menu
-        self.menu_preferences = PreferencesTab(self.guirefresh, self.pipe_guirefreshb_output, self.pipe_guirefreshb_input, self.textbox_ni, self.checkbox_ni, self.textbox_guiresolution, self.textbox_guirefresh)
+        self.menu_preferences = PreferencesTab(self.guirefresh,
+                                               self.pipe_guirefreshb_output,
+                                               self.pipe_guirefreshb_input,
+                                               self.textbox_ni,
+                                               self.checkbox_ni,
+                                               self.textbox_guiresolution,
+                                               self.textbox_guirefresh,
+                                               ###############################
+                                               self.checkbox_camera,
+                                               self.textbox_cameratimeout,
+                                               self.camera_button_connect,
+                                               self.camera_button_disconnect)
         
         
         
@@ -1212,6 +1282,13 @@ class MainWindow(QMainWindow):
         
 
 
+    def camera_connect_on_click(self):
+        print("nflsdknflsdk")
+        
+    def camera_disconnect_on_click(self):
+        self.pipe_camb.send(False)
+        self.pipe_camb.send(3)
+        
 
 
 
@@ -1286,6 +1363,7 @@ def start_gui(input_channelDict,
               pipe_signal,
               pipe_console,
               pipe_buffer,
+              pipe_camb,
               pipe_getdatab,
               pipe_inputplota,
               pipe_inputplotb,
@@ -1310,6 +1388,7 @@ def start_gui(input_channelDict,
                     pipe_signal,
                     pipe_console,
                     pipe_buffer,
+                    pipe_camb,
                     pipe_getdatab,
                     pipe_inputplota,
                     pipe_inputplotb,

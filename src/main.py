@@ -246,7 +246,20 @@ def main():
 
     # Start GUI
     processlist = []
-    proc0 = Process(target=start_gui, args=(input_channelDict, output_channelDict, pipe_paramb, pipe_inputa, pipe_outputa, pipe_signalb, pipe_consolea, pipe_bufferb, pipe_getdatab, pipe_inputplota, pipe_inputplotb, pipe_outputplota, pipe_outputplotb, ))
+    proc0 = Process(target=start_gui, args=(input_channelDict,
+                                            output_channelDict,
+                                            pipe_paramb,
+                                            pipe_inputa,
+                                            pipe_outputa,
+                                            pipe_signalb,
+                                            pipe_consolea,
+                                            pipe_bufferb,
+                                            pipe_camb,
+                                            pipe_getdatab,
+                                            pipe_inputplota,
+                                            pipe_inputplotb,
+                                            pipe_outputplota,
+                                            pipe_outputplotb, ))
     processlist.append(proc0)
     proc0.start()
     
@@ -343,8 +356,13 @@ def main():
             
             # Get PSU currents
             for channel in psulist:
-                psuDict[channel] = float(psu.query(f"ISET? {channel}"))
-            
+                try:
+                    psuDict[channel] = float(psu.query(f"ISET? {channel}"))
+                except:
+                    # This means the PSU has reached the overvoltage protection i.e. a coil has quenched
+                    psuDict[channel] = str(psu.query(f"ISET? {channel}"))
+                    print(str(psu.query(f"ISET? {channel}")))
+                    pass
             
             
             if pipe_getdataa.poll():
@@ -380,9 +398,10 @@ def main():
                     while pipe_recorda.poll():
                         cam = pipe_recorda.recv()
                 else:
+                    # Camera timeout
                     time_cam2 = time.time()
                     t = time_cam2 - time_cam1
-                    if t > 1.0:
+                    if t > 4.0:
                         print("Failed to connect to the camera")
                         pipe_consoleb.send("Failed to connect to the camera")
                         break
@@ -654,6 +673,7 @@ def get_data(p_live,
                     num_samples1 = int(sampling_rate * 10)
                 else:
                     num_samples1 = int(sampling_rate * 20)
+            #num_samples1 = -1 ###I read on a forum that this means 'give me whatever's ready now
             
             for channel in input_channels:
                 task1.ai_channels.add_ai_voltage_chan(channel)
@@ -665,8 +685,13 @@ def get_data(p_live,
             task1.ai_channels.all.ai_min = -10.0 #min_voltage
             task1.timing.cfg_samp_clk_timing(sampling_rate,
                                              active_edge=nidaqmx.constants.Edge.RISING,
-                                             sample_mode=constants.AcquisitionType.FINITE,
-                                             samps_per_chan=num_samples1)
+                                             sample_mode=nidaqmx.constants.AcquisitionType.CONTINUOUS)#,
+            
+           # task1.timing.cfg_samp_clk_timing(sampling_rate,
+            #                                 active_edge=nidaqmx.constants.Edge.RISING,
+             #                                sample_mode=constants.AcquisitionType.FINITE)#,
+                                             #samps_per_chan=-1)
+                                             #samps_per_chan=num_samples1)
                  
             
             reader1 = AnalogMultiChannelReader(task1.in_stream)

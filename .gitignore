@@ -2,5 +2,7 @@
 /out
 /log
 /tmp
+/fig
 .env
 halfsinepulses_profile_working_1200_1200_1500_1200.py
+!!kill-python.bat

@@ -334,6 +334,16 @@
 
    * Signal sent via data pipe once all data has been sent
 
+ **04-Sep-23**
+
+ * get_data() changed to have one buffer using np.memap and a view
+
+ * store_data() deprecated
+
+ **05-Sep-23**
+
+ * Program neatened
+
 
 
 </sub>

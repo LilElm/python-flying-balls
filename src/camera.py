@@ -7,6 +7,7 @@ import logging
 import datetime
 import os
 import sys
+import time
 
 
 async def main(pipe_in, pipe_out):
@@ -39,58 +40,86 @@ async def main(pipe_in, pipe_out):
                 # Send signal for rest of program to begin
                 #pipe_out.send(True)
                 
+            else:
+                logging.info("Failed to connect to the camera")
+                print("Failed to connect to the camera")
+                sys.exit(1)
+                
+                
 
             while True:
-                if pipe_in.poll():
-                    while pipe_in.poll():
-                        val = pipe_in.recv()
-
-            
-                    # Start recording
-                    if val == True:
-                        data1 = bytearray([1,5,0,0,10,1,1,0,2,0,0,0])
-                        logging.info("Sending 'START RECORDING' bytearray")
-                        print("Sending 'START RECORDING' bytearray")
-                        try:
-                            await client.write_gatt_char(MODEL_NBR_UUID, data1, response=True)
-                            print("Recording started")
-                            logging.info("Recording started")
-                            pipe_out.send(True)
-
-                        except:
-                            pipe_out.send(False)
-                            print("Failed to communicate with the camera")
-                            logging.info("Failed to communicate with the camera")
-                    
-                    
-                    # Stop recording 
-                    elif val == False:
-                        data2 = bytearray([1,5,0,0,10,1,1,0,0,0,0,0])
-                        logging.info("Sending 'START RECORDING' bytearray")
-                        print("Sending 'STOP RECORDING' bytearray")
-                        try:
-                            await client.write_gatt_char(MODEL_NBR_UUID, data2, response=True)
-                            print("Recording stopped")
-                            logging.info("Recording stopped")
-                        except:
-                            pipe_out.send(False)
-                            print("Failed to communicate with the camera")
-                            logging.info("Failed to communicate with the camera")
-     
                 
-                    # Disconnect
-                    elif val == 0:
-                        print("Closing Bluetooth connection")
-                        logging.info("Closing Bluetooth connection")
-                        logging.info("Exiting camera.py")
-                        pipe_out.send(True)
-                        break
+                try:
+                    if pipe_in.poll():
+                        while pipe_in.poll():
+                            val = pipe_in.recv()
+                            print(f"val = {val}")
+    
+                
+                        # Start recording
+                        if val == True:
+                            data1 = bytearray([1,5,0,0,10,1,1,0,2,0,0,0])
+                            logging.info("Sending 'START RECORDING' bytearray")
+                            print("Sending 'START RECORDING' bytearray")
+                            try:
+                                await client.write_gatt_char(MODEL_NBR_UUID, data1, response=True)
+                                print("Recording started")
+                                logging.info("Recording started")
+                                pipe_out.send(True)
+    
+                            except:
+                                pipe_out.send(False)
+                                print("Failed to communicate with the camera")
+                                logging.info("Failed to communicate with the camera")
+                        
+                        
+                        # Stop recording 
+                        elif val == False:
+                            data2 = bytearray([1,5,0,0,10,1,1,0,0,0,0,0])
+                            logging.info("Sending 'START RECORDING' bytearray")
+                            print("Sending 'STOP RECORDING' bytearray")
+                            try:
+                                await client.write_gatt_char(MODEL_NBR_UUID, data2, response=True)
+                                print("Recording stopped")
+                                logging.info("Recording stopped")
+                            except:
+                                pipe_out.send(False)
+                                print("Failed to communicate with the camera")
+                                logging.info("Failed to communicate with the camera")
+         
+                    
+                        #Stop recording and disconnect
+                        elif val == 3:
+                            data2 = bytearray([1,5,0,0,10,1,1,0,0,0,0,0])
+                            logging.info("Sending 'START RECORDING' bytearray")
+                            print("Sending 'STOP RECORDING' bytearray")
+                            try:
+                                await client.write_gatt_char(MODEL_NBR_UUID, data2, response=True)
+                                print("Recording stopped")
+                                logging.info("Recording stopped")
+                            except:
+                                pipe_out.send(False)
+                                print("Failed to communicate with the camera")
+                                logging.info("Failed to communicate with the camera")
+                            
+                            
+                            print("Closing Bluetooth connection")
+                            logging.info("Closing Bluetooth connection")
+                            logging.info("Exiting camera.py")
+                            pipe_out.send(True)
+                            break
+                except:
+                    print("An error occured in camera.py")
+                    break
                 
         print("Connection closed")
+        time.sleep(5)
     except:
         logging.info("Failed to connect to the camera")
         print("Failed to connect to the camera")
         sys.exit(1)
+
+        
                     
                     
         
