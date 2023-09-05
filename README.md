@@ -1,6 +1,6 @@
 ### python-flying-balls
 <sub>
-  A Python program to control, measure and analyse levitating spheres of superconducting indium submerged in superfluid helium in real-time.
+  A Python program to control, measure and analyse levitating spheres of superconducting lead submerged in superfluid helium in real-time.
 
 
 </sub>
@@ -37,24 +37,19 @@
    - [X] Acquire live data from relevant channels
    - [X] Synchronise output and input
    - [X] Pipe live data to Process 2 for manipulation
+   - [X] Store data
  
  * Process 2:
 
    - [X] Manipualte data for storage
    - [ ] Evaluate position of sphere
-   - [X] Pipe unbuffered data to Process 3 for storing
-   - [X] Pipe buffered data to Process 4 for plotting
+   - [X] Pipe buffered data to Process 3 for plotting
 
  * Process 3:
-
-   - [X] Store manipulated data in a MySQL database
-   - [X] Send signal to main program once finished
-
- * Process 4:
    
    - [X] Plot real-time data using Qt
 
- * Process 5:
+ * Process 4:
    
    - [X] Record automatically via Bluetooth camera
 
@@ -339,6 +334,10 @@
  * get_data() changed to have one buffer using np.memap and a view
 
  * store_data() deprecated
+
+ * Real-time position data was successfully recorded today via a transmitter coil and LC circuit
+
+   * Lock-in amplifier settings will need to be added in the future
 
  **05-Sep-23**
 
