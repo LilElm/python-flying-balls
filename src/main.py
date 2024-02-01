@@ -12,17 +12,36 @@ import numpy as np
 from itertools import cycle
 import sys
 import pyvisa
-import nidaqmx
+
+
+
+#import nidaqmx
 import nidaqmx.system
 from nidaqmx.stream_readers import AnalogMultiChannelReader
 from nidaqmx.stream_writers import AnalogMultiChannelWriter
 from nidaqmx import constants
+
+
+from nidaqmx import DaqError
+from nidaqmx.error_codes import DAQmxErrors
+from nidaqmx._task_modules.read_functions import _read_analog_f_64
+from nidaqmx.constants import READ_ALL_AVAILABLE, FillMode, AcquisitionType
+
+
+
+
+
 import logging
 
 from camera import start_camera
 from ramp_profile import eval_ramp
 from halfsine_profile import eval_halfsine
 from gui import start_gui
+
+
+
+
+
 
 """Flying balls"""
 
@@ -61,7 +80,7 @@ def get_parameters(pipe_parama, pipe_buffera, pipe_consoleb):
         long_params = pipe_parama.recv()
         
         
-        val_ni, val_ni_checkbox, val_guiresolution = pipe_buffera.recv()
+        val_ni, val_ni_checkbox, val_guiresolution, val_camtimeout, val_camcheckbox = pipe_buffera.recv()
         print(f"val_ni = {val_ni}")
 
         #val_ni_checkbox = pipe_buffera.recv()
@@ -72,11 +91,16 @@ def get_parameters(pipe_parama, pipe_buffera, pipe_consoleb):
        # print(f"val_ni = {val_ni}")
        # print(f"val_ni_checkbox = {val_ni_checkbox}")
        # print(f"val_guiresolution = {val_guiresolution}")
+       
+       
+        print(f"val_camtimeout = {val_camtimeout}")
+        print(f"val_camcheckbox = {val_camcheckbox}")
+        
         
     except Exception as e:
         print(str(e))
         pipe_consoleb.send(str(e))
-    return out_path, db_env, save, sampling_rate, f0, df, k, lat_profile, lat_params, long_profile, long_params, val_ni, val_ni_checkbox, val_guiresolution
+    return out_path, db_env, save, sampling_rate, f0, df, k, lat_profile, lat_params, long_profile, long_params, val_ni, val_ni_checkbox, val_guiresolution, val_camtimeout, val_camcheckbox
 
 
 def force_profile(outfolder, timestamp, sampling_rate, f0, df, k, profile, params, channel, coil):
@@ -140,26 +164,22 @@ def force_profile(outfolder, timestamp, sampling_rate, f0, df, k, profile, param
 
 
 def main():
-    
-    
-    
-    
     currentDT = datetime.datetime.now()
     logfolder = "../log/"
-    #tmpfolder = "../tmp/"
+    tmpfolder = "../tmp/"
     
     #if os.path.exists(tmpfolder) and os.path.isdir(tmpfolder):
      #   rmtree(tmpfolder)
     os.makedirs(logfolder, exist_ok=True)
-    #os.makedirs(tmpfolder, exist_ok=True)
+    os.makedirs(tmpfolder, exist_ok=True)
     logging.basicConfig(filename = logfolder + "main.log", encoding='utf-8', level=logging.DEBUG)
     logging.info(currentDT.strftime("%d/%m/%Y, %H:%M:%S"))
     pipe_consolea, pipe_consoleb = Pipe(duplex=False)
     
     
     # Define all input channels, including pipes for sending and receiving data
-    input_channels = ["Dev1/ai17", "Dev1/ai18", "Dev1/ai19", "Dev1/ai20", "Dev1/ai21"]
-    input_names = ["ai17", "ai18", "ai19", "ai20", "ai21"]
+    input_channels = ["Dev1/ai17", "Dev1/ai18", "Dev1/ai19", "Dev1/ai20", "Dev1/ai21", "Dev1/ai6", "Dev1/ai7"]
+    input_names = ["ai17", "ai18", "ai19", "ai20", "ai21", "ai6", "ai7"]
     input_channelDict = {channel: Channel(channel=channel) for channel in input_channels}
     index = 0
     for channel in input_channelDict:
@@ -168,22 +188,6 @@ def main():
         input_channelDict[channel].index = index
     pipe_inputa, pipe_inputb = Pipe(duplex=False)
     
-    """
-    # Define all output channels, including pipes for sending and receiving data
-    output_channels = ["Dev1/ao3", "Dev1/ao1"]
-    measured_channels = ["Dev1/ai3", "Dev1/ai0"]
-    output_names = ["Lateral Coils\nao3/ai3", "Longitudinal Coils\nao1/ai0"]
-    output_channelDict = {channel: Channel(channel=channel, measured=measured) for channel in output_channels for measured in measured_channels}
-    index = 0
-    for channel in output_channelDict:
-        output_channelDict[channel].name = output_names[index]
-        index = index + 1
-        output_channelDict[channel].index = index
-    """
-    
-    
-    
-     
     
     # Define all output channels, including pipes for sending and receiving data
     output_channels = [("Dev1/ao3", "Dev1/ai3"),
@@ -191,10 +195,6 @@ def main():
     
     
     measured_channels = [x for y,x in output_channels]
-    #input(str(measured_channels))
-    
-    
-    #measured_channels = ["Dev1/ai3", "Dev1/ai0"]
     output_names = ["Lateral Coils\nao3/ai3", "Longitudinal Coils\nao1/ai0"]
     output_channelDict = {channel: Channel(channel=channel, measured=measured) for channel,measured in output_channels}
     index = 0
@@ -244,6 +244,7 @@ def main():
     pipe_outputplota, pipe_outputplotb = Pipe(duplex=False)
 
 
+
     # Start GUI
     processlist = []
     proc0 = Process(target=start_gui, args=(input_channelDict,
@@ -282,6 +283,7 @@ def main():
     proc3 = Process(target=start_camera, args=(pipe_cama, pipe_recordb, ))
     processlist.append(proc3)
     proc3.start()
+    pipe_camb.send(4)
 
 
     while True:
@@ -289,7 +291,7 @@ def main():
             running = True
             # Get input parameters from the GUI and evalute the force profile
             pipe_msgb.send(msg1)
-            outfolder, db_env, save, sampling_rate, f0, df, k, lat_profile, lat_params, long_profile, long_params, val_ni, val_ni_checkbox, val_guiresolution = get_parameters(pipe_parama, pipe_buffera, pipe_consoleb)
+            outfolder, db_env, save, sampling_rate, f0, df, k, lat_profile, lat_params, long_profile, long_params, val_ni, val_ni_checkbox, val_guiresolution, val_camtimeout, val_camcheckbox = get_parameters(pipe_parama, pipe_buffera, pipe_consoleb)
             clear_pipes([pipe_livea, pipe_timea, pipe_manipa, pipe_store_donea, pipe_cama, pipe_recorda, pipe_parama, pipe_getdataa])
             
             if outfolder == None:
@@ -327,6 +329,10 @@ def main():
             os.makedirs(f"{outfolder}{outfolder1}", exist_ok=True)
             
             
+            
+
+            
+            
             if pipe_getdataa.poll():
                 while pipe_getdataa.poll():
                     pipe_getdataa.recv()
@@ -360,8 +366,12 @@ def main():
                     psuDict[channel] = float(psu.query(f"ISET? {channel}"))
                 except:
                     # This means the PSU has reached the overvoltage protection i.e. a coil has quenched
-                    psuDict[channel] = str(psu.query(f"ISET? {channel}"))
-                    print(str(psu.query(f"ISET? {channel}")))
+                    try:
+                        psuDict[channel] = str(psu.query(f"ISET? {channel}"))
+                        print(str(psu.query(f"ISET? {channel}")))
+                    except:
+                        # This means that the PSU is turned off
+                        print("PSU error")
                     pass
             
             
@@ -372,14 +382,14 @@ def main():
             
         
             # Create processes
-            p_get_data = Process(target=get_data, args=(pipe_liveb, pipe_timeb, input_channels, measured_channels, output_channels, sampling_rate, force_profile_lat, force_profile_long, input_channelDict, val_ni, val_ni_checkbox, pipe_getdataa, pipe_consoleb, ))
+            p_get_data = Process(target=get_data2, args=(pipe_liveb, pipe_timeb, input_channels, measured_channels, output_channels, sampling_rate, force_profile_lat, force_profile_long, input_channelDict, val_ni, val_ni_checkbox, pipe_getdataa, pipe_consoleb, val_guiresolution, input_channelDict, outfolder_timestamp, tmpfolder, ))
             p_man_data = Process(target=manipulate_data, args=(pipe_livea, pipe_timea, pipe_manipb, pipe_inputb, pipe_outputb, pipe_man_donea, input_channelDict, output_channelDict, val_guiresolution, pipe_consoleb, ))
-            p_store_data = Process(target=store_data, args=(pipe_manipa, pipe_store_donea, input_channels, measured_channels, psuDict, save, outfolder, outfolder0, outfolder_timestamp, outfolder1, db_env, pipe_consoleb, ))
+            #p_store_data = Process(target=store_data, args=(pipe_manipa, pipe_store_donea, input_channels, measured_channels, psuDict, save, outfolder, outfolder0, outfolder_timestamp, outfolder1, db_env, pipe_consoleb, ))
             
             processlist2 = []
             processlist2.append(p_get_data)
             processlist2.append(p_man_data)
-            processlist2.append(p_store_data)
+            #processlist2.append(p_store_data)
         
             
             if pipe_getdataa.poll():
@@ -387,24 +397,25 @@ def main():
                     pipe_getdataa.recv()
                 break
         
-        
+            
             # Start camera
-            pipe_camb.send(True)
-            cam = False
-            pipe_msgb.send(msg0)
-            time_cam1 = time.time()
-            while not cam:
-                if pipe_recorda.poll():
-                    while pipe_recorda.poll():
-                        cam = pipe_recorda.recv()
-                else:
-                    # Camera timeout
-                    time_cam2 = time.time()
-                    t = time_cam2 - time_cam1
-                    if t > 4.0:
-                        print("Failed to connect to the camera")
-                        pipe_consoleb.send("Failed to connect to the camera")
-                        break
+            if val_camcheckbox:
+                pipe_camb.send(True)
+                cam = False
+                pipe_msgb.send(msg0)
+                time_cam1 = time.time()
+                while not cam:
+                    if pipe_recorda.poll():
+                        while pipe_recorda.poll():
+                            cam = pipe_recorda.recv()
+                    else:
+                        # Camera timeout
+                        time_cam2 = time.time()
+                        t = time_cam2 - time_cam1
+                        if t > val_camtimeout:
+                            print("Failed to communicate with the camera")
+                            pipe_consoleb.send("Failed to communicate with the camera")
+                            break
     
             
     
@@ -448,6 +459,10 @@ def main():
                 while pipe_getdataa.poll():
                     pipe_getdataa.recv()
                 break
+    
+    
+
+    
     
             while running:
                 # If stop signal
@@ -536,63 +551,14 @@ def main():
                     clear_pipes([pipe_livea, pipe_timea, pipe_manipa, pipe_store_donea, pipe_cama, pipe_recorda, pipe_parama])
                     time.sleep(1.0)
                     pipe_camb.send(False)
-                    if p_store_data.is_alive():
-                        pipe_store_doneb.send(True)
-                        p_store_data.join()
+                    #if p_store_data.is_alive():
+                    #    pipe_store_doneb.send(True)
+                    #    p_store_data.join()
                     if p_man_data.is_alive():
                         pipe_man_doneb.send(True)
                         p_man_data.join()
                         
-                    
-    
-    
-    """
-            
-            
-    # If store_data() has ended, end all
-    # Nota bene, the 'msvcrt' method will only work with Windows
-    ("Press RETURN to stop data acquisition\n")
-    try:
-        while True:
-            if msvcrt.kbhit():
-                if msvcrt.getch()==b'\r':
-                    ("Data acquisition stopped via keyboard interruption")
-                    logging.warning("Data acquisition stopped via keyboard interruption")
-                    break
-            if pipe_killa.poll():
-                print("Data acquisition stopped via store_data()")
-                logging.warning("Data acquisition stopped via store_data()")
-                break
-            
-    except KeyboardInterrupt:
-        logging.warning("Data acquisition stopped via keyboard interruption")
-        print("Data acquisition stopped via keyboard interruption")
-        pass
-    finally:
-        for p in processlist2:
-            logging.info("Killing process {}".format(p))
-            p.kill()
-     
-    
-    print("Program completed successfully")
-    
-    """
-    
-    
-   
-    
-    input("done")
-    
-    for p in processlist:
-        p.kill()
-        
-    for p in processlist2:
-        p.kill()
-        
-        
-    input("done")
-    
-    pass
+  
     
     """
     # Reset device in case of DAQ malfunction
@@ -608,139 +574,222 @@ def main():
             logging.warning("Device {} failed to reset".format(device))
     """        
    
-    
 
-# Function acquires and buffers live data from DAQ board and pipes it
-# to manipualte_data()
-def get_data(p_live,
-             p_time,
-             input_channels,
-             measured_channels,
-             output_channels,
-             sampling_rate,
-             force_profile_lat,
-             force_profile_long,
-             channelDict,
-             val_ni,
-             val_ni_checkbox,
-             pipe_getdataa,
-             pipe_consoleb):
-    try:
-        with nidaqmx.Task() as task0, nidaqmx.Task() as task1:
+def get_data2(p_live,
+              p_time,
+              input_channels,
+              measured_channels,
+              output_channels,
+              sampling_rate,
+              force_profile_lat,
+              force_profile_long,
+              channelDict,
+              val_ni,
+              val_ni_checkbox,
+              pipe_getdataa,
+              pipe_consoleb,
+              val_guiresolution,
+              input_channelDict,
+              outfolder_timestamp,
+              tmpfolder):
+    
+    """
+    This has been adapted from the solution posted by GitHub user spalatofhi at
+    https://github.com/ni/nidaqmx-python/issues/90 .
+    """
+    
+    class TAMR(AnalogMultiChannelReader): # TAMR is a subclass   
+    # Transposed Analog Multichannel Reader.
+    # essentially a copy of the parent function, with an inverted `array_shape`
+        def _verify_array(self, data, number_of_samples_per_channel,
+                          is_many_chan, is_many_samp):
+            if not self._verify_array_shape:
+                return
+            channels_to_read = self._in_stream.channels_to_read
+            number_of_channels = len(channels_to_read.channel_names)
+            array_shape = (number_of_samples_per_channel, number_of_channels)
+            if array_shape is not None and data.shape != array_shape:
+                raise DaqError(
+                    'Read cannot be performed because the NumPy array passed into '
+                    'this function is not shaped correctly. You must pass in a '
+                    'NumPy array of the correct shape based on the number of '
+                    'channels in task and the number of samples per channel '
+                    'requested.\n\n'
+                    'Shape of NumPy Array provided: {0}\n'
+                    'Shape of NumPy Array required: {1}'
+                    .format(data.shape, array_shape),
+                    DAQmxErrors.UNKNOWN.value, task_name=self._task.name)
+
+        # copy of parent method, simply using a different fill_mode argument
+        def read_many_sample(self, data, 
+                number_of_samples_per_channel=READ_ALL_AVAILABLE, timeout=10.0):
+            number_of_samples_per_channel = (
+                self._task._calculate_num_samps_per_chan(
+                    number_of_samples_per_channel))
+
+            self._verify_array(data, number_of_samples_per_channel, True, True)
             
+            return _read_analog_f_64(self._handle, data,
+                number_of_samples_per_channel, timeout,
+                fill_mode=FillMode.GROUP_BY_SCAN_NUMBER)
+
+
+
+
+
+    with nidaqmx.Task() as task0, nidaqmx.Task() as task1:
+        # Configure output task (Task 0)
+        num_samples0 = np.size(force_profile_lat)
+        for channel, measured in output_channels:
+            task0.ao_channels.add_ao_voltage_chan(channel)
+        
+        task0.ao_channels.all.ao_max = 10.0 #0.5 #max voltage
+        task0.ao_channels.all.ao_min = -10.0 #0.5 #min voltage
+        task0.timing.cfg_samp_clk_timing(sampling_rate,
+                                         active_edge=nidaqmx.constants.Edge.RISING,
+                                         sample_mode=nidaqmx.constants.AcquisitionType.FINITE,
+                                         samps_per_chan=num_samples0)
             
-            # Configure output task (Task 0)
-            num_samples0 = np.size(force_profile_lat)
-            for channel, measured in output_channels:
-                task0.ao_channels.add_ao_voltage_chan(channel)
+        
+        try:
+            writer0 = AnalogMultiChannelWriter(task0.out_stream, auto_start=False)
+            buffer0 = np.vstack((force_profile_lat, force_profile_long))
+            writer0.write_many_sample(buffer0, timeout=60)
+        except nidaqmx.errors.DaqError as err:
+            print(err)
+            pipe_consoleb.send(str(err))
+            logging.error(err)
+            if task0:
+                task0.close()
+            if task1:
+                task1.close()
+            sys.exit(1)
+
+
+        # Configure input task (Task 1)
+        num_channels1 = len(input_channels) + len(measured_channels)
+
+        for channel in input_channels:
+            print(str(channel))
+            task1.ai_channels.add_ai_voltage_chan(channel)
             
-            task0.ao_channels.all.ao_max = 10.0#0.5 #max_voltage
-            task0.ao_channels.all.ao_min = -10.0#0.5 #min_voltage
-            task0.timing.cfg_samp_clk_timing(sampling_rate,
-                                             active_edge=nidaqmx.constants.Edge.RISING,
-                                             sample_mode=nidaqmx.constants.AcquisitionType.FINITE,
-                                             samps_per_chan=num_samples0)
+        for channel in measured_channels:
+            print(str(channel))
+            task1.ai_channels.add_ai_voltage_chan(channel)
+        
+        task1.ai_channels.all.ai_max = 10.0 # max voltage
+        task1.ai_channels.all.ai_min = -10.0 # min voltage
+        task1.timing.cfg_samp_clk_timing(sampling_rate,
+                                         active_edge=nidaqmx.constants.Edge.RISING,
+                                         sample_mode=nidaqmx.constants.AcquisitionType.CONTINUOUS)
+        
+        
+        reader1 = TAMR(task1.in_stream)
+        buffer1 = np.memmap(
+            f"{tmpfolder}/buffer.tmp",
+            dtype=np.float64,
+            mode="w+",
+            shape=(num_samples0, num_channels1)
+            )
+        buffer1[:] = -1000 # impossible output
+        i = 0
+        
+        
+        buffer_rate = 1.0 / val_guiresolution
+        
+        
+        
+        
+        ##### START
+        task0.triggers.start_trigger.cfg_dig_edge_start_trig(task1.triggers.start_trigger.term)
+        task0.start()
+        task1.start()
+        
+
+        with open((f"{tmpfolder}/times.csv"), "w+") as f:
+            while not task1.is_task_done() and i < num_samples0:
+                n = reader1._in_stream.avail_samp_per_chan
+                if n == 0: continue
+                n = min(n, num_samples0-i) # prevent reading too many samples
+                ##### READ
+                time_start = time.time()
+                if i == 0:
+                    time_next = time_start# + buffer_rate
+                    timestamp = time_start
                 
-            
-            try:
-                writer0 = AnalogMultiChannelWriter(task0.out_stream, auto_start=False)
-                buffer0 = np.vstack((force_profile_lat, force_profile_long))
-                writer0.write_many_sample(buffer0, timeout=60)
-            except nidaqmx.errors.DaqError as err:
-                print(err)
-                pipe_consoleb.send(str(err))
-                logging.error(err)
-                if task0:
-                    task0.close()
-                if task1:
-                    task1.close()
-                sys.exit(1)
-            
-            
-            # Configure input task (Task 1) (Dev1/ai0, Dev1/ai19, Dev1/ai3)
-            num_channels1 = len(input_channels) + len(measured_channels)
-            
-            # The buffer size must be sufficiently high, otherwise the buffer will overwrite itself
-            # However, if the buffer size is large, so too will be the delay
-            # The number of tasks the computer has seems to affect this, so it's safer to set these too high
-            
-            if val_ni_checkbox:
-                num_samples1 = val_ni
-            else:                
-                if sampling_rate <= 10000:
-                    num_samples1 = int(sampling_rate * 6)
-                elif sampling_rate <= 50000:
-                    num_samples1 = int(sampling_rate * 10)
-                else:
-                    num_samples1 = int(sampling_rate * 20)
-            #num_samples1 = -1 ###I read on a forum that this means 'give me whatever's ready now
-            
-            for channel in input_channels:
-                task1.ai_channels.add_ai_voltage_chan(channel)
+                i += reader1.read_many_sample(
+                    buffer1[i:i+n, :], # read directly into array using a view
+                    number_of_samples_per_channel=n
+                )
+                #time_end = time.time()
+                time_end = time_start + 1.0/sampling_rate * n
                 
-            for channel in measured_channels:
-                task1.ai_channels.add_ai_voltage_chan(channel)
-            
-            task1.ai_channels.all.ai_max = 10.0 #max_voltage
-            task1.ai_channels.all.ai_min = -10.0 #min_voltage
-            task1.timing.cfg_samp_clk_timing(sampling_rate,
-                                             active_edge=nidaqmx.constants.Edge.RISING,
-                                             sample_mode=nidaqmx.constants.AcquisitionType.CONTINUOUS)#,
-            
-           # task1.timing.cfg_samp_clk_timing(sampling_rate,
-            #                                 active_edge=nidaqmx.constants.Edge.RISING,
-             #                                sample_mode=constants.AcquisitionType.FINITE)#,
-                                             #samps_per_chan=-1)
-                                             #samps_per_chan=num_samples1)
-                 
-            
-            reader1 = AnalogMultiChannelReader(task1.in_stream)
-            buffer1 = np.zeros((num_channels1, num_samples1), dtype=np.float64)
-            
-            # Trigger causes task0 to wait for task1 to begin
-            # Smaller delay without trigger
-            task0.triggers.start_trigger.cfg_dig_edge_start_trig(task1.triggers.start_trigger.term)
-            task0.start()
-            
-            
-            
-            while True:
-                try:
-                    time_start = time.time()
-                    reader1.read_many_sample(buffer1, num_samples1, timeout=constants.WAIT_INFINITELY)
-                    time_end = time.time()
+                # Write the times to file
+                # If this is changed so that each data point is exactly
+                # the sampling time after the last, we don't need this step ##################### This should be changed
+                f.write(f"{time_start}, {time_end}, {n}\n")
+    
+                
+                # Send required data to manipulate_data() (and hence the GUI)
+                if time_end >= time_next:                    
                     times = [time_start, time_end]
-                    
-                    
-                    data_live1 = buffer1.T.astype(np.float32)
+                    time_next = time_next + buffer_rate
+                    data_live1 = buffer1[i-n:i, :].astype(np.float32)
                     p_live.send(data_live1)
                     p_time.send(times)
-                    
-                    if task0.is_task_done():
-                        break
-                    
-                    
-                    if pipe_getdataa.poll():
-                        while pipe_getdataa.poll():
-                            pipe_getdataa.recv()
-                        break
-
-                except nidaqmx.errors.DaqError as err:
-                    print(err)
-                    pipe_consoleb.send(str(err))
-                    logging.error(err)
-                    if task0:
-                        task0.close()
-                    if task1:
-                        task1.close()
-                    break
                 
-    except KeyboardInterrupt:
-        logging.warning("Data acquisition stopped via keyboard interruption")
-    finally:
-        print("Leaving get_data()")
-        pipe_consoleb.send("Leaving get_data()")
-        logging.info("Leaving get_data()")
+                
+                # Break if the stop button is pressed
+                if pipe_getdataa.poll():
+                    while pipe_getdataa.poll():
+                        pipe_getdataa.recv()
+                    break
+        
+        
+        # Stop and check results
+        task0.stop()
+        buffer1.flush()
+        assert np.all(buffer1 > -1000)
+        
+        
+        # Read saved times
+        # This can likely be changed to np.memmap
+        with open((f"{tmpfolder}/times.csv"), "r") as f: 
+            time_data= np.loadtxt(f, skiprows=0, delimiter=", ")
+            
+        
+        # Write data to disk
+        pipe_consoleb.send("Writing data to disk")
+        print("Writing data to disk")
+        logging.info("Writing data to disk")
+        channels = input_channels + measured_channels
+        index = 0
+        with open((f"{outfolder_timestamp}data_{timestamp}.csv"), "w+") as f:
+            f.write("timestamp, " + ", ".join(channels) + "\n")
+            for i in range(len(time_data)-1):
+                time_start = time_data[i][0]
+                time_end = time_data[i][1]
+                n = int(time_data[i][2])
+                times = []
+                time_int = (time_end - time_start) / (n-1)
+                
+                for j in range(n):
+                    time_eval = time_start + time_int * j
+                    times.append(time_eval)
+                    
+                for j in range(n):
+                    dat = ', '.join(map(str, buffer1[index+j].astype(np.float32)))
+                    f.write(f"{times[j]}, {dat}\n")
+                index = index + n
+                
+
+    # Leave get_data()        
+    print("Leaving get_data()")
+    pipe_consoleb.send("Leaving get_data()")
+    logging.info("Leaving get_data()")
+
+
+
 
 
 
@@ -779,7 +828,7 @@ def manipulate_data(p_live,
                 if p_live.poll() and p_time.poll():
                     data_live = p_live.recv()
                     time_data = p_time.recv()
-                
+            
                     for channel in input_channelDict:
                         input_channelDict[channel].dat = data_live[:, input_channelDict[channel].index - 1]
                     
@@ -822,8 +871,8 @@ def manipulate_data(p_live,
                             p_outputplot.send([time_eval, *dummylist])
                     
                     # Send data to store_data()
-                    p_manip.send(input_man)
-                    p_manip.send(output_man)
+                    #p_manip.send(input_man)
+                    #p_manip.send(output_man)
                     
                     time_now = time.time()
                     time_delay = time_now - time_start

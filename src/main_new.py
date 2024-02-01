@@ -80,7 +80,7 @@ def get_parameters(pipe_parama, pipe_buffera, pipe_consoleb):
         long_params = pipe_parama.recv()
         
         
-        val_ni, val_ni_checkbox, val_guiresolution = pipe_buffera.recv()
+        val_ni, val_ni_checkbox, val_guiresolution, val_camtimeout, val_camcheckbox = pipe_buffera.recv()
         print(f"val_ni = {val_ni}")
 
         #val_ni_checkbox = pipe_buffera.recv()
@@ -91,11 +91,16 @@ def get_parameters(pipe_parama, pipe_buffera, pipe_consoleb):
        # print(f"val_ni = {val_ni}")
        # print(f"val_ni_checkbox = {val_ni_checkbox}")
        # print(f"val_guiresolution = {val_guiresolution}")
+       
+       
+        print(f"val_camtimeout = {val_camtimeout}")
+        print(f"val_camcheckbox = {val_camcheckbox}")
+        
         
     except Exception as e:
         print(str(e))
         pipe_consoleb.send(str(e))
-    return out_path, db_env, save, sampling_rate, f0, df, k, lat_profile, lat_params, long_profile, long_params, val_ni, val_ni_checkbox, val_guiresolution
+    return out_path, db_env, save, sampling_rate, f0, df, k, lat_profile, lat_params, long_profile, long_params, val_ni, val_ni_checkbox, val_guiresolution, val_camtimeout, val_camcheckbox
 
 
 def force_profile(outfolder, timestamp, sampling_rate, f0, df, k, profile, params, channel, coil):
@@ -173,8 +178,12 @@ def main():
     
     
     # Define all input channels, including pipes for sending and receiving data
-    input_channels = ["Dev1/ai17", "Dev1/ai18", "Dev1/ai19", "Dev1/ai20", "Dev1/ai21"]
-    input_names = ["ai17", "ai18", "ai19", "ai20", "ai21"]
+#    input_channels = ["Dev1/ai17", "Dev1/ai18", "Dev1/ai19", "Dev1/ai20", "Dev1/ai21"]
+ #   input_names = ["ai17", "ai18", "ai19", "ai20", "ai21"]
+    input_channels = ["Dev1/ai17", "Dev1/ai18", "Dev1/ai19", "Dev1/ai20", "Dev1/ai21", "Dev1/ai6", "Dev1/ai7"]
+    input_names = ["ai17", "ai18", "ai19", "ai20", "ai21", "ai6", "ai7"]
+
+
     input_channelDict = {channel: Channel(channel=channel) for channel in input_channels}
     index = 0
     for channel in input_channelDict:
@@ -239,6 +248,7 @@ def main():
     pipe_outputplota, pipe_outputplotb = Pipe(duplex=False)
 
 
+
     # Start GUI
     processlist = []
     proc0 = Process(target=start_gui, args=(input_channelDict,
@@ -277,6 +287,7 @@ def main():
     proc3 = Process(target=start_camera, args=(pipe_cama, pipe_recordb, ))
     processlist.append(proc3)
     proc3.start()
+    pipe_camb.send(4)
 
 
     while True:
@@ -284,7 +295,7 @@ def main():
             running = True
             # Get input parameters from the GUI and evalute the force profile
             pipe_msgb.send(msg1)
-            outfolder, db_env, save, sampling_rate, f0, df, k, lat_profile, lat_params, long_profile, long_params, val_ni, val_ni_checkbox, val_guiresolution = get_parameters(pipe_parama, pipe_buffera, pipe_consoleb)
+            outfolder, db_env, save, sampling_rate, f0, df, k, lat_profile, lat_params, long_profile, long_params, val_ni, val_ni_checkbox, val_guiresolution, val_camtimeout, val_camcheckbox = get_parameters(pipe_parama, pipe_buffera, pipe_consoleb)
             clear_pipes([pipe_livea, pipe_timea, pipe_manipa, pipe_store_donea, pipe_cama, pipe_recorda, pipe_parama, pipe_getdataa])
             
             if outfolder == None:
@@ -320,6 +331,10 @@ def main():
             os.makedirs(f"{outfolder}{outfolder0}", exist_ok=True)
             os.makedirs(f"{outfolder}{outfolder0}{outfolder00}", exist_ok=True)
             os.makedirs(f"{outfolder}{outfolder1}", exist_ok=True)
+            
+            
+            
+
             
             
             if pipe_getdataa.poll():
@@ -386,24 +401,25 @@ def main():
                     pipe_getdataa.recv()
                 break
         
-        
+            
             # Start camera
-            pipe_camb.send(True)
-            cam = False
-            pipe_msgb.send(msg0)
-            time_cam1 = time.time()
-            while not cam:
-                if pipe_recorda.poll():
-                    while pipe_recorda.poll():
-                        cam = pipe_recorda.recv()
-                else:
-                    # Camera timeout
-                    time_cam2 = time.time()
-                    t = time_cam2 - time_cam1
-                    if t > 4.0:
-                        print("Failed to connect to the camera")
-                        pipe_consoleb.send("Failed to connect to the camera")
-                        break
+            if val_camcheckbox:
+                pipe_camb.send(True)
+                cam = False
+                pipe_msgb.send(msg0)
+                time_cam1 = time.time()
+                while not cam:
+                    if pipe_recorda.poll():
+                        while pipe_recorda.poll():
+                            cam = pipe_recorda.recv()
+                    else:
+                        # Camera timeout
+                        time_cam2 = time.time()
+                        t = time_cam2 - time_cam1
+                        if t > val_camtimeout:
+                            print("Failed to communicate with the camera")
+                            pipe_consoleb.send("Failed to communicate with the camera")
+                            break
     
             
     
@@ -447,6 +463,10 @@ def main():
                 while pipe_getdataa.poll():
                     pipe_getdataa.recv()
                 break
+    
+    
+
+    
     
             while running:
                 # If stop signal
@@ -690,44 +710,78 @@ def get_data2(p_live,
         task1.start()
         
 
-        with open((f"{tmpfolder}/times.csv"), "w+") as f:
-            while not task1.is_task_done() and i < num_samples0:
-                n = reader1._in_stream.avail_samp_per_chan
-                if n == 0: continue
-                n = min(n, num_samples0-i) # prevent reading too many samples
-                ##### READ
-                time_start = time.time()
-                if i == 0:
-                    time_next = time_start# + buffer_rate
-                    timestamp = time_start
-                
-                i += reader1.read_many_sample(
-                    buffer1[i:i+n, :], # read directly into array using a view
-                    number_of_samples_per_channel=n
-                )
-                #time_end = time.time()
-                time_end = time_start + 1.0/sampling_rate * n
-                
-                # Write the times to file
-                # If this is changed so that each data point is exactly
-                # the sampling time after the last, we don't need this step
-                f.write(f"{time_start}, {time_end}, {n}\n")
-    
-                
-                # Send required data to manipulate_data() (and hence the GUI)
-                if time_end >= time_next:                    
-                    times = [time_start, time_end]
-                    time_next = time_next + buffer_rate
-                    data_live1 = buffer1[i-n:i, :].astype(np.float32)
-                    p_live.send(data_live1)
-                    p_time.send(times)
-                
-                
-                # Break if the stop button is pressed
-                if pipe_getdataa.poll():
-                    while pipe_getdataa.poll():
-                        pipe_getdataa.recv()
-                    break
+        dt = 1.0 / sampling_rate
+        
+        
+        # evaluate which samples are to be sent to manipulate_data()
+        # this is a product of dt and buffer_rate
+        
+        nth_interval = sampling_rate / val_guiresolution # every nth data point can be sent to manipualte_data()
+        nth_data = 0
+        
+        
+        
+        
+        while not task1.is_task_done() and i < num_samples0:
+            n = reader1._in_stream.avail_samp_per_chan
+            if n == 0: continue
+            n = min(n, num_samples0-i) # prevent reading too many samples
+            ##### READ
+            #time_start = time.time()
+            time_start = time.time()
+            
+            
+            
+            if i == 0:
+                p_time.send([time_start, dt])
+                #p_time.send([timestamp, dt])
+                #time_next = time_start# + buffer_rate
+                #timestamp = time_start
+            
+            i += reader1.read_many_sample(
+                buffer1[i:i+n, :], # read directly into array using a view
+                number_of_samples_per_channel=n
+            )
+            #time_end = time.time()
+#            time_end = time_start + 1.0/sampling_rate * n
+            #time_end = time_start + dt * (n-1)
+            
+            
+            
+            """
+            # attempt at fixing dt
+            
+            
+            
+            """
+             
+            # Write the times to file
+            # If this is changed so that each data point is exactly
+            # the sampling time after the last, we don't need this step ##################### This should be changed
+            #f.write(f"{time_start}, {time_end}, {n}\n")
+
+            
+            # Send required data to manipulate_data() (and hence the GUI)
+            #if time_end >= time_next:  
+            #print(f"i = {i}")
+            #if i >= n:
+            if True:
+            #if i >= nth_data:
+                nth_data = nth_data + nth_interval
+                #times = [time_start, time_end]
+                #time_next = time_next + buffer_rate
+                data_live1 = buffer1[i-n:i, :].astype(np.float32)
+                p_live.send(data_live1) ###currently sending more data across than necessary
+                #p_live.send([data_live1, i]) ###currently sending more data across than necessary
+                #p_time.send(times)
+                #p_time.send([time_start, dt])
+        
+            
+            # Break if the stop button is pressed
+            if pipe_getdataa.poll():
+                while pipe_getdataa.poll():
+                    pipe_getdataa.recv()
+                break
         
         
         # Stop and check results
@@ -736,20 +790,40 @@ def get_data2(p_live,
         assert np.all(buffer1 > -1000)
         
         
-        # Read saved times
-        # This can likely be changed to np.memmap
-        with open((f"{tmpfolder}/times.csv"), "r") as f: 
-            time_data= np.loadtxt(f, skiprows=0, delimiter=", ")
-            
         
         # Write data to disk
         pipe_consoleb.send("Writing data to disk")
         print("Writing data to disk")
         logging.info("Writing data to disk")
         channels = input_channels + measured_channels
-        index = 0
-        with open((f"{outfolder_timestamp}data_{timestamp}.csv"), "w+") as f:
+        n = len(buffer1)
+        times = []
+        for j in range(n):
+            time_eval = time_start + dt * j
+            times.append(time_eval)
+        
+        
+        with open((f"{outfolder_timestamp}data_{time_start}.csv"), "w+") as f:
+            f.write(f"Start time: {time_start}\n")
+            f.write(f"dt: {dt}\n")
             f.write("timestamp, " + ", ".join(channels) + "\n")
+            
+
+            
+            
+            for j in range(n):
+                #dat = ', '.join(map(str, buffer1[index+j].astype(np.float32)))
+                dat = ', '.join(map(str, buffer1[j].astype(np.float32)))
+                f.write(f"{times[j]}, {dat}\n")
+            #print(str(time_start))
+            
+            #for t in range(num_samples0): ###########################################################
+            #    dat = ', '.join(map(str, buffer1[index+j].astype(np.float32)))
+            #    f.write(f"{times[j]}, {dat}\n")
+                #index = index + n
+            
+            
+            """
             for i in range(len(time_data)-1):
                 time_start = time_data[i][0]
                 time_end = time_data[i][1]
@@ -765,7 +839,7 @@ def get_data2(p_live,
                     dat = ', '.join(map(str, buffer1[index+j].astype(np.float32)))
                     f.write(f"{times[j]}, {dat}\n")
                 index = index + n
-                
+            """    
 
     # Leave get_data()        
     print("Leaving get_data()")
@@ -807,11 +881,22 @@ def manipulate_data(p_live,
                 p_outputplot.send(False)
                 sys.exit(0)
 
+
+
+
+
+
             # Unpackage the data
             try:    
-                if p_live.poll() and p_time.poll():
+                if p_time.poll():
+                    time_start, dt = p_time.recv()
+                    time_eval = time_start - dt
+
+
+                if p_live.poll():# and p_time.poll():
                     data_live = p_live.recv()
-                    time_data = p_time.recv()
+                    #print(str(data_live))
+                    #time_data = p_time.recv()
             
                     for channel in input_channelDict:
                         input_channelDict[channel].dat = data_live[:, input_channelDict[channel].index - 1]
@@ -820,8 +905,8 @@ def manipulate_data(p_live,
                     for channel in output_channelDict:
                         output_channelDict[channel].dat = data_live[:, size + output_channelDict[channel].index - 1]
                     
-                    time_start = time_data[0]
-                    time_end = time_data[1]
+                    #time_start = time_data[0]
+                    #time_end = time_data[1]
                     
                     if counter == 0:
                         counter = 1
@@ -832,11 +917,13 @@ def manipulate_data(p_live,
                     input_man = []
                     output_man = []
                     size = len(data_live)
-                    time_int = (time_end - time_start) / size  
+                    #time_int = (time_end - time_start) / size  
                     
                     
                     for i in range(size):
-                        time_eval = time_start + time_int * i
+                        #time_eval = time_start + time_int * i
+                        time_eval = time_eval + dt
+                        #print(str(time_eval))
                         dummylist = []
                         for channel in input_channelDict:
                             dummylist.append(input_channelDict[channel].dat[i])
@@ -858,8 +945,8 @@ def manipulate_data(p_live,
                     #p_manip.send(input_man)
                     #p_manip.send(output_man)
                     
-                    time_now = time.time()
-                    time_delay = time_now - time_start
+                    #time_now = time.time()
+                    #time_delay = time_now - time_start
                     #print(str(time_delay))
             except:
                 print("Error in manipulate_data")

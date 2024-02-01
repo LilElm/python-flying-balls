@@ -301,6 +301,8 @@ class RampSettingsLayout(QVBoxLayout):
                  #textbox_guirefresh,
                  pipe_buffer,
                  pipe_getdatab,
+                 textbox_cameratimeout,
+                 checkbox_camera,
                  parent=None, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
         #============================================================
@@ -328,6 +330,13 @@ class RampSettingsLayout(QVBoxLayout):
         self.pipe_buffer = pipe_buffer
         
         self.pipe_getdatab = pipe_getdatab
+        
+        
+        
+        
+        self.textbox_cameratimeout = textbox_cameratimeout
+        self.checkbox_camera = checkbox_camera
+        
         
         #self.consoleprocess.write("fnlkfnalsk")
         #self.consoleprocess.setProcessChannelMode(QProcess.MergedChannels)
@@ -453,6 +462,7 @@ class RampSettingsLayout(QVBoxLayout):
         self.k = self.textbox_k.text()
         
         
+ 
         
         
         """
@@ -479,7 +489,9 @@ class RampSettingsLayout(QVBoxLayout):
             # Send preferences data
             self.pipe_buffer.send([self.textbox_ni_val,
                                    self.checkbox_ni_val,
-                                   self.textbox_guiresolution_val])#,
+                                   self.textbox_guiresolution_val,
+                                   self.cameratimeout_val,
+                                   self.cameracheckbox_val])#,
                                    #self.textbox_guirefresh_val])
             
             
@@ -542,9 +554,12 @@ class RampSettingsLayout(QVBoxLayout):
             self.textbox_guiresolution.setText("100")
         
         
-        
-        
-        
+        try:
+            self.cameratimeout_val = float(self.textbox_cameratimeout.text())
+            self.cameracheckbox_val = self.checkbox_camera.isChecked()
+        except:
+            self.cameratimeout_val = 4
+            self.cameracheckbox_val = True
         
         
         
@@ -886,6 +901,8 @@ class Layout(QGridLayout):
                  pipe_inputplotb,
                  pipe_outputplota,
                  pipe_outputplotb,
+                 textbox_cameratimeout,
+                 checkbox_camera,
                  parent=None,
                  *args,
                  **kwargs):
@@ -921,6 +938,10 @@ class Layout(QGridLayout):
         #self.textbox_guirefresh = textbox_guirefresh
         self.pipe_buffer = pipe_buffer
         
+        
+        self.textbox_cameratimeout = textbox_cameratimeout
+        self.checkbox_camera = checkbox_camera
+        
         path = "C:\\Users\\ultservi\\Desktop\\Elmy\\python-flying-balls\\"
         self.path_textbox = QLineEdit(f"{path}out\\")
         self.db_textbox = QLineEdit(f"{path}.env")
@@ -945,7 +966,9 @@ class Layout(QGridLayout):
                                          self.textbox_guiresolution,
                                          #self.textbox_guirefresh,
                                          self.pipe_buffer,
-                                         self.pipe_getdatab)
+                                         self.pipe_getdatab,
+                                         self.textbox_cameratimeout,
+                                         self.checkbox_camera)
         #layout_output = OutputGraphLayout(self.output_channelDict, self.pipe_output, self.pipe_outputplota)
         #layout_input = InputGraphLayout(self.input_channelDict, self.pipe_input, self.pipe_inputplota, self.guirefresh)
 
@@ -983,7 +1006,9 @@ class PreferencesTab(QWidget):
                  checkbox_camera,
                  textbox_cameratimeout,
                  camera_button_connect,
-                 camera_button_disconnect):
+                 camera_button_disconnect,
+                 camera_button_start,
+                 camera_button_stop):
         super().__init__()
         self.pipe_guirefresh_output = pipe_guirefresh_output
         self.pipe_guirefresh_input = pipe_guirefresh_input
@@ -1000,7 +1025,8 @@ class PreferencesTab(QWidget):
         self.textbox_cameratimeout = textbox_cameratimeout
         self.camera_button_connect = camera_button_connect
         self.camera_button_disconnect = camera_button_disconnect
-        
+        self.camera_button_start = camera_button_start
+        self.camera_button_stop = camera_button_stop
         
         
         
@@ -1068,6 +1094,8 @@ class PreferencesTab(QWidget):
         
         layout_camera.addWidget(self.camera_button_connect, 3, 0, 1, 1)
         layout_camera.addWidget(self.camera_button_disconnect, 3, 1, 1, 1)
+        layout_camera.addWidget(self.camera_button_start, 3, 2, 1, 1)
+        layout_camera.addWidget(self.camera_button_stop, 3, 3, 1, 1)
         
                  #checkbox_camera,
                 # textbox_cameratimeout,
@@ -1123,8 +1151,12 @@ class PreferencesTab(QWidget):
         self.val_guiresolution = self.textbox_guiresolution.text()
         self.val_guirefresh = self.textbox_guirefresh.text()
         
+        self.val_cameratimeout = self.textbox_cameratimeout.text()
+        self.val_camera_checkbox = self.checkbox_camera.isChecked()
+        
         # Pipe these somewhere
         print(f"{self.val_ni} {self.val_ni_checkbox} {self.val_guiresolution} {self.val_guirefresh}")
+        print(f"{self.val_cameratimeout} {self.val_camera_checkbox}")
         self.pipe_guirefresh_output.send(self.val_guirefresh)
         self.pipe_guirefresh_input.send(self.val_guirefresh)
         
@@ -1151,8 +1183,12 @@ class PreferencesTab(QWidget):
         self.val_guiresolution = self.textbox_guiresolution.text()
         self.val_guirefresh = self.textbox_guirefresh.text()
         
+        self.val_cameratimeout = self.textbox_cameratimeout.text()
+        self.val_camera_checkbox = self.checkbox_camera.isChecked()
+        
         # Pipe these somewhere
         print(f"{self.val_ni} {self.val_ni_checkbox} {self.val_guiresolution} {self.val_guirefresh}")
+        print(f"{self.val_cameratimeout} {self.val_camera_checkbox}")
         self.pipe_guirefresh_output.send(self.val_guirefresh)
         self.pipe_guirefresh_input.send(self.val_guirefresh)
         
@@ -1229,11 +1265,15 @@ class MainWindow(QMainWindow):
         self.textbox_cameratimeout = QLineEdit(str(self.cameratimeout), placeholderText="Camera timeout (sec)")
         self.camera_button_connect = QPushButton("Connect")
         self.camera_button_disconnect = QPushButton("Disconnect")
+        self.camera_button_start = QPushButton("Start")
+        self.camera_button_stop = QPushButton("Stop")
                 
         
         
         self.camera_button_connect.clicked.connect(self.camera_connect_on_click)
         self.camera_button_disconnect.clicked.connect(self.camera_disconnect_on_click)
+        self.camera_button_start.clicked.connect(self.camera_start_on_click)
+        self.camera_button_stop.clicked.connect(self.camera_stop_on_click)
         
         
         
@@ -1252,7 +1292,9 @@ class MainWindow(QMainWindow):
                                                self.checkbox_camera,
                                                self.textbox_cameratimeout,
                                                self.camera_button_connect,
-                                               self.camera_button_disconnect)
+                                               self.camera_button_disconnect,
+                                               self.camera_button_start,
+                                               self.camera_button_stop)
         
         
         
@@ -1283,13 +1325,23 @@ class MainWindow(QMainWindow):
 
 
     def camera_connect_on_click(self):
-        print("nflsdknflsdk")
+        self.pipe_camb.send(False)
+        self.pipe_camb.send(4)
+#        self.pipe_cam_reconnectb.send(True)
+ #       print("Trying to reconnect to the camera...")
         
     def camera_disconnect_on_click(self):
         self.pipe_camb.send(False)
         self.pipe_camb.send(3)
         
 
+
+    def camera_start_on_click(self):
+        self.pipe_camb.send(True)
+
+
+    def camera_stop_on_click(self):
+        self.pipe_camb.send(False)
 
 
     def preferences_on_click(self):
@@ -1320,7 +1372,9 @@ class MainWindow(QMainWindow):
                              self.pipe_inputplota,
                              self.pipe_inputplotb,
                              self.pipe_outputplota,
-                             self.pipe_outputplotb)
+                             self.pipe_outputplotb,
+                             self.textbox_cameratimeout,
+                             self.checkbox_camera)
         widget = QWidget()
         widget.setLayout(grid_layout)
         self.setCentralWidget(widget)

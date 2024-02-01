@@ -347,6 +347,14 @@
 
  * New branch (lock-in) created
 
+ **11-Dec-23**
+
+ * Camera settings working
+
+ **01-Feb-24**
+
+ * Output time interval fixed at 1/sampling_rate
+
 
 
 </sub>
