@@ -355,6 +355,10 @@
 
  * Output time interval fixed at 1/sampling_rate
 
+ **21-Feb-24**
+
+ * get_data() pipeline to GUI streamlined
+
 
 
 </sub>

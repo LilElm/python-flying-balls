@@ -834,8 +834,7 @@ class GraphLayout(QVBoxLayout):
                 if data == False:
                     self.on = False
                 else:
-                
-                
+                    
                     # Clear all data if start button press just pressed
                     if self.counter == 0:
                         self.time_start = data[0]

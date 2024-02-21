@@ -178,8 +178,12 @@ def main():
     
     
     # Define all input channels, including pipes for sending and receiving data
+#    input_channels = ["Dev1/ai17", "Dev1/ai18", "Dev1/ai19", "Dev1/ai20", "Dev1/ai21"]
+ #   input_names = ["ai17", "ai18", "ai19", "ai20", "ai21"]
     input_channels = ["Dev1/ai17", "Dev1/ai18", "Dev1/ai19", "Dev1/ai20", "Dev1/ai21", "Dev1/ai6", "Dev1/ai7"]
     input_names = ["ai17", "ai18", "ai19", "ai20", "ai21", "ai6", "ai7"]
+
+
     input_channelDict = {channel: Channel(channel=channel) for channel in input_channels}
     index = 0
     for channel in input_channelDict:
@@ -382,7 +386,7 @@ def main():
             
         
             # Create processes
-            p_get_data = Process(target=get_data2, args=(pipe_liveb, pipe_timeb, input_channels, measured_channels, output_channels, sampling_rate, force_profile_lat, force_profile_long, input_channelDict, val_ni, val_ni_checkbox, pipe_getdataa, pipe_consoleb, val_guiresolution, input_channelDict, outfolder_timestamp, tmpfolder, ))
+            p_get_data = Process(target=get_data, args=(pipe_liveb, pipe_timeb, input_channels, measured_channels, output_channels, sampling_rate, force_profile_lat, force_profile_long, input_channelDict, val_ni, val_ni_checkbox, pipe_getdataa, pipe_consoleb, val_guiresolution, input_channelDict, outfolder_timestamp, tmpfolder, ))
             p_man_data = Process(target=manipulate_data, args=(pipe_livea, pipe_timea, pipe_manipb, pipe_inputb, pipe_outputb, pipe_man_donea, input_channelDict, output_channelDict, val_guiresolution, pipe_consoleb, ))
             #p_store_data = Process(target=store_data, args=(pipe_manipa, pipe_store_donea, input_channels, measured_channels, psuDict, save, outfolder, outfolder0, outfolder_timestamp, outfolder1, db_env, pipe_consoleb, ))
             
@@ -575,7 +579,7 @@ def main():
     """        
    
 
-def get_data2(p_live,
+def get_data(p_live,
               p_time,
               input_channels,
               measured_channels,
@@ -696,7 +700,9 @@ def get_data2(p_live,
         
         
         buffer_rate = 1.0 / val_guiresolution
-        
+        dt = 1.0 / sampling_rate
+        j = 0
+        times_full = []
         
         
         
@@ -705,45 +711,46 @@ def get_data2(p_live,
         task0.start()
         task1.start()
         
-
-        with open((f"{tmpfolder}/times.csv"), "w+") as f:
-            while not task1.is_task_done() and i < num_samples0:
-                n = reader1._in_stream.avail_samp_per_chan
-                if n == 0: continue
-                n = min(n, num_samples0-i) # prevent reading too many samples
-                ##### READ
-                time_start = time.time()
-                if i == 0:
-                    time_next = time_start# + buffer_rate
-                    timestamp = time_start
-                
-                i += reader1.read_many_sample(
-                    buffer1[i:i+n, :], # read directly into array using a view
-                    number_of_samples_per_channel=n
-                )
-                #time_end = time.time()
-                time_end = time_start + 1.0/sampling_rate * n
-                
-                # Write the times to file
-                # If this is changed so that each data point is exactly
-                # the sampling time after the last, we don't need this step ##################### This should be changed
-                f.write(f"{time_start}, {time_end}, {n}\n")
-    
-                
-                # Send required data to manipulate_data() (and hence the GUI)
-                if time_end >= time_next:                    
-                    times = [time_start, time_end]
+        
+        
+        while not task1.is_task_done() and i < num_samples0:
+            n = reader1._in_stream.avail_samp_per_chan
+            if n == 0: continue
+            n = min(n, num_samples0-i) # prevent reading too many samples
+            ##### READ
+            time_start = time.time()
+            
+        
+            # Now deprecated
+            if i == 0:
+                p_time.send([time_start, dt])
+                time_next = 0.0
+ 
+            
+            i += reader1.read_many_sample(
+                buffer1[i:i+n, :], # read directly into array using a view
+                number_of_samples_per_channel=n
+            )
+            data_live1 = buffer1[i-n:i, :].astype(np.float32)
+            times = [dt * k for k in range(j, i)]
+            times_full.extend(times)
+            j = i
+            
+            
+            
+            # Send data to data_manipulate() where the time satisfies the GUI
+            for l in range(len(times)): #for l in range(i)
+                if times[l] >= time_next:
+                    p_live.send([times[l], data_live1[l]])
                     time_next = time_next + buffer_rate
-                    data_live1 = buffer1[i-n:i, :].astype(np.float32)
-                    p_live.send(data_live1)
-                    p_time.send(times)
-                
-                
-                # Break if the stop button is pressed
-                if pipe_getdataa.poll():
-                    while pipe_getdataa.poll():
-                        pipe_getdataa.recv()
-                    break
+            
+        
+            
+            # Break if the stop button is pressed
+            if pipe_getdataa.poll():
+                while pipe_getdataa.poll():
+                    pipe_getdataa.recv()
+                break
         
         
         # Stop and check results
@@ -752,36 +759,26 @@ def get_data2(p_live,
         assert np.all(buffer1 > -1000)
         
         
-        # Read saved times
-        # This can likely be changed to np.memmap
-        with open((f"{tmpfolder}/times.csv"), "r") as f: 
-            time_data= np.loadtxt(f, skiprows=0, delimiter=", ")
-            
         
         # Write data to disk
         pipe_consoleb.send("Writing data to disk")
         print("Writing data to disk")
         logging.info("Writing data to disk")
         channels = input_channels + measured_channels
-        index = 0
-        with open((f"{outfolder_timestamp}data_{timestamp}.csv"), "w+") as f:
+        n = len(buffer1)
+        
+        
+        with open((f"{outfolder_timestamp}data_{time_start}.csv"), "w+") as f:
+            f.write(f"Start time: {time_start}\n")
+            f.write(f"dt: {dt}\n")
             f.write("timestamp, " + ", ".join(channels) + "\n")
-            for i in range(len(time_data)-1):
-                time_start = time_data[i][0]
-                time_end = time_data[i][1]
-                n = int(time_data[i][2])
-                times = []
-                time_int = (time_end - time_start) / (n-1)
-                
-                for j in range(n):
-                    time_eval = time_start + time_int * j
-                    times.append(time_eval)
-                    
-                for j in range(n):
-                    dat = ', '.join(map(str, buffer1[index+j].astype(np.float32)))
-                    f.write(f"{times[j]}, {dat}\n")
-                index = index + n
-                
+            
+            
+            for j in range(n):
+                dat = ', '.join(map(str, buffer1[j].astype(np.float32)))
+                f.write(f"{times_full[j]}, {dat}\n")
+            
+            
 
     # Leave get_data()        
     print("Leaving get_data()")
@@ -823,59 +820,93 @@ def manipulate_data(p_live,
                 p_outputplot.send(False)
                 sys.exit(0)
 
+
+
+
+
+
             # Unpackage the data
             try:    
-                if p_live.poll() and p_time.poll():
-                    data_live = p_live.recv()
-                    time_data = p_time.recv()
+                if p_time.poll():
+                    time_start, dt = p_time.recv()
+
+
+                if p_live.poll():
+                    time, data_live = p_live.recv()
+                    
+                    
             
                     for channel in input_channelDict:
-                        input_channelDict[channel].dat = data_live[:, input_channelDict[channel].index - 1]
+#                        input_channelDict[channel].dat = data_live[:, input_channelDict[channel].index - 1]
+                        input_channelDict[channel].dat = data_live[input_channelDict[channel].index - 1]
+                        
                     
                     size = len(input_channelDict)
                     for channel in output_channelDict:
-                        output_channelDict[channel].dat = data_live[:, size + output_channelDict[channel].index - 1]
+                        #output_channelDict[channel].dat = data_live[:, size + output_channelDict[channel].index - 1]
+                        output_channelDict[channel].dat = data_live[size + output_channelDict[channel].index - 1]
+
+                    #time_start = time_data[0]
+                    #time_end = time_data[1]
                     
-                    time_start = time_data[0]
-                    time_end = time_data[1]
                     
                     if counter == 0:
                         counter = 1
-                        time_next = time_start
+                        time_next = 0#time_start
                     
                     
                     # Restructure the data
                     input_man = []
                     output_man = []
                     size = len(data_live)
-                    time_int = (time_end - time_start) / size  
+                    #time_int = (time_end - time_start) / size  
                     
                     
-                    for i in range(size):
-                        time_eval = time_start + time_int * i
-                        dummylist = []
+                    #for i in range(size):
+                    if True:
+                      #  print(f"new i = {i}")
+                        #print(f"time[i] = {time[i]}")
+                        #time_eval = time_start + time_int * i
+                        """
+                        time_eval = time_eval + dt
+                        """
+                        #print(str(time_eval))
+                        dummylist_in = []
                         for channel in input_channelDict:
-                            dummylist.append(input_channelDict[channel].dat[i])
+                            #dummylist.append(input_channelDict[channel].dat[i])
+                            #dummylist.append(input_channelDict[channel].dat)#[i])
+                            dummylist_in.append(input_channelDict[channel].dat)#[i])
+                        """
                         input_man.append([time_eval, *dummylist])
-    
+                        """
+
+                        
+                        #input_man.append([time[i], *dummylist])
+                        #input_man.append([time, *dummylist])
+
                         dummylist = []
                         for channel in output_channelDict:
-                            dummylist.append(output_channelDict[channel].dat[i])
+                            #dummylist.append(output_channelDict[channel].dat[i])
+                            dummylist.append(output_channelDict[channel].dat)
                         #output_man.append([time_eval, *dummylist])
-                        output_man.append([*dummylist])
+                        #output_man.append([*dummylist])
                         
                         
-                        if time_eval >= time_next:
+                        #if time[i] >= time_next:
+                        if time >= time_next:
                             time_next = time_next + buffer_rate
-                            p_inputplot.send(input_man[i])
-                            p_outputplot.send([time_eval, *dummylist])
-                    
+                            #p_inputplot.send(input_man[i])
+                            #p_inputplot.send(input_man)
+                            p_inputplot.send([time, *dummylist_in])
+                            #p_outputplot.send([time_eval, *dummylist])
+                            p_outputplot.send([time, *dummylist])
+            
                     # Send data to store_data()
                     #p_manip.send(input_man)
                     #p_manip.send(output_man)
                     
-                    time_now = time.time()
-                    time_delay = time_now - time_start
+                    #time_now = time.time()
+                    #time_delay = time_now - time_start
                     #print(str(time_delay))
             except:
                 print("Error in manipulate_data")
