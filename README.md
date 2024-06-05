@@ -363,6 +363,12 @@
 
  * Branch restructure created to restructure the program around the GUI
 
+ **05-Jun-24**
+
+ * Class CoilChannel() contains parameters related to the control coils
+
+ * Threads used to generate ramp/half-sine profiles
+
 
 
 </sub>
