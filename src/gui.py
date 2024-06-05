@@ -127,8 +127,9 @@ class WorkerSignals(QObject):
 
 
 class Worker(QRunnable):
-    def __init__(self, fn, **kwargs):
+    def __init__(self, n, fn, **kwargs):
         super().__init__()
+        self.n = n
         self.fn = fn
         self.setAutoDelete(False)
         #self.args = args
@@ -293,7 +294,8 @@ class RampSettingsLayout(QVBoxLayout):
     def init_thread_pool(self):
         self.pool = QThreadPool()
         self.create_check_input_thread()
-        self.create_force_profile_thread()
+        for coil in self.coil_dict:
+            self.create_force_profile_thread(coil)
         self.create_daq_thread()
     
     
@@ -312,15 +314,13 @@ class RampSettingsLayout(QVBoxLayout):
     
     
     
-    def create_force_profile_thread(self):
-        pass
-        """
-        self.thread_force_profile = Worker(generate_force_profile,
-                                           kwargs=None)
-        self.thread_force_profile.signals.error.connect(self.thread_error)
-        self.thread_force_profile.signals.result.connect()
-        self.thread_force_profile.signals.finished.connect()
-        """
+    def create_force_profile_thread(self, coil):
+        self.coil_dict[coil].thread_force_profile = Worker(0, self.generate_force_profile,
+                                                           kwargs=self.coil_dict[coil])
+        self.coil_dict[coil].thread_force_profile.signals.error.connect(self.thread_error)
+       # self.thread_force_profile.signals.result.connect()
+        self.coil_dict[coil].thread_force_profile.signals.finished.connect(self.thread_complete)
+        
         
     
     def create_daq_thread(self):
@@ -334,56 +334,101 @@ class RampSettingsLayout(QVBoxLayout):
         """
         
     def thread_error(self, exctype, value, traceback):
-        self.console_plot.append("Error!")
+        #self.console_plot.append("Error!")
+        print("Error!")
         
     def thread_complete(self):
-        self.console_plot.append("Finished!")
+        #self.console_plot.append("Finished!")
+        print("Complete!")
         
         
-    def generate_force_profile(self):
+    def generate_force_profile(self, coil):
         
-        #self.check_preferences()
-        success = self.check_input()
+         profile =  coil.layout.profile
+         coil.layout.vals = []
+         for textbox in coil.layout.textboxDict:
+             coil.layout.vals.append(coil.layout.textboxDict[textbox].val)
+         vals = coil.layout.vals
+         
+         if profile == "Ramp Profile":
+            # Measure current drive, get input parameters, generate ramp profile
+             #drive_current = float(np.average(daq_single(sampling_rate=1000, num_samples=10, input_channels=[coil.channel_measured])))
+             drive_current = coil.drive_current
+             drive_target, time_idle, time_acc, time_ramp, time_rest = vals
+             force_profile = generate_ramp_profile(self.f0, self.df,
+                                                   self.k, drive_current,
+                                                   drive_target, time_idle,
+                                                   time_acc, time_ramp,
+                                                   time_rest, self.sampling_rate)
+             
+         
+         elif profile == "Sine Profile":
+             pass
+         
+         
+         elif profile == "Half-sine Profile":
+             force_profile = generate_halfsine_profile(amp, freq,
+                                                       time_idle, time_rest,
+                                                       self.sampling_rate)
+             
+             
+         
+         
+         elif profile == "Upload Custom":
+             pass
+         
         
-        if success:
-            for coil in self.coil_dict:
-                profile =  self.coil_dict[coil].layout.profile
-                self.coil_dict[coil].layout.vals = []
-                for textbox in self.coil_dict[coil].layout.textboxDict:
-                    self.coil_dict[coil].layout.vals.append(self.coil_dict[coil].layout.textboxDict[textbox].val)
-                vals = self.coil_dict[coil].layout.vals
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+    
+    """
+       # for coil in self.coil_dict:
+            profile =  self.coil_dict[coil].layout.profile
+            self.coil_dict[coil].layout.vals = []
+            for textbox in self.coil_dict[coil].layout.textboxDict:
+                self.coil_dict[coil].layout.vals.append(self.coil_dict[coil].layout.textboxDict[textbox].val)
+            vals = self.coil_dict[coil].layout.vals
+            
+            if profile == "Ramp Profile":
+               # Measure current drive, get input parameters, generate ramp profile
+                drive_current = float(np.average(daq_single(sampling_rate=1000, num_samples=10, input_channels=[self.coil_dict[coil].channel_measured])))
+                drive_target, time_idle, time_acc, time_ramp, time_rest = vals
+                force_profile = generate_ramp_profile(self.f0, self.df,
+                                                      self.k, drive_current,
+                                                      drive_target, time_idle,
+                                                      time_acc, time_ramp,
+                                                      time_rest, self.sampling_rate)
                 
-                if profile == "Ramp Profile":
-                   # Measure current drive, get input parameters, generate ramp profile
-                    drive_current = float(np.average(daq_single(sampling_rate=1000, num_samples=10, input_channels=[self.coil_dict[coil].channel_measured])))
-                    drive_target, time_idle, time_acc, time_ramp, time_rest = vals
-                    force_profile = generate_ramp_profile(self.f0, self.df,
-                                                          self.k, drive_current,
-                                                          drive_target, time_idle,
-                                                          time_acc, time_ramp,
-                                                          time_rest, self.sampling_rate)
-                    
-                
-                elif profile == "Sine Profile":
-                    pass
-                
-                
-                elif profile == "Half-sine Profile":
-                    force_profile = generate_halfsine_profile(amp, freq,
-                                                              time_idle, time_rest,
-                                                              self.sampling_rate)
-                    
-                    
-                
-                
-                elif profile == "Upload Custom":
-                    pass
-                
-                
-            # get profile
-            # get parameters
+            
+            elif profile == "Sine Profile":
+                pass
             
             
+            elif profile == "Half-sine Profile":
+                force_profile = generate_halfsine_profile(amp, freq,
+                                                          time_idle, time_rest,
+                                                          self.sampling_rate)
+                
+                
+            
+            
+            elif profile == "Upload Custom":
+                pass
+    """
+                
         
 
 
@@ -413,7 +458,10 @@ class RampSettingsLayout(QVBoxLayout):
 
     def start_on_click(self):
         
+        for coil in self.coil_dict:
+            self.coil_dict[coil].drive_current = float(np.average(daq_single(sampling_rate=1000, num_samples=10, input_channels=[self.coil_dict[coil].channel_measured])))
         
+   
         
         # Get 'save to file' and sampling rate
         #self.path = self.path_textbox.text()
@@ -427,12 +475,15 @@ class RampSettingsLayout(QVBoxLayout):
         self.k = self.textbox_k.text()
         
         
- 
+        #self.check_preferences()
+        success = self.check_input()
+        if success:
+            for coil in self.coil_dict:
+                self.pool.start(self.coil_dict[coil].thread_force_profile)
+    
         
-        
-        self.generate_force_profile()
-        
-        
+        #self.generate_force_profile()
+            
         # Send start signal to graphs
         """
         self.pipe_inputplotb.send(False) ######12/06/2023
@@ -454,75 +505,7 @@ class RampSettingsLayout(QVBoxLayout):
 
 
 
-        
-        
-        """
-        # Read all textboxes and return the values
-        for coil in self.coil_layout_dict:
-            self.coil_layout_dict[coil].textboxValuesDict = {}
-            for textbox in self.coil_layout_dict[coil].textboxDict:
-                self.coil_layout_dict[coil].textboxValuesDict[str(coil) + " " + str(textbox.placeholderText())] = textbox.text()
-        """
-        """
-        for coil in self.coil_layout_dict:
-            for textbox in self.coil_layout_dict[coil].textboxDict:
-                val = self.coil_layout_dict[coil].textboxDict[textbox].textbox.text()
-        """    
-        
-        """
-        # Check the validity of each input value
-        success = self.check_input()
-        
-        # If valid, send input parameters through pipe_params to main.py
-        # From there, force_profile.py will be called with the parameters
-        
-        if success:
-            
-            # Send preferences data
-            self.pipe_buffer.send([self.textbox_ni_val,
-                                   self.checkbox_ni_val,
-                                   self.textbox_guiresolution_val,
-                                   self.cameratimeout_val,
-                                   self.cameracheckbox_val])#,
-                                   #self.textbox_guirefresh_val])
-            
-            
-            
-            
-            self.pipe_param.send(self.path)
-            self.pipe_param.send(self.db_env)
-            
-            self.pipe_param.send(self.save)
-            self.pipe_param.send(self.sampling_rate)
-            
-            self.pipe_param.send(self.f0)
-            self.pipe_param.send(self.df)
-            self.pipe_param.send(self.k)
-            
-            
-            
-            for coil in self.coil_layout_dict:
-                # Send profile (ramp, sine, half-sine, custom)
-                self.pipe_param.send(self.coil_layout_dict[coil].profile)
-                
-                
-                # Send input parameters
-                self.coil_layout_dict[coil].vals = []
-                for textbox in self.coil_layout_dict[coil].textboxDict:
-                    self.coil_layout_dict[coil].vals.append(self.coil_layout_dict[coil].textboxDict[textbox].val)
-                
-                
-                #val = list(self.coil_layout_dict[coil].textboxValuesDict.values())
-                vals = self.coil_layout_dict[coil].vals
-                self.pipe_param.send(vals)
 
-        else:
-            print("Input parameters invalid")
-            #for val in self.coil_layout_dict[coil].textboxDict:
-             #   check_input(val)
-            
-        
-        """
     
     
     def check_preferences(self):
