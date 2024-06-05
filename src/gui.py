@@ -30,7 +30,7 @@ from PyQt5.QtWidgets import (QMainWindow,
                              QGridLayout,
                              QFormLayout)
 from PyQt5.QtGui import QIcon, QColor, QPixmap, QPainter, QMovie
-from PyQt5.QtCore import QTimer, QTextStream, QProcess, Qt
+from PyQt5.QtCore import QTimer, QTextStream, QObject, pyqtSignal, QProcess, QRunnable, QThreadPool, QThread
 import pyqtgraph as pg
 
 
@@ -38,7 +38,10 @@ import multiprocessing.connection
 multiprocessing.connection.BUFSIZE = 2**32-1 # This is the absolute limit for this PC
 from multiprocessing import Process, Pipe
 
+from profiles import generate_halfsine_profile, generate_ramp_profile
+from daq import daq_single
 
+from coil_class import CoilChannel, CoilProfileLayout
 
 class MenuLayout(QHBoxLayout):
     def __init__(self, parent=None, *args, **kwargs):
@@ -110,184 +113,125 @@ class FileSettingsLayout(QGridLayout):
 
         
 
-class TextBox():
-    def __init__(self, placeholder, loc, label_text, label_loc, parent=None, *args, **kwargs):
-        self.placeholder = placeholder
-        self.loc = loc
-        self.label_text = label_text
-        self.label_loc = label_loc
-        
-        self.textbox = QLineEdit(placeholderText=str(placeholder))
-        self.label = QLabel(str(label_text))
-        
-        
-        
 
-class CoilLayout(QGridLayout):
-    def __init__(self, coil, parent=None, *args, **kwargs):
-        super().__init__(parent, *args, **kwargs)
-        self.coil = coil
-        self.make_layout()
-        
-        
+class WorkerSignals(QObject):
+    finished = pyqtSignal()
+    error = pyqtSignal(tuple)
+    result = pyqtSignal(object)
+    progress = pyqtSignal(int)
 
-    def make_layout(self):
-        self.define_combo_box()
-        self.addWidget(self.combo_box, 0, 0, 1, 1)
-        self.make_textboxes(self.combo_box_list[0])
-        
-        
 
-    def define_combo_box(self):
-        self.combo_box = QComboBox()
-#        self.combo_box_list = ["Ramp Profile", "Sine Profile", "Half-sine Profile", "Half-sine Pulses Profile", "Upload Custom"]
-        self.combo_box_list = ["Ramp Profile", "Sine Profile", "Half-sine Profile", "Upload Custom"]
-        for item in self.combo_box_list:
-            self.combo_box.addItem(item)
-        self.combo_box.activated[str].connect(self.select_profile)
+
+
+
+
+
+class Worker(QRunnable):
+    def __init__(self, fn, **kwargs):
+        super().__init__()
+        self.fn = fn
+        self.setAutoDelete(False)
+        #self.args = args
+        
+        self.kwargs = kwargs['kwargs']
+        self.signals = WorkerSignals()
     
-    def select_profile(self):
-        content = self.combo_box.currentText()
-        self.make_textboxes(content)
-    
-
-    
-    def make_textboxes(self, content):
-        # Destroy all existing textboxes
-        for i in reversed(range(self.count())):
-            if i>0:
-                self.itemAt(i).widget().setParent(None)
-        self.content = content
+    def run(self):
+        try:
+            result = self.fn(self.kwargs)
+        except:
+            traceback.print_exc()
+            exctype, value = sys.exc_info()[:2]
+            self.signals.error.emit((exctype, value, traceback.format_exc()))
         
-        
-        # Make content for "Ramp Profile"
-        if content == self.combo_box_list[0]:
-            textbox_placeholders = ["Drive", "Idle", "Acc", "Ramp", "Rest"]
-            textbox_locs = [[0, 1, 1, 1],
-                            [2, 0, 1, 1],
-                            [2, 1, 1, 1],
-                            [4, 0, 1, 1],
-                            [4, 1, 1, 1]]
-            textbox_labels = ["Drive\n(V)",
-                              "Time Idle\n(s)",
-                              "Time Acc\n(s)",
-                              "Time Ramp\n(s)",
-                              "Time Rest\n(s)"]
-            textbox_labellocs = [[1, 1, 1, 1],
-                                 [3, 0, 1, 1],
-                                 [3, 1, 1, 1],
-                                 [5, 0, 1, 1],
-                                 [5, 1, 1, 1]]
-        
-        
-        # Make content for Sine Profile
-        elif content == self.combo_box_list[1]:
-            textbox_placeholders = ["Amplitude", "Freq", "Phase"]
-            textbox_locs = [[0, 1, 1, 1],
-                            [2, 0, 1, 1],
-                            [2, 1, 1, 1]]
-            textbox_labels = ["Amplitude\n(V)",
-                              "Frequency\n(Hz)",
-                              "Phase\n(deg)"]
-            textbox_labellocs = [[1, 1, 1, 1],
-                                 [3, 0, 1, 1],
-                                 [3, 1, 1, 1]]
-        
-        
-        # Make content for Half-sine Profile
-        elif content == self.combo_box_list[2]:
-            textbox_placeholders = ["Amplitude", "Freq", "Idle", "Rest"]
-            textbox_locs = [[0, 1, 1, 1],
-                            [2, 0, 1, 1],
-                            [2, 1, 1, 1],
-                            [4, 0, 1, 1]]
-            textbox_labels = ["Amplitude\n(V)",
-                              "Frequency\n(Hz)",
-                              "Time Idle\n(s)",
-                              "Time Rest\n(s)"]
-            textbox_labellocs = [[1, 1, 1, 1],
-                                 [3, 0, 1, 1],
-                                 [3, 1, 1, 1],
-                                 [5, 0, 1, 1]]
-        
-            """
-        # Make content for Half-sine Pulses Profile
-        elif content == self.combo_box_list[3]:
-            textbox_placeholders = ["Amplitude 1",
-                                    "Freq 1",
-                                    "Amplitude 2",
-                                    "Freq 2",
-                                    "Additional Delay",
-                                    "Ball Freq",
-                                    "Orbits",
-                                    "Idle",
-                                    "Rest"]
-            textbox_locs = [[0, 1, 1, 1],
-                            [2, 0, 1, 1],
-                            [2, 1, 1, 1],
-                            [4, 0, 1, 1],
-                            [4, 1, 1, 1],
-                            [6, 0, 1, 1],
-                            [6, 1, 1, 1],
-                            [8, 0, 1, 1],
-                            [8, 1, 1, 1]]
-            textbox_labels = ["Amplitude 1\n(V)",
-                              "Frequency 1\n(Hz)",
-                              "Amplitude 2\n(V)",
-                              "Frequency 2\n(Hz)",
-                              "Additional Delay\n(s)",
-                              "Ball Frequency\n(Hz)",
-                              "Orbits",
-                              "Time Idle\n(s)",
-                              "Time Rest\n(s)"]
-            textbox_labellocs = [[1, 1, 1, 1],
-                                 [3, 0, 1, 1],
-                                 [3, 1, 1, 1],
-                                 [5, 0, 1, 1],
-                                 [5, 1, 1, 1],
-                                 [7, 0, 1, 1],
-                                 [7, 1, 1, 1],
-                                 [9, 0, 1, 1],
-                                 [9, 1, 1, 1]]
-        
-            """
-        
-        
-        
-        
-        
-        # Make content for Custom Profile
-        elif content == self.combo_box_list[3]:
-            textbox_placeholders = ["Directory"]
-            textbox_locs = [[2, 0, 1, 1]]
-            textbox_labels = ["Directory"]
-            textbox_labellocs = [[3, 0, 1, 1]]
+        else:
+            self.signals.result.emit(result)  # Return the result of the processing
+        finally:
+            self.signals.finished.emit()
             
-            
-                
-        self.textboxDict = {}
-        for i in range(len(textbox_placeholders)):
-            self.textboxDict[textbox_placeholders[i]] = TextBox(
-                                                    textbox_placeholders[i],
-                                                    textbox_locs[i],
-                                                    textbox_labels[i],
-                                                    textbox_labellocs[i])
 
 
-        # Add the labels and textboxes
-        for textbox in self.textboxDict:
-            a, b, c, d = self.textboxDict[textbox].loc
-            self.addWidget(self.textboxDict[textbox].textbox, a, b, c, d)
-            
-            a, b, c, d = self.textboxDict[textbox].label_loc
-            self.addWidget(self.textboxDict[textbox].label, a, b, c, d)
-            
-        
+
+
+
+
+
+
+
 
 class RampSettingsLayout(QVBoxLayout):
     def __init__(self,
+                 coil_dict,
                  parent=None, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
+        self.coil_dict = coil_dict
+        
+        self.counter = 0
+        self.timer = QTimer()
+        self.timer.setInterval(250) #ms
+        self.timer.timeout.connect(self.update_console)
+        self.timer.start()
+    
+    
+    
+
+
+
+        
+        #self.coil_names = ["Lateral Coils", "Longitudinal Coils"]
+        
+        
+        #for coil in self.coil_dict:
+         #   self.coil_dict[coil].add_layout()
+        
+        
+        #self.coil_layout_dict = {coil: CoilProfileLayout(coil=coil) for coil in self.coil_names}
+        #self.coil_box_dict = {coil: QGroupBox(coil) for coil in self.coil_names}
+        
+        for coil in self.coil_dict:
+            self.addWidget(self.coil_dict[coil].box)
+        
+        
+        
+        layout_start = QGridLayout()
+        
+        
+        self.textbox_srate = QLineEdit(placeholderText="Sampling Rate")
+        self.textbox_f0 = QLineEdit("7.300", placeholderText="Frequency")
+        self.textbox_df = QLineEdit("0.090", placeholderText="Line Width")
+        self.textbox_k = QLineEdit("0.465", placeholderText="Spring Constant")
+        self.led = QPixmap('../fig/LED_red.png').scaled(20,20)
+        self.led_label = QLabel()
+        self.led_label.setPixmap(self.led)
+        self.start_button = QPushButton("Start")
+        self.stop_button = QPushButton("Stop")
+        self.start_button.clicked.connect(self.start_on_click)
+        self.stop_button.clicked.connect(self.stop_on_click)
+    
+        layout_start.addWidget(self.textbox_srate)
+        layout_start.addWidget(QLabel("Sampling Rate\n(Hz)"))
+        
+        layout_start.addWidget(self.textbox_f0)
+        layout_start.addWidget(QLabel("Frequency\n(Hz)"))
+        layout_start.addWidget(self.textbox_df)
+        layout_start.addWidget(QLabel("Line Width\n(Hz)"))
+        layout_start.addWidget(self.textbox_k)
+        layout_start.addWidget(QLabel("Spring Constant\n(mm/V)"))
+        layout_start.addWidget(self.led_label)
+        
+        
+        layout_start.addWidget(self.start_button)
+        layout_start.addWidget(self.stop_button)
+       
+        """
+        layout_start.addWidget(self.console)
+        """
+        
+        box_start = QGroupBox()
+        box_start.setLayout(layout_start)
+        box_start.setMaximumWidth(250)
+        self.addWidget(box_start)
+        
         
         """
         
@@ -351,77 +295,124 @@ class RampSettingsLayout(QVBoxLayout):
         #self.consoleprocess.write("fnlkfnalsk")
         #connect(self.console)
         
-        self.counter = 0
-        self.timer = QTimer()
-        self.timer.setInterval(250) #ms
-        self.timer.timeout.connect(self.update_console)
-        self.timer.start()
+        self.init_thread_pool()
+        
+        
+        
+        
+    
+    def init_thread_pool(self):
+        self.pool = QThreadPool()
+        self.create_check_input_thread()
+        self.create_force_profile_thread()
+        self.create_daq_thread()
     
     
     
-
-
-
-        
-        self.coil_names = ["Lateral Coils", "Longitudinal Coils"]
-        self.coil_layout_dict = {coil: CoilLayout(coil=coil) for coil in self.coil_names}
-        self.coil_box_dict = {coil: QGroupBox(coil) for coil in self.coil_names}
-        
-        for coil in self.coil_names:
-            self.coil_box_dict[coil].setLayout(self.coil_layout_dict[coil])
-            self.coil_box_dict[coil].setMaximumWidth(250)
-            self.addWidget(self.coil_box_dict[coil])
-        
-        
-        
-        layout_start = QGridLayout()
-        
-        
-        self.textbox_srate = QLineEdit(placeholderText="Sampling Rate")
-        self.textbox_f0 = QLineEdit("7.300", placeholderText="Frequency")
-        self.textbox_df = QLineEdit("0.090", placeholderText="Line Width")
-        self.textbox_k = QLineEdit("0.465", placeholderText="Spring Constant")
-        self.led = QPixmap('../fig/LED_red.png').scaled(20,20)
-        self.led_label = QLabel()
-        self.led_label.setPixmap(self.led)
-        self.start_button = QPushButton("Start")
-        self.stop_button = QPushButton("Stop")
-        self.start_button.clicked.connect(self.start_on_click)
-        self.stop_button.clicked.connect(self.stop_on_click)
     
-        layout_start.addWidget(self.textbox_srate)
-        layout_start.addWidget(QLabel("Sampling Rate\n(Hz)"))
-        
-        layout_start.addWidget(self.textbox_f0)
-        layout_start.addWidget(QLabel("Frequency\n(Hz)"))
-        layout_start.addWidget(self.textbox_df)
-        layout_start.addWidget(QLabel("Line Width\n(Hz)"))
-        layout_start.addWidget(self.textbox_k)
-        layout_start.addWidget(QLabel("Spring Constant\n(mm/V)"))
-        layout_start.addWidget(self.led_label)
-        
-        
-        layout_start.addWidget(self.start_button)
-        layout_start.addWidget(self.stop_button)
-       
+    def create_check_input_thread(self):
+        pass
         """
-        layout_start.addWidget(self.console)
+        self.thread_check_input = Worker(self.check_input,
+                                         kwargs=None)
+        self.thread_check_input.signals.error.connect(self.thread_error)
+        self.thread_check_input.signals.result.connect()
+        self.thread_check_input.signals.finished.connect()
         """
         
-        box_start = QGroupBox()
-        box_start.setLayout(layout_start)
-        box_start.setMaximumWidth(250)
-        self.addWidget(box_start)
+    
+    
+    
+    def create_force_profile_thread(self):
+        pass
+        """
+        self.thread_force_profile = Worker(generate_force_profile,
+                                           kwargs=None)
+        self.thread_force_profile.signals.error.connect(self.thread_error)
+        self.thread_force_profile.signals.result.connect()
+        self.thread_force_profile.signals.finished.connect()
+        """
+        
+    
+    def create_daq_thread(self):
+        pass
+        """
+        self.thread_daq = Worker(daq,
+                                 kwargs=None)
+        self.thread_force_profile.signals.error.connect(self.thread_error)
+        self.thread_force_profile.signals.result.connect()
+        self.thread_force_profile.signals.finished.connect()
+        """
+        
+    def thread_error(self, exctype, value, traceback):
+        self.console_plot.append("Error!")
+        
+    def thread_complete(self):
+        self.console_plot.append("Finished!")
+        
+        
+    def generate_force_profile(self):
+        
+        #self.check_preferences()
+        success = self.check_input()
+        
+        if success:
+            for coil in self.coil_layout_dict:
+                profile =  self.coil_layout_dict[coil].profile
+                self.coil_layout_dict[coil].vals = []
+                for textbox in self.coil_layout_dict[coil].textboxDict:
+                    self.coil_layout_dict[coil].vals.append(self.coil_layout_dict[coil].textboxDict[textbox].val)
+                vals = self.coil_layout_dict[coil].vals
+                print("vals_________\n\n")
+                print(f"{vals}")     
+                
+                
+                if profile == "Ramp Profile":
+                    # f0, df, k, drive_target, drive_current, time_idle, time_acc, time_ramp, time_rest, sampling_rate
+                    
+                    # Measure current drive
+                    
+                    
+                    generate_ramp_profile(self.f0, self.df, self.k, vals, self.sampling_rate)
+                    
+                    #drive_current = np.average(daq_single(sampling_rate=1000, num_samples=10, input_channels=))
+                    
+                    
+                elif profile == "Sine Profile":
+                    pass
+                
+                
+                elif profile == "Half-sine Profile":
+                    # amp, freq, time_idle, time_rest, sampling_rate
+                    
+
+                    
+                    generate_halfsine_profile(vals, self.sampling_rate)
+                    
+                    
+                
+                
+                elif profile == "Upload Custom":
+                    pass
+                
+                
+            # get profile
+            # get parameters
+            
+            
+        
 
 
 
 
     def update_console(self):
+        pass
+        """
         if self.pipe_console.poll():
             while self.pipe_console.poll():
                 msg = self.pipe_console.recv()
                 self.console.append(msg)
-                    
+        """            
                     
                     
         
@@ -437,7 +428,29 @@ class RampSettingsLayout(QVBoxLayout):
 
 
     def start_on_click(self):
+        
+        
+        
+        # Get 'save to file' and sampling rate
+        #self.path = self.path_textbox.text()
+        #self.db_env = self.db_textbox.text()
+        
+        #self.save = self.checkbox.isChecked()
+        self.sampling_rate = self.textbox_srate.text()
+        
+        self.f0 = self.textbox_f0.text()
+        self.df = self.textbox_df.text()
+        self.k = self.textbox_k.text()
+        
+        
+ 
+        
+        
+        self.generate_force_profile()
+        
+        
         # Send start signal to graphs
+        """
         self.pipe_inputplotb.send(False) ######12/06/2023
         self.pipe_outputplotb.send(False) ######12/06/2023
         
@@ -445,6 +458,7 @@ class RampSettingsLayout(QVBoxLayout):
         
         self.pipe_inputplotb.send(True) ######12/06/2023
         self.pipe_outputplotb.send(True) ######12/06/2023
+        """
 
         # Get all parameters from preferences menu
         #self.textbox_ni_val = int(self.textbox_ni.text())
@@ -456,20 +470,6 @@ class RampSettingsLayout(QVBoxLayout):
 
 
 
-
-        # Get 'save to file' and sampling rate
-        self.path = self.path_textbox.text()
-        self.db_env = self.db_textbox.text()
-        
-        self.save = self.checkbox.isChecked()
-        self.sampling_rate = self.textbox_srate.text()
-        
-        self.f0 = self.textbox_f0.text()
-        self.df = self.textbox_df.text()
-        self.k = self.textbox_k.text()
-        
-        
- 
         
         
         """
@@ -485,12 +485,13 @@ class RampSettingsLayout(QVBoxLayout):
                 val = self.coil_layout_dict[coil].textboxDict[textbox].textbox.text()
         """    
         
-        
+        """
         # Check the validity of each input value
         success = self.check_input()
         
         # If valid, send input parameters through pipe_params to main.py
         # From there, force_profile.py will be called with the parameters
+        
         if success:
             
             # Send preferences data
@@ -518,7 +519,7 @@ class RampSettingsLayout(QVBoxLayout):
             
             for coil in self.coil_layout_dict:
                 # Send profile (ramp, sine, half-sine, custom)
-                self.pipe_param.send(self.coil_layout_dict[coil].content)
+                self.pipe_param.send(self.coil_layout_dict[coil].profile)
                 
                 
                 # Send input parameters
@@ -537,13 +538,45 @@ class RampSettingsLayout(QVBoxLayout):
              #   check_input(val)
             
         
+        """
+    
+    
+    def check_preferences(self):
+        # Check preferences data
+        try:
+            self.textbox_ni_val = int(self.textbox_ni.text())
+            self.checkbox_ni_val = self.checkbox_ni.isChecked()
+        except:
+            self.textbox_ni_val = 0
+            self.checkbox_ni_val = False
+            self.textbox_ni.setText("")
+            self.checkbox_ni.setChecked(False)
+    
+        try:
+            self.textbox_guiresolution_val = float(self.textbox_guiresolution.text())
+        except:
+            self.textbox_guiresolution_val = 20.0
+            self.textbox_guiresolution.setText("100")
         
+        
+        try:
+            self.cameratimeout_val = float(self.textbox_cameratimeout.text())
+            self.cameracheckbox_val = self.checkbox_camera.isChecked()
+        except:
+            self.cameratimeout_val = 4
+            self.cameracheckbox_val = True
+        
+        
+    
+    
+    
+    
     def check_input(self):
         error_code = 0
         error_message = []
         tot_times = []
         
-        
+        """
         # Check preferences data
         try:
             self.textbox_ni_val = int(self.textbox_ni.text())
@@ -569,7 +602,7 @@ class RampSettingsLayout(QVBoxLayout):
             self.cameracheckbox_val = True
         
         
-        
+        """
         
         
         
@@ -627,7 +660,7 @@ class RampSettingsLayout(QVBoxLayout):
         # Check if input is a custom profile
         if error_code == 0:
             for coil in self.coil_layout_dict:
-                if "Custom" in self.coil_layout_dict[coil].content:
+                if "Custom" in self.coil_layout_dict[coil].profile:
                     for textbox in self.coil_layout_dict[coil].textboxDict:
                         val = self.coil_layout_dict[coil].textboxDict[textbox].textbox.text()
                         self.coil_layout_dict[coil].textboxDict[textbox].val = val
@@ -669,7 +702,7 @@ class RampSettingsLayout(QVBoxLayout):
                     freq = val
                     t = 0
                     if "Freq" in textbox:
-                        if self.coil_layout_dict[coil].content == "Half-sine Profile":
+                        if self.coil_layout_dict[coil].profile == "Half-sine Profile":
                             t = Decimal("0.5") / Decimal(val)
                             if Decimal(str(t)) % Decimal(str(dt)) != 0:
                                 freq = 1.0 / (2.0 * np.round((0.5 / val), dec))
@@ -678,7 +711,7 @@ class RampSettingsLayout(QVBoxLayout):
                                 print(f"freq: {freq}")
                                 t = Decimal("0.5") / Decimal(str(freq))
                             
-                        elif self.coil_layout_dict[coil].content == "Sine Profile":
+                        elif self.coil_layout_dict[coil].profile == "Sine Profile":
                             t = Decimal("1.0") / Decimal(val)
                             if Decimal(str(t)) % Decimal(str(dt)) != 0:
                                 freq = 1.0 / (np.round((1.0 / val), dec))
@@ -706,9 +739,9 @@ class RampSettingsLayout(QVBoxLayout):
                         for textbox in self.coil_layout_dict[coil].textboxDict:
                             val = self.coil_layout_dict[coil].textboxDict[textbox].val
                             if "Freq" in textbox:
-                                if self.coil_layout_dict[coil].content == "Half-sine Profile":
+                                if self.coil_layout_dict[coil].profile == "Half-sine Profile":
                                     t = 0.5 / val
-                                elif self.coil_layout_dict[coil].content == "Sine Profile":
+                                elif self.coil_layout_dict[coil].profile == "Sine Profile":
                                     t = 1.0 / val
                             elif "Velo" not in textbox and "Amp" not in textbox and "Freq" not in textbox and "Phase" not in textbox and "Drive" not in textbox:
                                 if "Acc" in textbox:
@@ -815,6 +848,8 @@ class GraphLayout(QVBoxLayout):
     
     
     def update_refresh_rate(self):
+        pass
+        """
         if self.pipe_guirefresha.poll():
             while self.pipe_guirefresha.poll():
                 self.guirefresh = self.pipe_guirefresha.recv()
@@ -823,10 +858,12 @@ class GraphLayout(QVBoxLayout):
             except:
                 pass
             self.timer.setInterval(self.guirefresh)
-        
+        """
     
     
     def update_plots(self):
+        pass
+        """
         if self.pipe_plota.poll():                 # If start/stop button pressed
             
             if not self.on:                        # If not already on, counter = 0
@@ -884,19 +921,21 @@ class GraphLayout(QVBoxLayout):
         
         
                     
-        
+        """
 
 
 class Layout(QGridLayout):
     def __init__(self,
                  input_channelDict,
-                 output_channelDict,
+                # output_channelDict,
+                 coil_dict,
                  parent=None,
                  *args,
                  **kwargs):
         super().__init__(parent, *args, **kwargs)
         self.input_channelDict = input_channelDict
-        self.output_channelDict = output_channelDict
+       # self.output_channelDict = output_channelDict
+        self.coil_dict = coil_dict
         
         """
                  input_channelDict,
@@ -973,7 +1012,7 @@ class Layout(QGridLayout):
         
         
         layout_fsettings = FileSettingsLayout(self.checkbox, self.path_textbox, self.db_textbox)
-        layout_ramp = RampSettingsLayout()
+        layout_ramp = RampSettingsLayout(self.coil_dict)
         """    
                                          self.pipe_param,
                                          self.pipe_signal,
@@ -997,7 +1036,8 @@ class Layout(QGridLayout):
         #layout_input = InputGraphLayout(self.input_channelDict, self.pipe_input, self.pipe_inputplota, self.guirefresh)
 
 
-        layout_output = GraphLayout(self.output_channelDict)#self.output_channelDict, self.pipe_output, self.pipe_outputplota, self.guirefresh, self.pipe_guirefresha_output)
+        #layout_output = GraphLayout(self.output_channelDict)#self.output_channelDict, self.pipe_output, self.pipe_outputplota, self.guirefresh, self.pipe_guirefresha_output)
+        layout_output = GraphLayout(self.coil_dict)#self.output_channelDict, self.pipe_output, self.pipe_outputplota, self.guirefresh, self.pipe_guirefresha_output)
         layout_input = GraphLayout(self.input_channelDict)#self.input_channelDict, self.pipe_input, self.pipe_inputplota, self.guirefresh, self.pipe_guirefresha_input)
         
 
@@ -1228,14 +1268,14 @@ class InputChannel():
         self.channel = channel
         self.name = name
         self.pipe = pipe
-
+"""
 class OutputChannel():
     def __init__(self, channel, channel_measured, name, pipe=Pipe(duplex=True)):
         self.channel = channel
         self.channel_measured = channel_measured
         self.name = name
         self.pipe = pipe
-
+"""
         
 
 class MainWindow(QMainWindow):
@@ -1260,34 +1300,13 @@ class MainWindow(QMainWindow):
         
         
         
-        
+        self.init_coils()
         self.init_channels()
         self.init_UI()
         self._createMenuBar()
 
         
-        
-    def init_channels(self):
-        # Define all input channels
-        #                   Channel      name      
-        input_channels = [("Dev1/ai17", "ai17"),
-                          ("Dev1/ai18", "ai18"),
-                          ("Dev1/ai19", "ai19"),
-                          ("Dev1/ai20", "ai20"),
-                          ("Dev1/ai21", "ai21"),
-                          ("Dev1/ai6", "ai6"),
-                          ("Dev1/ai7", "ai7")]
-
-        # Define all output channels
-        output_channels = [("Dev1/ao3", "Dev1/ai3", "Lateral Coils\nao3/ai3"),
-                           ("Dev1/ao1", "Dev1/ai0", "Longitudinal Coils\nao1/ai0")]
-        
-        self.input_channelDict = {channel: InputChannel(channel=channel, name=name) for channel, name in input_channels}
-        self.output_channelDict = {channel: OutputChannel(channel=channel, channel_measured=channel_measured, name=name) for channel, channel_measured, name in output_channels}
-      
-        
-        
-        
+   
         
         
         
@@ -1453,10 +1472,70 @@ class MainWindow(QMainWindow):
         
     
     
+    
+    
+    
+    
+    
+    def init_coils(self):
+        coils = [("Dev1/ao3", "Dev1/ai3", "Lateral Coils\nao3/ai3"),
+                 ("Dev1/ao1", "Dev1/ai0", "Longitudinal Coils\nao1/ai0")]
+        self.coil_dict = {name: CoilChannel(channel=channel,
+                                                    channel_measured=channel_measured,
+                                                    name=name) for channel,
+                                                                   channel_measured,
+                                                                   name in coils}
+        
+       
+        
+        
+        
+        
+        
+        
+        print(str(self.coil_dict))
+        print("=========================\n==========================")
+        
+        """
+        self.coil_layout_dict = {coil: CoilProfileLayout(coil=coil) for coil in self.coil_names}
+        self.coil_box_dict = {coil: QGroupBox(coil) for coil in self.coil_names}
+        
+        for coil in self.coil_names:
+            self.coil_box_dict[coil].setLayout(self.coil_layout_dict[coil])
+            self.coil_box_dict[coil].setMaximumWidth(250)
+            self.addWidget(self.coil_box_dict[coil])
+        """
+    
+    
+          
+    def init_channels(self):
+        # Define all input channels
+        #                   Channel      name      
+        input_channels = [("Dev1/ai17", "ai17"),
+                          ("Dev1/ai18", "ai18"),
+                          ("Dev1/ai19", "ai19"),
+                          ("Dev1/ai20", "ai20"),
+                          ("Dev1/ai21", "ai21"),
+                          ("Dev1/ai6", "ai6"),
+                          ("Dev1/ai7", "ai7")]
+
+        # Define all output channels
+#        output_channels = [("Dev1/ao3", "Dev1/ai3", "Lateral Coils\nao3/ai3"),
+ #                          ("Dev1/ao1", "Dev1/ai0", "Longitudinal Coils\nao1/ai0")]
+        
+        self.input_channelDict = {channel: InputChannel(channel=channel, name=name) for channel, name in input_channels}
+  #      self.output_channelDict = {channel: OutputChannel(channel=channel, channel_measured=channel_measured, name=name) for channel, channel_measured, name in output_channels}
+      
+        
+        
+       
+    
+    
     def init_UI(self):
         self.setWindowTitle(self.title)
         self.setWindowIcon(QIcon(self.icon))
-        grid_layout = Layout(self.input_channelDict, self.output_channelDict)
+        #grid_layout = Layout(self.input_channelDict, self.output_channelDict, self.coil_dict)
+        grid_layout = Layout(self.input_channelDict, self.coil_dict)
         """
                              self.input_channelDict,
                              self.output_channelDict,
