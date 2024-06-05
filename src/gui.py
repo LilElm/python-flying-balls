@@ -176,18 +176,7 @@ class RampSettingsLayout(QVBoxLayout):
     
 
 
-
-        
-        #self.coil_names = ["Lateral Coils", "Longitudinal Coils"]
-        
-        
-        #for coil in self.coil_dict:
-         #   self.coil_dict[coil].add_layout()
-        
-        
-        #self.coil_layout_dict = {coil: CoilProfileLayout(coil=coil) for coil in self.coil_names}
-        #self.coil_box_dict = {coil: QGroupBox(coil) for coil in self.coil_names}
-        
+  
         for coil in self.coil_dict:
             self.addWidget(self.coil_dict[coil].box)
         
@@ -357,12 +346,12 @@ class RampSettingsLayout(QVBoxLayout):
         success = self.check_input()
         
         if success:
-            for coil in self.coil_layout_dict:
-                profile =  self.coil_layout_dict[coil].profile
-                self.coil_layout_dict[coil].vals = []
-                for textbox in self.coil_layout_dict[coil].textboxDict:
-                    self.coil_layout_dict[coil].vals.append(self.coil_layout_dict[coil].textboxDict[textbox].val)
-                vals = self.coil_layout_dict[coil].vals
+            for coil in self.coil_dict:
+                profile =  self.coil_dict[coil].layout.profile
+                self.coil_dict[coil].layout.vals = []
+                for textbox in self.coil_dict[coil].layout.textboxDict:
+                    self.coil_dict[coil].layout.vals.append(self.coil_dict[coil].layout.textboxDict[textbox].val)
+                vals = self.coil_dict[coil].layout.vals
                 print("vals_________\n\n")
                 print(f"{vals}")     
                 
@@ -659,19 +648,19 @@ class RampSettingsLayout(QVBoxLayout):
         
         # Check if input is a custom profile
         if error_code == 0:
-            for coil in self.coil_layout_dict:
-                if "Custom" in self.coil_layout_dict[coil].profile:
-                    for textbox in self.coil_layout_dict[coil].textboxDict:
-                        val = self.coil_layout_dict[coil].textboxDict[textbox].textbox.text()
-                        self.coil_layout_dict[coil].textboxDict[textbox].val = val
+            for coil in self.coil_dict:
+                if "Custom" in self.coil_dict[coil].layout.profile:
+                    for textbox in self.coil_dict[coil].layout.textboxDict:
+                        val = self.coil_dict[coil].layout.textboxDict[textbox].textbox.text()
+                        self.coil_dict[coil].layout.textboxDict[textbox].val = val
                 else:
                     # Check if values are floats
                     if error_code == 0:
-                        for textbox in self.coil_layout_dict[coil].textboxDict:
+                        for textbox in self.coil_dict[coil].layout.textboxDict:
                             if error_code == 0:
-                                val = self.coil_layout_dict[coil].textboxDict[textbox].textbox.text()
+                                val = self.coil_dict[coil].layout.textboxDict[textbox].textbox.text()
                                 try:
-                                    self.coil_layout_dict[coil].textboxDict[textbox].val = float(val)
+                                    self.coil_dict[coil].layout.textboxDict[textbox].val = float(val)
                                 except:
                                     print("Please enter a valid " + str(textbox))
                                     error_message.append("Please enter a valid " + str(textbox))
@@ -680,10 +669,10 @@ class RampSettingsLayout(QVBoxLayout):
                                         
                     # Check if values are positive    
                     if error_code == 0:
-                        for textbox in self.coil_layout_dict[coil].textboxDict:
+                        for textbox in self.coil_dict[coil].layout.textboxDict:
                             if error_code == 0:
                                 if "Velo" not in textbox and "Amp" not in textbox and "Phase" not in textbox and "Drive" not in textbox:  
-                                    if self.coil_layout_dict[coil].textboxDict[textbox].val < 0.0:
+                                    if self.coil_dict[coil].layout.textboxDict[textbox].val < 0.0:
                                         print(str(textbox) + " is negative")
                                         error_message.append(str(textbox) + " is negative")
                                         error_code = 1
@@ -736,12 +725,12 @@ class RampSettingsLayout(QVBoxLayout):
                     if error_code == 0:
                         time_sum = 0
                         t = 0
-                        for textbox in self.coil_layout_dict[coil].textboxDict:
-                            val = self.coil_layout_dict[coil].textboxDict[textbox].val
+                        for textbox in self.coil_dict[coil].layout.textboxDict:
+                            val = self.coil_dict[coil].layout.textboxDict[textbox].val
                             if "Freq" in textbox:
-                                if self.coil_layout_dict[coil].profile == "Half-sine Profile":
+                                if self.coil_dict[coil].layout.profile == "Half-sine Profile":
                                     t = 0.5 / val
-                                elif self.coil_layout_dict[coil].profile == "Sine Profile":
+                                elif self.coil_dict[coil].layout.profile == "Sine Profile":
                                     t = 1.0 / val
                             elif "Velo" not in textbox and "Amp" not in textbox and "Freq" not in textbox and "Phase" not in textbox and "Drive" not in textbox:
                                 if "Acc" in textbox:
@@ -762,14 +751,14 @@ class RampSettingsLayout(QVBoxLayout):
                     
                     index = 0
                     # Evaluate difference between time and total time, add difference to current time rest
-                    for coil in self.coil_layout_dict:
+                    for coil in self.coil_dict:
                         dif = max(tot_times) - tot_times[index]
                         if dif != 0.0:
-                            for textbox in self.coil_layout_dict[coil].textboxDict:
+                            for textbox in self.coil_dict[coil].layout.textboxDict:
                                 if "Rest" in textbox:
-                                    val = self.coil_layout_dict[coil].textboxDict[textbox].val
+                                    val = self.coil_dict[coil].layout.textboxDict[textbox].val
                                     rest = val + dif
-                                    self.coil_layout_dict[coil].textboxDict[textbox].textbox.setText(str(rest))
+                                    self.coil_dict[coil].layout.textboxDict[textbox].textbox.setText(str(rest))
                                     print(f"{coil} Rest time has been increased to equate the total times")
                                     #error_message.append("Rest time has been increased to equate the total times")
                         index = index + 1
@@ -1300,27 +1289,12 @@ class MainWindow(QMainWindow):
         
         
         
-        self.init_coils()
         self.init_channels()
         self.init_UI()
         self._createMenuBar()
 
         
    
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
         
         
         
@@ -1477,34 +1451,8 @@ class MainWindow(QMainWindow):
     
     
     
-    def init_coils(self):
-        coils = [("Dev1/ao3", "Dev1/ai3", "Lateral Coils\nao3/ai3"),
-                 ("Dev1/ao1", "Dev1/ai0", "Longitudinal Coils\nao1/ai0")]
-        self.coil_dict = {name: CoilChannel(channel=channel,
-                                                    channel_measured=channel_measured,
-                                                    name=name) for channel,
-                                                                   channel_measured,
-                                                                   name in coils}
-        
-       
         
         
-        
-        
-        
-        
-        print(str(self.coil_dict))
-        print("=========================\n==========================")
-        
-        """
-        self.coil_layout_dict = {coil: CoilProfileLayout(coil=coil) for coil in self.coil_names}
-        self.coil_box_dict = {coil: QGroupBox(coil) for coil in self.coil_names}
-        
-        for coil in self.coil_names:
-            self.coil_box_dict[coil].setLayout(self.coil_layout_dict[coil])
-            self.coil_box_dict[coil].setMaximumWidth(250)
-            self.addWidget(self.coil_box_dict[coil])
-        """
     
     
           
@@ -1518,14 +1466,21 @@ class MainWindow(QMainWindow):
                           ("Dev1/ai21", "ai21"),
                           ("Dev1/ai6", "ai6"),
                           ("Dev1/ai7", "ai7")]
-
-        # Define all output channels
-#        output_channels = [("Dev1/ao3", "Dev1/ai3", "Lateral Coils\nao3/ai3"),
- #                          ("Dev1/ao1", "Dev1/ai0", "Longitudinal Coils\nao1/ai0")]
         
         self.input_channelDict = {channel: InputChannel(channel=channel, name=name) for channel, name in input_channels}
-  #      self.output_channelDict = {channel: OutputChannel(channel=channel, channel_measured=channel_measured, name=name) for channel, channel_measured, name in output_channels}
-      
+
+
+        # Define all coil/output channels    
+        coils = [("Dev1/ao3", "Dev1/ai3", "Lateral Coils\nao3/ai3"),
+                 ("Dev1/ao1", "Dev1/ai0", "Longitudinal Coils\nao1/ai0")]
+        self.coil_dict = {name: CoilChannel(channel=channel,
+                                                    channel_measured=channel_measured,
+                                                    name=name) for channel,
+                                                                   channel_measured,
+                                                                   name in coils}
+        
+       
+             
         
         
        
