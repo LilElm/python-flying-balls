@@ -352,32 +352,26 @@ class RampSettingsLayout(QVBoxLayout):
                 for textbox in self.coil_dict[coil].layout.textboxDict:
                     self.coil_dict[coil].layout.vals.append(self.coil_dict[coil].layout.textboxDict[textbox].val)
                 vals = self.coil_dict[coil].layout.vals
-                print("vals_________\n\n")
-                print(f"{vals}")     
-                
                 
                 if profile == "Ramp Profile":
-                    # f0, df, k, drive_target, drive_current, time_idle, time_acc, time_ramp, time_rest, sampling_rate
+                   # Measure current drive, get input parameters, generate ramp profile
+                    drive_current = float(np.average(daq_single(sampling_rate=1000, num_samples=10, input_channels=[self.coil_dict[coil].channel_measured])))
+                    drive_target, time_idle, time_acc, time_ramp, time_rest = vals
+                    force_profile = generate_ramp_profile(self.f0, self.df,
+                                                          self.k, drive_current,
+                                                          drive_target, time_idle,
+                                                          time_acc, time_ramp,
+                                                          time_rest, self.sampling_rate)
                     
-                    # Measure current drive
-                    print(str(self.coil_dict[coil].channel_measured))
-                    drive_current = np.average(daq_single(sampling_rate=1000, num_samples=10, input_channels=[self.coil_dict[coil].channel_measured]))
-                    print(f"DRIVE CURRENT: {drive_current}")                    
-                    
-                    generate_ramp_profile(self.f0, self.df, self.k, vals, self.sampling_rate)
-                    
-                    #
-                    
+                
                 elif profile == "Sine Profile":
                     pass
                 
                 
                 elif profile == "Half-sine Profile":
-                    # amp, freq, time_idle, time_rest, sampling_rate
-                    
-
-                    
-                    generate_halfsine_profile(vals, self.sampling_rate)
+                    force_profile = generate_halfsine_profile(amp, freq,
+                                                              time_idle, time_rest,
+                                                              self.sampling_rate)
                     
                     
                 

@@ -109,8 +109,8 @@ Flopper ramp current - Python translation for flying balls
 """
 
 def generate_ramp_profile(f0=7.300, df=0.090,
-                          k=0.465, drive_target=1,
-                          drive_current=0, time_idle=1.0,
+                          k=0.465, drive_current=0,
+                          drive_target=1, time_idle=1.0,
                           time_acc=1.0, time_ramp=5.0,
                           time_rest=1.0, sampling_rate=100.0,
                           coil=None, outfolder="../out/",
@@ -258,7 +258,6 @@ def generate_ramp_profile(f0=7.300, df=0.090,
     profile = profile * (drive_target - drive_current) + drive_current
     
     
-    
     # Print to file
     if coil is None:
         if timestamp is None:
@@ -298,7 +297,7 @@ def generate_ramp_profile(f0=7.300, df=0.090,
 
 # Run
 if __name__ == "__main__":
-    eval_ramp()
+    generate_ramp_profile()
 
 
 
