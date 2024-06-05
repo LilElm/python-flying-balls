@@ -761,8 +761,9 @@ class RampSettingsLayout(QVBoxLayout):
 
 
 class GraphLayout(QVBoxLayout):
-    def __init__(self, parent=None, *args, **kwargs): #channelDict, pipe_input, pipe_plota, guirefresh, pipe_guirefresha,
+    def __init__(self, channelDict, parent=None, *args, **kwargs): #channelDict, pipe_input, pipe_plota, guirefresh, pipe_guirefresha,
         super().__init__(parent, *args, **kwargs)
+        self.channelDict = channelDict
         """
         self.pipe_input = pipe_input
         self.channelDict = channelDict
@@ -805,7 +806,7 @@ class GraphLayout(QVBoxLayout):
         
         
         self.timer = QTimer()
-        self.timer.setInterval(self.guirefresh) #ms
+        #self.timer.setInterval(self.guirefresh) #ms
         self.timer.timeout.connect(self.update_plots)
         self.timer.start()
     
@@ -888,10 +889,14 @@ class GraphLayout(QVBoxLayout):
 
 class Layout(QGridLayout):
     def __init__(self,
+                 input_channelDict,
+                 output_channelDict,
                  parent=None,
                  *args,
                  **kwargs):
         super().__init__(parent, *args, **kwargs)
+        self.input_channelDict = input_channelDict
+        self.output_channelDict = output_channelDict
         
         """
                  input_channelDict,
@@ -992,8 +997,8 @@ class Layout(QGridLayout):
         #layout_input = InputGraphLayout(self.input_channelDict, self.pipe_input, self.pipe_inputplota, self.guirefresh)
 
 
-        layout_output = GraphLayout()#self.output_channelDict, self.pipe_output, self.pipe_outputplota, self.guirefresh, self.pipe_guirefresha_output)
-        layout_input = GraphLayout()#self.input_channelDict, self.pipe_input, self.pipe_inputplota, self.guirefresh, self.pipe_guirefresha_input)
+        layout_output = GraphLayout(self.output_channelDict)#self.output_channelDict, self.pipe_output, self.pipe_outputplota, self.guirefresh, self.pipe_guirefresha_output)
+        layout_input = GraphLayout(self.input_channelDict)#self.input_channelDict, self.pipe_input, self.pipe_inputplota, self.guirefresh, self.pipe_guirefresha_input)
         
 
 
@@ -1241,11 +1246,28 @@ class MainWindow(QMainWindow):
         super().__init__(parent, *args, **kwargs)
         
         
+        self.title = "Flying Balls"
+        self.icon = "../fig/icon.png"
+        self.setGeometry(40, 40, 1200, 625)
+        
+        
+        # Parameters for GUI refresh rate
+        self.guirefresh = 10 #ms
+        self.pipe_guirefresha_output, self.pipe_guirefreshb_output = Pipe(duplex=False)
+        self.pipe_guirefresha_input, self.pipe_guirefreshb_input = Pipe(duplex=False)
         
         
         
+        
+        
+        
+        self.init_channels()
+        self.init_UI()
+        self._createMenuBar()
 
         
+        
+    def init_channels(self):
         # Define all input channels
         #                   Channel      name      
         input_channels = [("Dev1/ai17", "ai17"),
@@ -1256,16 +1278,12 @@ class MainWindow(QMainWindow):
                           ("Dev1/ai6", "ai6"),
                           ("Dev1/ai7", "ai7")]
 
-        
-        
-        # Define all output channels, including pipes for sending and receiving data
+        # Define all output channels
         output_channels = [("Dev1/ao3", "Dev1/ai3", "Lateral Coils\nao3/ai3"),
                            ("Dev1/ao1", "Dev1/ai0", "Longitudinal Coils\nao1/ai0")]
         
-        
-
-        input_channelDict = {channel: Channel(channel=channel, name=name) for channel, name in input_channels}
-        output_channelDict = {channel: Channel(channel=channel, channel_measured=channel_measured, name=name) for channel, channel_measured, name in output_channels}
+        self.input_channelDict = {channel: InputChannel(channel=channel, name=name) for channel, name in input_channels}
+        self.output_channelDict = {channel: OutputChannel(channel=channel, channel_measured=channel_measured, name=name) for channel, channel_measured, name in output_channels}
       
         
         
@@ -1320,15 +1338,7 @@ class MainWindow(QMainWindow):
         self.pipe_camb = pipe_camb
         self.pipe_getdatab = pipe_getdatab
         """
-        self.title = "Flying Balls"
-        self.icon = "../fig/icon.png"
-        self.setGeometry(40, 40, 1200, 625)
-        
-        
-        # Parameters for GUI refresh rate
-        self.guirefresh = 10 #ms
-        self.pipe_guirefresha_output, self.pipe_guirefreshb_output = Pipe(duplex=False)
-        self.pipe_guirefresha_input, self.pipe_guirefreshb_input = Pipe(duplex=False)
+     
         
         
         """
@@ -1395,8 +1405,6 @@ class MainWindow(QMainWindow):
         
         
         
-        self.initUI()
-        self._createMenuBar()
 
     
     def _createMenuBar(self):
@@ -1445,10 +1453,10 @@ class MainWindow(QMainWindow):
         
     
     
-    def initUI(self):
+    def init_UI(self):
         self.setWindowTitle(self.title)
         self.setWindowIcon(QIcon(self.icon))
-        grid_layout = Layout()
+        grid_layout = Layout(self.input_channelDict, self.output_channelDict)
         """
                              self.input_channelDict,
                              self.output_channelDict,
