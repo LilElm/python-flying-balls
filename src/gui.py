@@ -360,12 +360,13 @@ class RampSettingsLayout(QVBoxLayout):
                     # f0, df, k, drive_target, drive_current, time_idle, time_acc, time_ramp, time_rest, sampling_rate
                     
                     # Measure current drive
-                    
+                    print(str(self.coil_dict[coil].channel_measured))
+                    drive_current = np.average(daq_single(sampling_rate=1000, num_samples=10, input_channels=[self.coil_dict[coil].channel_measured]))
+                    print(f"DRIVE CURRENT: {drive_current}")                    
                     
                     generate_ramp_profile(self.f0, self.df, self.k, vals, self.sampling_rate)
                     
-                    #drive_current = np.average(daq_single(sampling_rate=1000, num_samples=10, input_channels=))
-                    
+                    #
                     
                 elif profile == "Sine Profile":
                     pass
