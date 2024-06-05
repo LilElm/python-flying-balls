@@ -286,6 +286,11 @@ class CoilLayout(QGridLayout):
 
 class RampSettingsLayout(QVBoxLayout):
     def __init__(self,
+                 parent=None, *args, **kwargs):
+        super().__init__(parent, *args, **kwargs)
+        
+        """
+        
                  pipe_param,
                  pipe_signal,
                  checkbox,
@@ -303,8 +308,9 @@ class RampSettingsLayout(QVBoxLayout):
                  pipe_getdatab,
                  textbox_cameratimeout,
                  checkbox_camera,
-                 parent=None, *args, **kwargs):
-        super().__init__(parent, *args, **kwargs)
+        
+        """
+        
         #============================================================
         # Layout of Ramp Settings
         # 
@@ -312,7 +318,7 @@ class RampSettingsLayout(QVBoxLayout):
         # QGroupBox = Child
         # layout.addWidget(Widgets)
         # QGroupBox.setLayout(layout)
-        
+        """
         self.pipe_param = pipe_param
         self.pipe_signal = pipe_signal
         self.checkbox = checkbox
@@ -336,7 +342,7 @@ class RampSettingsLayout(QVBoxLayout):
         
         self.textbox_cameratimeout = textbox_cameratimeout
         self.checkbox_camera = checkbox_camera
-        
+        """
         
         #self.consoleprocess.write("fnlkfnalsk")
         #self.consoleprocess.setProcessChannelMode(QProcess.MergedChannels)
@@ -398,8 +404,9 @@ class RampSettingsLayout(QVBoxLayout):
         layout_start.addWidget(self.start_button)
         layout_start.addWidget(self.stop_button)
        
-  
+        """
         layout_start.addWidget(self.console)
+        """
         
         box_start = QGroupBox()
         box_start.setLayout(layout_start)
@@ -754,14 +761,15 @@ class RampSettingsLayout(QVBoxLayout):
 
 
 class GraphLayout(QVBoxLayout):
-    def __init__(self, channelDict, pipe_input, pipe_plota, guirefresh, pipe_guirefresha, parent=None, *args, **kwargs):
+    def __init__(self, parent=None, *args, **kwargs): #channelDict, pipe_input, pipe_plota, guirefresh, pipe_guirefresha,
         super().__init__(parent, *args, **kwargs)
+        """
         self.pipe_input = pipe_input
         self.channelDict = channelDict
         self.pipe_plota = pipe_plota
         self.guirefresh = guirefresh
         self.pipe_guirefresha = pipe_guirefresha
-        
+        """
         
         # Create a plot for each input channel
         for channel in self.channelDict:
@@ -880,6 +888,12 @@ class GraphLayout(QVBoxLayout):
 
 class Layout(QGridLayout):
     def __init__(self,
+                 parent=None,
+                 *args,
+                 **kwargs):
+        super().__init__(parent, *args, **kwargs)
+        
+        """
                  input_channelDict,
                  output_channelDict,
                  pipe_param,
@@ -902,18 +916,19 @@ class Layout(QGridLayout):
                  pipe_outputplotb,
                  textbox_cameratimeout,
                  checkbox_camera,
-                 parent=None,
-                 *args,
-                 **kwargs):
-        super().__init__(parent, *args, **kwargs)
+        """
+        
+        """
         self.input_channelDict = input_channelDict
         self.output_channelDict = output_channelDict
         self.pipe_param = pipe_param
         self.pipe_signal = pipe_signal
         self.pipe_input = pipe_input
         self.pipe_output = pipe_output
+        """
         self.checkbox = QCheckBox()
         self.checkbox.setChecked(True)
+        """
         self.pipe_console = pipe_console
         self.guirefresh = guirefresh
         self.pipe_guirefresha_output = pipe_guirefresha_output
@@ -941,6 +956,8 @@ class Layout(QGridLayout):
         self.textbox_cameratimeout = textbox_cameratimeout
         self.checkbox_camera = checkbox_camera
         
+        """
+        
         path = "C:\\Users\\ultservi\\Desktop\\Elmy\\python-flying-balls\\"
         self.path_textbox = QLineEdit(f"{path}out\\")
         self.db_textbox = QLineEdit(f"{path}.env")
@@ -951,7 +968,9 @@ class Layout(QGridLayout):
         
         
         layout_fsettings = FileSettingsLayout(self.checkbox, self.path_textbox, self.db_textbox)
-        layout_ramp = RampSettingsLayout(self.pipe_param,
+        layout_ramp = RampSettingsLayout()
+        """    
+                                         self.pipe_param,
                                          self.pipe_signal,
                                          self.checkbox,
                                          self.path_textbox,
@@ -968,12 +987,13 @@ class Layout(QGridLayout):
                                          self.pipe_getdatab,
                                          self.textbox_cameratimeout,
                                          self.checkbox_camera)
+        """
         #layout_output = OutputGraphLayout(self.output_channelDict, self.pipe_output, self.pipe_outputplota)
         #layout_input = InputGraphLayout(self.input_channelDict, self.pipe_input, self.pipe_inputplota, self.guirefresh)
 
 
-        layout_output = GraphLayout(self.output_channelDict, self.pipe_output, self.pipe_outputplota, self.guirefresh, self.pipe_guirefresha_output)
-        layout_input = GraphLayout(self.input_channelDict, self.pipe_input, self.pipe_inputplota, self.guirefresh, self.pipe_guirefresha_input)
+        layout_output = GraphLayout()#self.output_channelDict, self.pipe_output, self.pipe_outputplota, self.guirefresh, self.pipe_guirefresha_output)
+        layout_input = GraphLayout()#self.input_channelDict, self.pipe_input, self.pipe_inputplota, self.guirefresh, self.pipe_guirefresha_input)
         
 
 
@@ -993,7 +1013,8 @@ class Layout(QGridLayout):
 
 
 class PreferencesTab(QWidget):
-    def __init__(self,
+    def __init__(self):
+        """
                  guirefresh,
                  pipe_guirefresh_output,
                  pipe_guirefresh_input,
@@ -1008,7 +1029,9 @@ class PreferencesTab(QWidget):
                  camera_button_disconnect,
                  camera_button_start,
                  camera_button_stop):
+        """
         super().__init__()
+        """
         self.pipe_guirefresh_output = pipe_guirefresh_output
         self.pipe_guirefresh_input = pipe_guirefresh_input
         self.val_guirefresh = guirefresh
@@ -1019,14 +1042,13 @@ class PreferencesTab(QWidget):
         self.textbox_guirefresh = textbox_guirefresh
         
         
-        
         self.checkbox_camera = checkbox_camera
         self.textbox_cameratimeout = textbox_cameratimeout
         self.camera_button_connect = camera_button_connect
         self.camera_button_disconnect = camera_button_disconnect
         self.camera_button_start = camera_button_start
         self.camera_button_stop = camera_button_stop
-        
+        """
         
         
         
@@ -1193,29 +1215,100 @@ class PreferencesTab(QWidget):
         
         #self.pipe_buffer.send([self.val_ni, self.val_ni_checkbox, self.val_guiresolution])
         
+        
+        
+        
+class InputChannel():
+    def __init__(self, channel, name, pipe=Pipe(duplex=True)):
+        self.channel = channel
+        self.name = name
+        self.pipe = pipe
+
+class OutputChannel():
+    def __init__(self, channel, channel_measured, name, pipe=Pipe(duplex=True)):
+        self.channel = channel
+        self.channel_measured = channel_measured
+        self.name = name
+        self.pipe = pipe
 
         
 
 class MainWindow(QMainWindow):
     def __init__(self,
-                 input_channelDict,
-                 output_channelDict,
-                 pipe_param,
-                 pipe_input,
-                 pipe_output,
-                 pipe_signal,
-                 pipe_console,
-                 pipe_buffer,
-                 pipe_camb,
-                 pipe_getdatab,
-                 pipe_inputplota,
-                 pipe_inputplotb,
-                 pipe_outputplota,
-                 pipe_outputplotb,
                  parent=None,
                  *args,
                  **kwargs):
         super().__init__(parent, *args, **kwargs)
+        
+        
+        
+        
+        
+
+        
+        # Define all input channels
+        #                   Channel      name      
+        input_channels = [("Dev1/ai17", "ai17"),
+                          ("Dev1/ai18", "ai18"),
+                          ("Dev1/ai19", "ai19"),
+                          ("Dev1/ai20", "ai20"),
+                          ("Dev1/ai21", "ai21"),
+                          ("Dev1/ai6", "ai6"),
+                          ("Dev1/ai7", "ai7")]
+
+        
+        
+        # Define all output channels, including pipes for sending and receiving data
+        output_channels = [("Dev1/ao3", "Dev1/ai3", "Lateral Coils\nao3/ai3"),
+                           ("Dev1/ao1", "Dev1/ai0", "Longitudinal Coils\nao1/ai0")]
+        
+        
+
+        input_channelDict = {channel: Channel(channel=channel, name=name) for channel, name in input_channels}
+        output_channelDict = {channel: Channel(channel=channel, channel_measured=channel_measured, name=name) for channel, channel_measured, name in output_channels}
+      
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        """
+                     input_channelDict,
+                     output_channelDict,
+                     pipe_param,
+                     pipe_input,
+                     pipe_output,
+                     pipe_signal,
+                     pipe_console,
+                     pipe_buffer,
+                     pipe_camb,
+                     pipe_getdatab,
+                     pipe_inputplota,
+                     pipe_inputplotb,
+                     pipe_outputplota,
+                     pipe_outputplotb,
+        """
+        
+        """        
         self.input_channelDict = input_channelDict
         self.output_channelDict = output_channelDict
         self.pipe_param = pipe_param
@@ -1226,6 +1319,7 @@ class MainWindow(QMainWindow):
         self.pipe_buffer = pipe_buffer
         self.pipe_camb = pipe_camb
         self.pipe_getdatab = pipe_getdatab
+        """
         self.title = "Flying Balls"
         self.icon = "../fig/icon.png"
         self.setGeometry(40, 40, 1200, 625)
@@ -1237,13 +1331,13 @@ class MainWindow(QMainWindow):
         self.pipe_guirefresha_input, self.pipe_guirefreshb_input = Pipe(duplex=False)
         
         
-        
+        """
         # Pipes for clearing the GUI
         self.pipe_inputplota = pipe_inputplota
         self.pipe_inputplotb = pipe_inputplotb
         self.pipe_outputplota = pipe_outputplota
         self.pipe_outputplotb = pipe_outputplotb
-        
+        """
         
         
         
@@ -1280,7 +1374,9 @@ class MainWindow(QMainWindow):
         
         
         # Create the preferences menu
-        self.menu_preferences = PreferencesTab(self.guirefresh,
+        #self.menu_preferences = PreferencesTab()
+        """
+                                               self.guirefresh,
                                                self.pipe_guirefreshb_output,
                                                self.pipe_guirefreshb_input,
                                                self.textbox_ni,
@@ -1294,7 +1390,7 @@ class MainWindow(QMainWindow):
                                                self.camera_button_disconnect,
                                                self.camera_button_start,
                                                self.camera_button_stop)
-        
+        """
         
         
         
@@ -1352,7 +1448,9 @@ class MainWindow(QMainWindow):
     def initUI(self):
         self.setWindowTitle(self.title)
         self.setWindowIcon(QIcon(self.icon))
-        grid_layout = Layout(self.input_channelDict,
+        grid_layout = Layout()
+        """
+                             self.input_channelDict,
                              self.output_channelDict,
                              self.pipe_param,
                              self.pipe_input,
@@ -1374,6 +1472,7 @@ class MainWindow(QMainWindow):
                              self.pipe_outputplotb,
                              self.textbox_cameratimeout,
                              self.checkbox_camera)
+        """
         widget = QWidget()
         widget.setLayout(grid_layout)
         self.setCentralWidget(widget)
@@ -1408,7 +1507,9 @@ class MovieSplashScreen(QSplashScreen):
 
         
 
-def start_gui(input_channelDict,
+def start_gui():
+    """
+              input_channelDict,
               output_channelDict,
               pipe_param,
               pipe_input,
@@ -1422,6 +1523,7 @@ def start_gui(input_channelDict,
               pipe_inputplotb,
               pipe_outputplota,
               pipe_outputplotb):
+    """
     # Splash screen
     app = QApplication(sys.argv)
     pathToGIF = "../fig/loading/loading.gif"
@@ -1433,7 +1535,9 @@ def start_gui(input_channelDict,
         ex.show()
 
     QTimer.singleShot(1000, showWindow)
-    ex = MainWindow(input_channelDict,
+    ex = MainWindow()
+    """
+                    input_channelDict,
                     output_channelDict,
                     pipe_param,
                     pipe_input,
@@ -1447,6 +1551,7 @@ def start_gui(input_channelDict,
                     pipe_inputplotb,
                     pipe_outputplota,
                     pipe_outputplotb)
+    """
     app.exec_()
     sys.exit(app.exec_())
 

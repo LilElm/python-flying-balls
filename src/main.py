@@ -284,7 +284,7 @@ def main():
 
 
     # Connect to camera
-    proc3 = Process(target=start_camera, args=(pipe_cama, pipe_recordb, ))
+    proc3 = Process(target=start_camera, args=(pipe_cama, pipe_recordb, pipe_msgb, ))
     processlist.append(proc3)
     proc3.start()
     pipe_camb.send(4)

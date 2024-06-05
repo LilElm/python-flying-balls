@@ -45,16 +45,16 @@ def main(double=True, doubledelay=0.075):
     
     
 
-def eval_halfsinepulses(amp=0.4,
-                        amp2=0.4,
-                        freq=4.0,
-                        freq2=20.0,
+def eval_halfsinepulses(amp=0.3,
+                        amp2=0.3,
+                        freq=3.0,
+                        freq2=4.0,
                         delay=0.0,
-                        ballfreq=3.5,
+                        ballfreq=4.0,
                         #time_idle=1.175,
-                        time_idle=0.5,
+                        time_idle=10.5,
                         orbits=5,
-                        time_rest=10.0,
+                        time_rest=1.0,
                         sampling_rate=1000.0, # If lowered beneath 100, lengths won't match
                         coil=None,
                         outfolder="../out/",

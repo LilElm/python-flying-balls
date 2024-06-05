@@ -10,7 +10,7 @@ import sys
 import time
 
 
-async def main(pipe_in, pipe_out):
+async def main(pipe_in, pipe_out, pipe_msgb):
     currentDT = datetime.datetime.now()
     logfolder = "../log/"
     os.makedirs(logfolder, exist_ok=True)
@@ -43,19 +43,22 @@ async def main(pipe_in, pipe_out):
                 logging.info(f"Address: {address}")
                 logging.info(f"MODEL_NBR_UUID: {MODEL_NBR_UUID}")
                 print("Attempting to connect to the camera")
+                pipe_msgb.send("Attempting to connect to the camera")
                 
                 try:
                     async with BleakClient(address) as client:
                         if client.is_connected:
                             connected = client.is_connected
                             print("Connected to the camera")
-                            logging.info("Connected to the camera")                            
+                            logging.info("Connected to the camera") 
+                            pipe_msgb.send("Connected to the camera")
                             # Send signal for rest of program to begin
                             #pipe_out.send(True)
                             
                         else:
                             logging.info("Failed to connect to the camera")
                             print("Failed to connect to the camera")
+                            pipe_msgb.send("Failed to connect to the camera")
                             sys.exit(1)
                             
                         
@@ -64,14 +67,17 @@ async def main(pipe_in, pipe_out):
                         data2 = bytearray([1,5,0,0,10,1,1,0,0,0,0,0])
                         logging.info("Sending 'STOP RECORDING' bytearray")
                         print("Sending 'STOP RECORDING' bytearray")
+                        pipe_msgb.send("Sending 'STOP RECORDING' bytearray")
                         try:
                             await client.write_gatt_char(MODEL_NBR_UUID, data2, response=True)
                             print("Recording stopped")
                             logging.info("Recording stopped")
+                            pipe_msgb.send("Recording stopped")
                         except:
                             pipe_out.send(False)
                             print("Failed to communicate with the camera")
                             logging.info("Failed to communicate with the camera")
+                            pipe_msgb.send("Failed to communicate with the camera")
             
                 
                         while connected:
@@ -87,16 +93,19 @@ async def main(pipe_in, pipe_out):
                                         data1 = bytearray([1,5,0,0,10,1,1,0,2,0,0,0])
                                         logging.info("Sending 'START RECORDING' bytearray")
                                         print("Sending 'START RECORDING' bytearray")
+                                        pipe_msgb.send("Sending 'START RECORDING' bytearray")
                                         try:
                                             await client.write_gatt_char(MODEL_NBR_UUID, data1, response=True)
                                             print("Recording started")
                                             logging.info("Recording started")
+                                            pipe_msgb.send("Recording started")
                                             pipe_out.send(True)
                 
                                         except:
                                             pipe_out.send(False)
                                             print("Failed to communicate with the camera")
                                             logging.info("Failed to communicate with the camera")
+                                            pipe_msgb.send("Failed to communicate with the camera")
                                     
                                     
                                     # Stop recording 
@@ -104,14 +113,17 @@ async def main(pipe_in, pipe_out):
                                         data2 = bytearray([1,5,0,0,10,1,1,0,0,0,0,0])
                                         logging.info("Sending 'STOP RECORDING' bytearray")
                                         print("Sending 'STOP RECORDING' bytearray")
+                                        pipe_msgb.send("Sending 'STOP RECORDING' bytearray")
                                         try:
                                             await client.write_gatt_char(MODEL_NBR_UUID, data2, response=True)
                                             print("Recording stopped")
                                             logging.info("Recording stopped")
+                                            pipe_msgb.send("Recording stopped")
                                         except:
                                             pipe_out.send(False)
                                             print("Failed to communicate with the camera")
                                             logging.info("Failed to communicate with the camera")
+                                            pipe_msgb.send("Failed to communicate with the camera")
                      
                                 
                                     # Stop recording and disconnect
@@ -119,19 +131,24 @@ async def main(pipe_in, pipe_out):
                                         data2 = bytearray([1,5,0,0,10,1,1,0,0,0,0,0])
                                         logging.info("Sending 'STOP RECORDING' bytearray")
                                         print("Sending 'STOP RECORDING' bytearray")
+                                        pipe_msgb.send("Sending 'STOP RECORDING' bytearray")
                                         try:
                                             await client.write_gatt_char(MODEL_NBR_UUID, data2, response=True)
                                             print("Recording stopped")
                                             logging.info("Recording stopped")
+                                            pipe_msgb.send("Recording stopped")
                                         except:
                                             pipe_out.send(False)
                                             print("Failed to communicate with the camera")
                                             logging.info("Failed to communicate with the camera")
+                                            pipe_msgb.send("Failed to communicate with the camera")
                                         
                                         
                                         print("Closing Bluetooth connection")
                                         logging.info("Closing Bluetooth connection")
+                                        pipe_msgb.send("Closing Bluetooth connection")
                                         logging.info("Exiting camera.py")
+                                        pipe_msgb.send("Exiting camera.py")
                                         pipe_out.send(True)
                                         connected = False
                                     
@@ -141,13 +158,16 @@ async def main(pipe_in, pipe_out):
                                     
                             except:
                                 print("An error occured in camera.py")
+                                pipe_msgb.send("An error occured in camera.py")
                                 break
                             
                     print("Connection closed")
+                    pipe_msgb.send("Connection closed")
                     time.sleep(5)
                 except:
                     logging.info("Failed to connect to the camera")
                     print("Failed to connect to the camera")
+                    pipe_msgb.send("Failed to connect to the camera")
                 #    sys.exit(1)
         
                     
@@ -157,8 +177,8 @@ async def main(pipe_in, pipe_out):
         
         
 
-def start_camera(pipe_in, pipe_out):
-    asyncio.run(main(pipe_in, pipe_out))
+def start_camera(pipe_in, pipe_out, pipe_msgb):
+    asyncio.run(main(pipe_in, pipe_out, pipe_msgb))
     
 
     

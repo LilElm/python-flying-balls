@@ -359,6 +359,10 @@
 
  * get_data() pipeline to GUI streamlined
 
+ **02-Jun-24**
+
+ * Branch restructure created to restructure the program around the GUI
+
 
 
 </sub>

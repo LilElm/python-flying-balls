@@ -2,12 +2,12 @@
 
 # Import libraries
 import os
-from dotenv import load_dotenv
-import mysql.connector
-from mysql.connector import errorcode
+#from dotenv import load_dotenv
+#import mysql.connector
+#from mysql.connector import errorcode
 import multiprocessing.connection
 multiprocessing.connection.BUFSIZE = 2**32-1 # This is the absolute limit for this PC
-from multiprocessing import Process, Pipe
+#from multiprocessing import Process, Pipe
 import datetime
 import time
 import numpy as np
@@ -19,10 +19,10 @@ from nidaqmx.stream_readers import AnalogMultiChannelReader
 from nidaqmx.stream_writers import AnalogMultiChannelWriter
 from nidaqmx import constants
 import logging
-from PyQt5 import QtWidgets, QtCore
-import pyqtgraph as pg
-from force_profile import eval_force
-import msvcrt
+#from PyQt5 import QtWidgets, QtCore
+#import pyqtgraph as pg
+#from force_profile import eval_force
+#import msvcrt
 
 """Send Morse code to LEDs via DAQ board"""
 
@@ -94,7 +94,7 @@ def main():
             num_channels0 = 1
             num_samples0 = np.size(led)
             
-            task0.ao_channels.add_ao_voltage_chan("Dev1/ao0")
+            task0.ao_channels.add_ao_voltage_chan("Dev1/ao2")
             task0.ao_channels.all.ao_max = 10.0 #max_voltage
             task0.ao_channels.all.ao_min = -10.0 #min_voltage
             task0.timing.cfg_samp_clk_timing(sampling_rate,
@@ -104,6 +104,10 @@ def main():
             
             writer0 = AnalogMultiChannelWriter(task0.out_stream, auto_start=False)
             buffer0 = np.reshape(led, (1, num_samples0))
+            
+            print("buffer0 = ")
+            print(str(buffer0))
+            
             writer0.write_many_sample(buffer0, timeout=60)
             
             ## Task 1 (Dev1/ai0, Dev1/ai19, Dev1/ai3)
@@ -112,7 +116,7 @@ def main():
             
             #task1.ai_channels.add_ai_voltage_chan("Dev1/ai0")
             #task1.ai_channels.add_ai_voltage_chan("Dev1/ai19") # Current pressure
-            task1.ai_channels.add_ai_voltage_chan("Dev1/ai3")
+            task1.ai_channels.add_ai_voltage_chan("Dev1/ai22")
             task1.ai_channels.all.ai_max = 10.0 #max_voltage
             task1.ai_channels.all.ai_min = -10.0 #min_voltage
             task1.timing.cfg_samp_clk_timing(sampling_rate,
