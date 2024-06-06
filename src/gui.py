@@ -337,50 +337,69 @@ class RampSettingsLayout(QVBoxLayout):
         #self.console_plot.append("Error!")
         print("Error!")
         
-    def thread_complete(self):
+    def thread_complete(self, coil, force_profile):
         #self.console_plot.append("Finished!")
+        
+        
+        
         print("Complete!")
+        
+        
         
         
     def generate_force_profile(self, coil):
         
-         profile =  coil.layout.profile
-         coil.layout.vals = []
-         for textbox in coil.layout.textboxDict:
-             coil.layout.vals.append(coil.layout.textboxDict[textbox].val)
-         vals = coil.layout.vals
+        
+        
+        
+        
+        test_data = daq_single(sampling_rate=1000, num_samples=10, input_channels=[self.coil_dict[coil].channel_measured])
+        print(str(test_data))
+        print("=====================\n=========================")
+        
+        
+        
+        
+        
+        
+        force_profile = None
+        profile =  coil.layout.profile
+        coil.layout.vals = []
+        for textbox in coil.layout.textboxDict:
+            coil.layout.vals.append(coil.layout.textboxDict[textbox].val)
+        vals = coil.layout.vals
          
-         if profile == "Ramp Profile":
-            # Measure current drive, get input parameters, generate ramp profile
-             #drive_current = float(np.average(daq_single(sampling_rate=1000, num_samples=10, input_channels=[coil.channel_measured])))
-             drive_current = coil.drive_current
-             drive_target, time_idle, time_acc, time_ramp, time_rest = vals
-             force_profile = generate_ramp_profile(self.f0, self.df,
-                                                   self.k, drive_current,
-                                                   drive_target, time_idle,
-                                                   time_acc, time_ramp,
-                                                   time_rest, self.sampling_rate)
+        if profile == "Ramp Profile":
+           # Measure current drive, get input parameters, generate ramp profile
+            #drive_current = float(np.average(daq_single(sampling_rate=1000, num_samples=10, input_channels=[coil.channel_measured])))
+            drive_current = coil.drive_current
+            drive_target, time_idle, time_acc, time_ramp, time_rest = vals
+            force_profile = generate_ramp_profile(self.f0, self.df,
+                                                  self.k, drive_current,
+                                                  drive_target, time_idle,
+                                                  time_acc, time_ramp,
+                                                  time_rest, self.sampling_rate)
              
          
-         elif profile == "Sine Profile":
-             pass
+        elif profile == "Sine Profile":
+            pass
          
          
-         elif profile == "Half-sine Profile":
-             force_profile = generate_halfsine_profile(amp, freq,
-                                                       time_idle, time_rest,
-                                                       self.sampling_rate)
+        elif profile == "Half-sine Profile":
+            force_profile = generate_halfsine_profile(amp, freq,
+                                                      time_idle, time_rest,
+                                                      self.sampling_rate)
              
              
          
          
-         elif profile == "Upload Custom":
-             pass
+        elif profile == "Upload Custom":
+            pass
          
-        
-        
-        
-        
+         
+         
+        #self.coil_dict[]
+        #return force_profile
         
         
         
@@ -458,10 +477,6 @@ class RampSettingsLayout(QVBoxLayout):
 
     def start_on_click(self):
         
-        for coil in self.coil_dict:
-            self.coil_dict[coil].drive_current = float(np.average(daq_single(sampling_rate=1000, num_samples=10, input_channels=[self.coil_dict[coil].channel_measured])))
-        
-   
         
         # Get 'save to file' and sampling rate
         #self.path = self.path_textbox.text()
@@ -479,8 +494,10 @@ class RampSettingsLayout(QVBoxLayout):
         success = self.check_input()
         if success:
             for coil in self.coil_dict:
+                self.coil_dict[coil].drive_current = float(np.average(daq_single(sampling_rate=1000, num_samples=10, input_channels=[self.coil_dict[coil].channel_measured])))
                 self.pool.start(self.coil_dict[coil].thread_force_profile)
-    
+                print("ONLY ONE THREAD STARTED.")
+                break
         
         #self.generate_force_profile()
             
