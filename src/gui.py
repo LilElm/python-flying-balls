@@ -4,7 +4,7 @@
 from decimal import *
 getcontext().prec = 10
 import numpy as np
-import sys
+import traceback, sys
 import time
 from itertools import cycle
 from PyQt5.QtWidgets import (QMainWindow,
@@ -353,7 +353,7 @@ class RampSettingsLayout(QVBoxLayout):
         
         
         
-        test_data = daq_single(sampling_rate=1000, num_samples=10, input_channels=[self.coil_dict[coil].channel_measured])
+        test_data = daq_single(sampling_rate=1000, num_samples=10, input_channels=["Dev1/ai17"])
         print(str(test_data))
         print("=====================\n=========================")
         
