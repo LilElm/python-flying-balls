@@ -369,6 +369,12 @@
 
  * Threads used to generate ramp/half-sine profiles
 
+ **12-Jun-24**
+
+ * Data acquisition running in thread (QRunnable)
+
+ * GUI plots data using multiple threads (QRunnables)
+
 
 
 </sub>

@@ -958,14 +958,9 @@ class GraphLayout(QVBoxLayout):
     
     def update_plots(self, channel):
         if self.channelDict[channel].running:
-            
-            print(f"channel = {channel}")
-            
             if self.channelDict[channel].pipe[0].poll():
                 while self.channelDict[channel].pipe[0].poll():
-                #time, data = self.channelDict[channel].pipe[0].recv()
                     data = self.channelDict[channel].pipe[0].recv()
-                    #print(str(data))
                     if data == False:
                         self.is_running(channel=channel, running=False)
                     else:
@@ -986,23 +981,15 @@ class GraphLayout(QVBoxLayout):
                 while self.channelDict[channel].pipe[0].poll():
                     data = self.channelDict[channel].pipe[0].recv()
                     
-                    #print(f"data = {data}")
                     if data == False:
                         self.is_running(channel=channel, running=False)
                 
                     # Automatically start if sent data
                     elif len(data[0]) > 0:
-                        
-                        #print("fhodlhfdslkfndls")
                         self.channelDict[channel].time.extend(data[0])
                         self.channelDict[channel].data.extend(data[1])
-                        
-                        #print(f"self.channelDict[{channel}].time = {self.channelDict[channel].time}")
-                        #print(f"self.channelDict[{channel}].data = {self.channelDict[channel].data}\n\n")
-                        
                         self.channelDict[channel].plot.line.setData(self.channelDict[channel].time,
                                                                     self.channelDict[channel].data)
-                
                         self.is_running(channel=channel, running=True)
 
         
