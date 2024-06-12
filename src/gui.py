@@ -134,6 +134,7 @@ class Worker(QRunnable):
         self.setAutoDelete(False)
         #self.args = args
         
+        
         self.kwargs = kwargs['kwargs']
         self.signals = WorkerSignals()
     
@@ -151,7 +152,13 @@ class Worker(QRunnable):
             self.signals.finished.emit()
             
 
-
+    def get_id(self):
+        if hasattr(self, '_thread_id'):
+            print(str(self._thread_id))
+            return self._thread_id
+        else:
+            print("no thread id")
+            pass
 
 
 
@@ -316,9 +323,10 @@ class RampSettingsLayout(QVBoxLayout):
     
     def create_force_profile_thread(self, coil):
         self.coil_dict[coil].thread_force_profile = Worker(0, self.generate_force_profile,
-                                                           kwargs=self.coil_dict[coil])
+                                                           #kwargs=self.coil_dict[coil])
+                                                           kwargs=coil)
         self.coil_dict[coil].thread_force_profile.signals.error.connect(self.thread_error)
-       # self.thread_force_profile.signals.result.connect()
+        #self.coil_dict[coil].thread_force_profile.signals.result.connect(self.thread_result)
         self.coil_dict[coil].thread_force_profile.signals.finished.connect(self.thread_complete)
         
         
@@ -337,14 +345,24 @@ class RampSettingsLayout(QVBoxLayout):
         #self.console_plot.append("Error!")
         print("Error!")
         
-    def thread_complete(self, coil, force_profile):
+    def thread_complete(self):
+        print("yoyoyo")
+        #self.console_plot.append("Finished!")
+    """        
+        def thread_result(self, parameters):
+        coil, force_profile = parameters
+        
+        self.coil_dict[coil].fp = force_profile
+        
+        print("ahahahah")
+        print(f"coil = {coil}, force_profile = {force_profile}")
         #self.console_plot.append("Finished!")
         
         
         
         print("Complete!")
         
-        
+    """        
         
         
     def generate_force_profile(self, coil):
@@ -353,26 +371,27 @@ class RampSettingsLayout(QVBoxLayout):
         
         
         
-        test_data = daq_single(sampling_rate=1000, num_samples=10, input_channels=["Dev1/ai17"])
-        print(str(test_data))
-        print("=====================\n=========================")
-        
-        
-        
-        
+        #test_data = daq_single(sampling_rate=1000, num_samples=10, input_channels=["Dev1/ai17"])
+        #print(str(test_data))
+        #print("=====================\n=========================")
         
         
         force_profile = None
-        profile =  coil.layout.profile
-        coil.layout.vals = []
-        for textbox in coil.layout.textboxDict:
-            coil.layout.vals.append(coil.layout.textboxDict[textbox].val)
-        vals = coil.layout.vals
+        profile =  self.coil_dict[coil].layout.profile
+        self.coil_dict[coil].layout.vals = []
+        for textbox in self.coil_dict[coil].layout.textboxDict:
+            self.coil_dict[coil].layout.vals.append(self.coil_dict[coil].layout.textboxDict[textbox].val)
+        vals = self.coil_dict[coil].layout.vals
          
         if profile == "Ramp Profile":
            # Measure current drive, get input parameters, generate ramp profile
             #drive_current = float(np.average(daq_single(sampling_rate=1000, num_samples=10, input_channels=[coil.channel_measured])))
-            drive_current = coil.drive_current
+            
+            #drive_current = None
+            #drive_current = float(np.average(daq_single(sampling_rate=1000, num_samples=10, input_channels=[self.coil_dict[coil].channel_measured])))
+            
+            
+            drive_current = self.coil_dict[coil].drive_current
             drive_target, time_idle, time_acc, time_ramp, time_rest = vals
             force_profile = generate_ramp_profile(self.f0, self.df,
                                                   self.k, drive_current,
@@ -399,7 +418,11 @@ class RampSettingsLayout(QVBoxLayout):
          
          
         #self.coil_dict[]
-        #return force_profile
+        print(f"coil = {coil}, force_profile = {force_profile}")
+        
+        self.coil_dict[coil].force_profile = force_profile
+        
+        #return coil, force_profile
         
         
         
@@ -478,6 +501,7 @@ class RampSettingsLayout(QVBoxLayout):
     def start_on_click(self):
         
         
+        
         # Get 'save to file' and sampling rate
         #self.path = self.path_textbox.text()
         #self.db_env = self.db_textbox.text()
@@ -494,13 +518,50 @@ class RampSettingsLayout(QVBoxLayout):
         success = self.check_input()
         if success:
             for coil in self.coil_dict:
+                try:
+                    if self.coil_dict[coil].fp:
+                        print(f"coil.fp = {coil.fp}")
+                except:
+                    pass
+                
                 self.coil_dict[coil].drive_current = float(np.average(daq_single(sampling_rate=1000, num_samples=10, input_channels=[self.coil_dict[coil].channel_measured])))
                 self.pool.start(self.coil_dict[coil].thread_force_profile)
-                print("ONLY ONE THREAD STARTED.")
+
+
+        timeout = 10.0
+        time_start = time.time()
+        while True:
+            if time.time() > time_start + timeout:
+                print("Timeout error")
+                
+                for coil in self.coil_dict:
+                    try:
+                       # self.coil_dict[coil].thread_force_profile.get_id()
+                        self.coil_dict[coil].thread_force_profile.quit()
+                    except:    
+                    
+                        print("failed to kill threads")
+                        
+                        # QRunnables cannot be stopped (it seems) without events
+                        # i.e. inside a large loop 'if event: stop'
+                        #
+                        # I may need to use a QThread if I want to be able to kill it
+                
                 break
-        
-        #self.generate_force_profile()
             
+            if self.pool.activeThreadCount() == 0:
+                print("Force profile threads completed")
+                break
+        """
+        timed_out = not self.pool.waitForDone(10000)
+        if timed_out:
+            print("timed out")
+            self.pool.close()
+            self.pool.
+        else:
+            print("success")
+        """
+        print("===========")
         # Send start signal to graphs
         """
         self.pipe_inputplotb.send(False) ######12/06/2023

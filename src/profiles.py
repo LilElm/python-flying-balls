@@ -16,7 +16,8 @@ import time
 def generate_halfsine_profile(amp=1.0, freq=3.0,
                               time_idle=1.0, time_rest=4.0,
                               sampling_rate=100.0, coil=None,
-                              outfolder="../out/", timestamp=None):
+                              outfolder="../out/", timestamp=None,
+                              figure=False):
     
     logfolder = "../log/"
     os.makedirs(outfolder, exist_ok=True)
@@ -65,19 +66,20 @@ def generate_halfsine_profile(amp=1.0, freq=3.0,
             path = f"{outfolder}{coil}_halfsine_profile_{timestamp}"
             
     
-    
     with open((path + ".csv"), "w") as f:
         f.write("Seconds, Profile\n")
         for i in range(len(times_tot)):
             f.write(f"{times_tot[i]}, {profile[i]}\n")
-    
-    path = path + ".png"
-    fig = plt.figure()
-    ax = fig.add_subplot(1,1,1)
-    ax.plot(times_tot, profile)
-    #plt.show()
-    fig.savefig(path, bbox_inches="tight", dpi=600)
-    plt.close()
+        
+
+    if figure:
+        path = path + ".png"
+        fig = plt.figure()
+        ax = fig.add_subplot(1,1,1)
+        ax.plot(times_tot, profile)
+        #plt.show()
+        fig.savefig(path, bbox_inches="tight", dpi=600)
+        plt.close()
     
     
     return profile
@@ -114,7 +116,7 @@ def generate_ramp_profile(f0=7.300, df=0.090,
                           time_acc=1.0, time_ramp=5.0,
                           time_rest=1.0, sampling_rate=100.0,
                           coil=None, outfolder="../out/",
-                          timestamp=None):
+                          timestamp=None, figure=False):
     # I think velocity is in mm/s, but all times are in seconds.
     # The program is now normalised and scaled with respect to drive, rendering the velocity parameter redundant
     
@@ -276,14 +278,15 @@ def generate_ramp_profile(f0=7.300, df=0.090,
         for i in range(len(times_tot)):
             f.write(f"{times_tot[i]}, {profile[i]}\n")
     
-    path = path + ".png"
-    fig = plt.figure()
-    ax = fig.add_subplot(1,1,1)
-    ax.plot(times_tot, profile)
-    #plt.show()
-    fig.savefig(path, bbox_inches="tight", dpi=600)
-    plt.close()
-    
+    if figure:
+        path = path + ".png"
+        fig = plt.figure()
+        ax = fig.add_subplot(1,1,1)
+        ax.plot(times_tot, profile)
+        #plt.show()
+        fig.savefig(path, bbox_inches="tight", dpi=600)
+        plt.close()
+        
     
     
     
