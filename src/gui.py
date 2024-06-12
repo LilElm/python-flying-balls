@@ -39,7 +39,7 @@ multiprocessing.connection.BUFSIZE = 2**32-1 # This is the absolute limit for th
 from multiprocessing import Process, Pipe
 
 from profiles import generate_halfsine_profile, generate_ramp_profile
-from daq import daq_single
+from daq import daq_single, daq_continuous_adv
 
 from coil_class import CoilChannel, CoilProfileLayout
 
@@ -127,20 +127,30 @@ class WorkerSignals(QObject):
 
 
 class Worker(QRunnable):
-    def __init__(self, n, fn, **kwargs):
+    def __init__(self, n, fn, *args, **kwargs):
         super().__init__()
         self.n = n
         self.fn = fn
         self.setAutoDelete(False)
-        #self.args = args
+        
+#        self.kwargs = kwargs
+ #       self.args = []
+  #      for _, val in self.kwargs.items():
+   #         self.args.append(val)
+    #    
+        self.args = args
+
+                
         
         
-        self.kwargs = kwargs['kwargs']
+        
+        
+        
         self.signals = WorkerSignals()
     
     def run(self):
         try:
-            result = self.fn(self.kwargs)
+            result = self.fn(*self.args)
         except:
             traceback.print_exc()
             exctype, value = sys.exc_info()[:2]
@@ -152,27 +162,17 @@ class Worker(QRunnable):
             self.signals.finished.emit()
             
 
-    def get_id(self):
-        if hasattr(self, '_thread_id'):
-            print(str(self._thread_id))
-            return self._thread_id
-        else:
-            print("no thread id")
-            pass
-
-
-
-
-
 
 
 
 class RampSettingsLayout(QVBoxLayout):
     def __init__(self,
                  coil_dict,
+                 input_channelDict,
                  parent=None, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
         self.coil_dict = coil_dict
+        self.input_channelDict = input_channelDict
         
         self.counter = 0
         self.timer = QTimer()
@@ -303,8 +303,9 @@ class RampSettingsLayout(QVBoxLayout):
         self.create_check_input_thread()
         for coil in self.coil_dict:
             self.create_force_profile_thread(coil)
+            
         self.create_daq_thread()
-    
+          #  break
     
     
     
@@ -322,9 +323,12 @@ class RampSettingsLayout(QVBoxLayout):
     
     
     def create_force_profile_thread(self, coil):
+        
+        
+        
         self.coil_dict[coil].thread_force_profile = Worker(0, self.generate_force_profile,
                                                            #kwargs=self.coil_dict[coil])
-                                                           kwargs=coil)
+                                                           coil, None)
         self.coil_dict[coil].thread_force_profile.signals.error.connect(self.thread_error)
         #self.coil_dict[coil].thread_force_profile.signals.result.connect(self.thread_result)
         self.coil_dict[coil].thread_force_profile.signals.finished.connect(self.thread_complete)
@@ -332,21 +336,22 @@ class RampSettingsLayout(QVBoxLayout):
         
     
     def create_daq_thread(self):
-        pass
-        """
-        self.thread_daq = Worker(daq,
-                                 kwargs=None)
-        self.thread_force_profile.signals.error.connect(self.thread_error)
-        self.thread_force_profile.signals.result.connect()
-        self.thread_force_profile.signals.finished.connect()
-        """
+        
+        self.thread_daq = Worker(0, daq_continuous_adv,
+                                 1000,
+                                 6000,
+                                 self.input_channelDict)
+        self.thread_daq.signals.error.connect(self.thread_error)
+        #self.thread_force_profile.signals.result.connect()
+        self.thread_daq.signals.finished.connect(self.thread_complete)
+        
         
     def thread_error(self, exctype, value, traceback):
         #self.console_plot.append("Error!")
         print("Error!")
         
     def thread_complete(self):
-        print("yoyoyo")
+        print("Thread done")
         #self.console_plot.append("Finished!")
     """        
         def thread_result(self, parameters):
@@ -365,10 +370,7 @@ class RampSettingsLayout(QVBoxLayout):
     """        
         
         
-    def generate_force_profile(self, coil):
-        
-        
-        
+    def generate_force_profile(self, coil, *args):
         
         
         #test_data = daq_single(sampling_rate=1000, num_samples=10, input_channels=["Dev1/ai17"])
@@ -551,7 +553,8 @@ class RampSettingsLayout(QVBoxLayout):
             print("success")
         """
 
-        
+        print("start daq thread")
+        self.pool.start(self.thread_daq)
 
         # Send start signal to graphs
         """
@@ -824,7 +827,6 @@ class RampSettingsLayout(QVBoxLayout):
                 msg.exec_()
         else:
             success = True
-            print(str(tot_times))
             points = tot_times[0] * self.sampling_rate
         return success, points
 
@@ -1051,7 +1053,7 @@ class Layout(QGridLayout):
         
         
         layout_fsettings = FileSettingsLayout(self.checkbox, self.path_textbox, self.db_textbox)
-        layout_ramp = RampSettingsLayout(self.coil_dict)
+        layout_ramp = RampSettingsLayout(self.coil_dict, self.input_channelDict)
         """    
                                          self.pipe_param,
                                          self.pipe_signal,

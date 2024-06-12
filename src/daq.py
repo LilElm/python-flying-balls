@@ -75,7 +75,13 @@ def daq_continuous_simple(sampling_rate=1, num_samples=4, input_channels=None):
             
         
 
-def daq_continuous_adv(sampling_rate=1, num_samples=4, input_channels=None):
+def daq_continuous_adv(sampling_rate=1, num_samples=4, input_channel_dict=None, pipe=False):
+    
+    input_channels = []
+    for channel in input_channel_dict:
+        input_channels.append(input_channel_dict[channel].channel)
+    
+    
     
     """
     This has been adapted from the solution posted by GitHub user spalatofhi at
@@ -166,11 +172,15 @@ def daq_continuous_adv(sampling_rate=1, num_samples=4, input_channels=None):
             )
             data = buffer[i-n:i, :].astype(np.float32)
             times = [dt * k for k in range(j, i)]
+            
+            if pipe:
+                pipe.send([times, data])
+            
             times_full.extend(times)
             data_full.extend(data)
             j = i
             
-            print(f"{times}, {data}")
+            #print(f"{times}, {data}")
             
        
         
@@ -178,7 +188,8 @@ def daq_continuous_adv(sampling_rate=1, num_samples=4, input_channels=None):
         buffer.flush()
         assert np.all(buffer > -1000)
         
-        
+        input(str(times_full))
+        input(str(data_full))
         
         
         
