@@ -175,53 +175,21 @@ def daq_continuous_adv(sampling_rate=1, num_samples=4, input_channel_dict=None):
             )
             data = buffer[i-n:i, :].astype(np.float32)
             times = [dt * k for k in range(j, i)]
+
             
-            #print("=================================")
-            #print(str(data))
-            #print(str(times))
-            #print("=================================")
+            for channel in input_channel_dict:
+                data_channel = data[:,input_channel_dict[channel].index]
+                #if "ai17" in channel:
+                 #   print(f"times = {times}")
+                  #  print(f"data_channel = {data_channel}")
+              
+                input_channel_dict[channel].pipe[1].send([times, data_channel])
             
-            """
-            #for line in data:
-            for m in range(len(data)):
-                for channel in input_channel_dict:
-                    data_time = times[m]
-                    data_data = data[m][input_channel_dict[channel].index]
-              #      print(f"time = {data_time}")
-               #     print(f"data = {data_data}")
-                    
-                    input_channel_dict[channel].pipe[1].send([data_time, data_data])
-            """
-            
-            
-            #print(str(type(data)))
-            #print(str(len(data)))
-            if True:
-            #for m in range(len(data)):
-                for channel in input_channel_dict:
-                    data_time = times[:]
-                    data_data = data[:,input_channel_dict[channel].index]
-                    
-                    #print(str(data_data))
-                    
-              #      print(f"time = {data_time}")
-               #     print(f"data = {data_data}")
-                    
-                    input_channel_dict[channel].pipe[1].send([data_time, data_data])
-            
-            
-          #  for channel in input_channel_dict:
-           #     input_channel_dict[channel].index
-                
-                
-            #    print(str([times, data[input_channel_dict[channel].index]]))
-             #   input_channel_dict[channel].pipe[1].send([times, data[input_channel_dict[channel].index]])
-            
+        
             times_full.extend(times)
             data_full.extend(data)
             j = i
             
-            #print(f"{times}, {data}")
             
        
         

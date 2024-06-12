@@ -347,8 +347,8 @@ class RampSettingsLayout(QVBoxLayout):
     def create_daq_thread(self):
         
         self.thread_daq = Worker(0, daq_continuous_adv,
-                                 1000,
                                  10000,
+                                 100000,
                                  self.input_channelDict)
         self.thread_daq.signals.error.connect(self.thread_error)
         #self.thread_force_profile.signals.result.connect()
@@ -886,13 +886,12 @@ class GraphLayout(QVBoxLayout):
         if dock:
             self.addWidget(self.dock)
         
-        self.is_running(False)
         self.counter = 0
         
         
         
         self.timer_refresh = QTimer()
-        self.timer_refresh.setInterval(1) #ms
+        self.timer_refresh.setInterval(10) #ms
         self.timer_refresh.timeout.connect(self.update_refresh_rate)
         self.timer_refresh.start()
         
@@ -900,12 +899,12 @@ class GraphLayout(QVBoxLayout):
         
         
         for channel in self.channelDict:
+            self.is_running(channel=channel, running=False)
+        
             self.channelDict[channel].time = []
             self.channelDict[channel].data = []
-        
-        
-        self.create_plot_thread()
-        self.thread_plot.run()
+            self.create_plot_thread(channel)
+            self.channelDict[channel].thread_plot.run()
     
         
         
@@ -915,31 +914,31 @@ class GraphLayout(QVBoxLayout):
     
     
     
-    def create_plot_thread(self):
-        self.thread_plot = Worker(0, self.plot_graphs)
+    def create_plot_thread(self, channel):
+        self.channelDict[channel].thread_plot = Worker(0, self.plot_graphs, channel)
        # self.create_plot_thread.signals.error.connect(self.thread_error)
         #self.coil_dict[coil].thread_force_profile.signals.result.connect(self.thread_result)
        # self.create_plot_thread.signals.finished.connect(self.thread_complete)
        
-    def plot_graphs(self):
-        print("yoo")
-        self.timer = QTimer()
+    def plot_graphs(self, channel):
+        self.channelDict[channel].timer = QTimer()
         #self.timer.setInterval(self.guirefresh) #ms
-        #self.timer.setInterval(1) #ms
-        self.timer.timeout.connect(self.update_plots)
-        self.timer.start(100)
+        self.channelDict[channel].timer.setInterval(10) #ms
+        #self.timer.timeout.connect(self.update_plots)
+        
+        self.channelDict[channel].timer.timeout.connect(lambda: self.update_plots(channel))
+        self.channelDict[channel].timer.start()
             #self.update_plots()
     
     
     
     
-    def is_running(self, running=False):
-        self.running = running
-        if not self.running:
-            for channel in self.channelDict:
-                self.channelDict[channel].time = []
-                self.channelDict[channel].data = []
-        return self.running
+    def is_running(self, channel, running=False):
+        self.channelDict[channel].running = running
+        if not self.channelDict[channel].running:
+            self.channelDict[channel].time = []
+            self.channelDict[channel].data = []
+        return self.channelDict[channel].running
 
     
     
@@ -957,49 +956,54 @@ class GraphLayout(QVBoxLayout):
         """
     
     
-    def update_plots(self):
-        print("1")
-        if self.running:
-            for channel in self.channelDict:
-                if self.channelDict[channel].pipe[0].poll():
-                    
-                    
-                    
-                    #while self.channelDict[channel].pipe[0].poll():
-                    #time, data = self.channelDict[channel].pipe[0].recv()
+    def update_plots(self, channel):
+        if self.channelDict[channel].running:
+            
+            print(f"channel = {channel}")
+            
+            if self.channelDict[channel].pipe[0].poll():
+                while self.channelDict[channel].pipe[0].poll():
+                #time, data = self.channelDict[channel].pipe[0].recv()
                     data = self.channelDict[channel].pipe[0].recv()
-                    print(str(data))
+                    #print(str(data))
                     if data == False:
-                        self.is_running(False)
+                        self.is_running(channel=channel, running=False)
                     else:
-                    
                         self.channelDict[channel].time.extend(data[0])
                         self.channelDict[channel].data.extend(data[1])
                         
-                        if len(self.channelDict[channel].time) > 2500:
-                            self.channelDict[channel].time = self.channelDict[channel].time[1:]
-                        if len(self.channelDict[channel].data) > 2500:
-                            self.channelDict[channel].data = self.channelDict[channel].data[1:]
+                        if len(self.channelDict[channel].time) > 20000:
+                            self.channelDict[channel].time = self.channelDict[channel].time[-20000:]
+                        if len(self.channelDict[channel].data) > 20000:
+                            self.channelDict[channel].data = self.channelDict[channel].data[-20000:]
                             
                         
                         self.channelDict[channel].plot.line.setData(self.channelDict[channel].time,
                                                                     self.channelDict[channel].data)
-        
+    
         else:
-            for channel in self.channelDict:
-                if self.channelDict[channel].pipe[0].poll():
+            if self.channelDict[channel].pipe[0].poll():
+                while self.channelDict[channel].pipe[0].poll():
                     data = self.channelDict[channel].pipe[0].recv()
-                    if data == False:
-                        self.is_running(False)
                     
+                    #print(f"data = {data}")
+                    if data == False:
+                        self.is_running(channel=channel, running=False)
+                
                     # Automatically start if sent data
                     elif len(data[0]) > 0:
+                        
+                        #print("fhodlhfdslkfndls")
                         self.channelDict[channel].time.extend(data[0])
                         self.channelDict[channel].data.extend(data[1])
+                        
+                        #print(f"self.channelDict[{channel}].time = {self.channelDict[channel].time}")
+                        #print(f"self.channelDict[{channel}].data = {self.channelDict[channel].data}\n\n")
+                        
                         self.channelDict[channel].plot.line.setData(self.channelDict[channel].time,
                                                                     self.channelDict[channel].data)
                 
-                        self.is_running(True)
+                        self.is_running(channel=channel, running=True)
 
         
         
@@ -1409,11 +1413,13 @@ class PreferencesTab(QWidget):
         
         
 class InputChannel():
-    def __init__(self, channel, name, index, pipe=Pipe(duplex=True)):
+    def __init__(self, channel, name, index, pipe=False):#pipe=Pipe(duplex=True)):
         self.channel = channel
         self.name = name
         self.index = index
-        self.pipe = pipe
+        
+        if pipe:
+            self.pipe = Pipe(duplex=True)
 """
 class OutputChannel():
     def __init__(self, channel, channel_measured, name, pipe=Pipe(duplex=True)):
@@ -1626,7 +1632,8 @@ class MainWindow(QMainWindow):
         
         self.input_channelDict = {channel: InputChannel(channel=channel,
                                                         name=name,
-                                                        index=index) for channel,
+                                                        index=index,
+                                                        pipe=True) for channel,
                                                                          name,
                                                                          index in input_channels}
 
