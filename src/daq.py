@@ -179,7 +179,7 @@ def daq_continuous_adv(sampling_rate=1, num_samples=4, input_channel_dict=None):
             #print("=================================")
             #print(str(data))
             #print(str(times))
-            print("=================================")
+            #print("=================================")
             
             """
             #for line in data:
@@ -229,9 +229,13 @@ def daq_continuous_adv(sampling_rate=1, num_samples=4, input_channel_dict=None):
         buffer.flush()
         assert np.all(buffer > -1000)
         
-        #input(str(times_full))
-        input(str(data_full))
+        # Send 'False' signal to stop the GUI
+        for channel in input_channel_dict:
+            input_channel_dict[channel].pipe[1].send(False)
         
+        #input(str(times_full))
+        #input(str(data_full))
+        print("daq finished")
         
         
         

@@ -1,25 +1,28 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Wed Jun 12 15:23:22 2024
+from PyQt5.QtCore import QThread, QTimer, pyqtSignal, QRunnable
+from PyQt5.QtWidgets import QApplication
+import sys
 
-@author: ultservi
-"""
+#class Worker(QThread):
+class Worker(QRunnable):
 
+    def __init__(self):
+        super().__init__()
 
+    def run(self):
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.work)
+        self.timer.start(1000)  # Emit the timeout() signal every second
 
-mylist = ["yoo", "boo", "coo", "doo"]
-print(f"mylist = {mylist}")
+    def work(self):
+        print("Timer triggered")
+        #self.signal.emit()
 
-#a, b = mylist
+class App(QApplication):
+    def __init__(self, sys_argv):
+        super(App, self).__init__(sys_argv)
+        self.worker = Worker()
+        self.worker.run()
 
-#unpack = *(mylist)
-#print(f"a = {a}")
-#print(f"b = {b}")
-
-a, *b = mylist
-
-print(f"a = {a}")
-print(f"b = {b}")
-
-
-input()
+if __name__ == "__main__":
+    app = App(sys.argv)
+    sys.exit(app.exec_())

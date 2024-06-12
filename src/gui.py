@@ -163,6 +163,14 @@ class Worker(QRunnable):
             self.signals.finished.emit()
             
 
+    """
+    def timed_run(self):
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.fn)
+        self.timer.setInterval(1)
+        self.timer.start()
+    """    
+
 
 
 
@@ -842,6 +850,12 @@ class GraphLayout(QVBoxLayout):
         super().__init__(parent, *args, **kwargs)
         self.channelDict = channelDict
         
+        
+        
+        
+    
+        
+        
         if dock:
             self.dock = DockArea()
         
@@ -872,13 +886,13 @@ class GraphLayout(QVBoxLayout):
         if dock:
             self.addWidget(self.dock)
         
-        self.on = False
+        self.is_running(False)
         self.counter = 0
         
         
         
         self.timer_refresh = QTimer()
-        self.timer_refresh.setInterval(100) #ms
+        self.timer_refresh.setInterval(1) #ms
         self.timer_refresh.timeout.connect(self.update_refresh_rate)
         self.timer_refresh.start()
         
@@ -889,14 +903,44 @@ class GraphLayout(QVBoxLayout):
             self.channelDict[channel].time = []
             self.channelDict[channel].data = []
         
+        
+        self.create_plot_thread()
+        self.thread_plot.run()
+    
+        
+        
+    
+
+        
+    
+    
+    
+    def create_plot_thread(self):
+        self.thread_plot = Worker(0, self.plot_graphs)
+       # self.create_plot_thread.signals.error.connect(self.thread_error)
+        #self.coil_dict[coil].thread_force_profile.signals.result.connect(self.thread_result)
+       # self.create_plot_thread.signals.finished.connect(self.thread_complete)
+       
+    def plot_graphs(self):
+        print("yoo")
         self.timer = QTimer()
         #self.timer.setInterval(self.guirefresh) #ms
-        self.timer.setInterval(5) #ms
+        #self.timer.setInterval(1) #ms
         self.timer.timeout.connect(self.update_plots)
-        self.timer.start()
+        self.timer.start(100)
+            #self.update_plots()
     
     
     
+    
+    def is_running(self, running=False):
+        self.running = running
+        if not self.running:
+            for channel in self.channelDict:
+                self.channelDict[channel].time = []
+                self.channelDict[channel].data = []
+        return self.running
+
     
     
     def update_refresh_rate(self):
@@ -914,23 +958,49 @@ class GraphLayout(QVBoxLayout):
     
     
     def update_plots(self):
-        for channel in self.channelDict:
-            if self.channelDict[channel].pipe[0].poll():
-                #while self.channelDict[channel].pipe[0].poll():
-                time, data = self.channelDict[channel].pipe[0].recv()
-                self.channelDict[channel].time.extend(time)
-                self.channelDict[channel].data.extend(data)
-                
-                if len(self.channelDict[channel].time) > 2500:
-                    self.channelDict[channel].time = self.channelDict[channel].time[1:]
-                if len(self.channelDict[channel].data) > 2500:
-                    self.channelDict[channel].data = self.channelDict[channel].data[1:]
+        print("1")
+        if self.running:
+            for channel in self.channelDict:
+                if self.channelDict[channel].pipe[0].poll():
                     
+                    
+                    
+                    #while self.channelDict[channel].pipe[0].poll():
+                    #time, data = self.channelDict[channel].pipe[0].recv()
+                    data = self.channelDict[channel].pipe[0].recv()
+                    print(str(data))
+                    if data == False:
+                        self.is_running(False)
+                    else:
+                    
+                        self.channelDict[channel].time.extend(data[0])
+                        self.channelDict[channel].data.extend(data[1])
+                        
+                        if len(self.channelDict[channel].time) > 2500:
+                            self.channelDict[channel].time = self.channelDict[channel].time[1:]
+                        if len(self.channelDict[channel].data) > 2500:
+                            self.channelDict[channel].data = self.channelDict[channel].data[1:]
+                            
+                        
+                        self.channelDict[channel].plot.line.setData(self.channelDict[channel].time,
+                                                                    self.channelDict[channel].data)
+        
+        else:
+            for channel in self.channelDict:
+                if self.channelDict[channel].pipe[0].poll():
+                    data = self.channelDict[channel].pipe[0].recv()
+                    if data == False:
+                        self.is_running(False)
+                    
+                    # Automatically start if sent data
+                    elif len(data[0]) > 0:
+                        self.channelDict[channel].time.extend(data[0])
+                        self.channelDict[channel].data.extend(data[1])
+                        self.channelDict[channel].plot.line.setData(self.channelDict[channel].time,
+                                                                    self.channelDict[channel].data)
                 
-                self.channelDict[channel].plot.line.setData(self.channelDict[channel].time,
-                                                            self.channelDict[channel].data)
-        
-        
+                        self.is_running(True)
+
         
         
         
