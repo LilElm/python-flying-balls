@@ -75,7 +75,7 @@ def daq_continuous_simple(sampling_rate=1, num_samples=4, input_channels=None):
             
         
 
-def daq_continuous_adv(sampling_rate=1, num_samples=4, input_channel_dict=None, pipe=False):
+def daq_continuous_adv(sampling_rate=1, num_samples=4, input_channel_dict=None):
     
     input_channels = []
     for channel in input_channel_dict:
@@ -172,9 +172,30 @@ def daq_continuous_adv(sampling_rate=1, num_samples=4, input_channel_dict=None, 
             )
             data = buffer[i-n:i, :].astype(np.float32)
             times = [dt * k for k in range(j, i)]
+            """
+            print("=================================")
+            print(str(data))
+            print(str(times))
+            print("=================================")
+            """
             
-            if pipe:
-                pipe.send([times, data])
+            #for line in data:
+            for m in range(len(data)):
+                for channel in input_channel_dict:
+                    data_time = times[m]
+                    data_data = data[m][input_channel_dict[channel].index]
+              #      print(f"time = {data_time}")
+               #     print(f"data = {data_data}")
+                    
+                    input_channel_dict[channel].pipe[1].send([data_time, data_data])
+            
+            
+          #  for channel in input_channel_dict:
+           #     input_channel_dict[channel].index
+                
+                
+            #    print(str([times, data[input_channel_dict[channel].index]]))
+             #   input_channel_dict[channel].pipe[1].send([times, data[input_channel_dict[channel].index]])
             
             times_full.extend(times)
             data_full.extend(data)
@@ -188,7 +209,7 @@ def daq_continuous_adv(sampling_rate=1, num_samples=4, input_channel_dict=None, 
         buffer.flush()
         assert np.all(buffer > -1000)
         
-        input(str(times_full))
+        #input(str(times_full))
         input(str(data_full))
         
         

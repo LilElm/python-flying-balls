@@ -32,6 +32,7 @@ from PyQt5.QtWidgets import (QMainWindow,
 from PyQt5.QtGui import QIcon, QColor, QPixmap, QPainter, QMovie
 from PyQt5.QtCore import QTimer, QTextStream, QObject, pyqtSignal, QProcess, QRunnable, QThreadPool, QThread
 import pyqtgraph as pg
+from pyqtgraph.dockarea import DockArea, Dock
 
 
 import multiprocessing.connection
@@ -338,8 +339,8 @@ class RampSettingsLayout(QVBoxLayout):
     def create_daq_thread(self):
         
         self.thread_daq = Worker(0, daq_continuous_adv,
-                                 1000,
-                                 6000,
+                                 10000,
+                                 100000,
                                  self.input_channelDict)
         self.thread_daq.signals.error.connect(self.thread_error)
         #self.thread_force_profile.signals.result.connect()
@@ -834,20 +835,21 @@ class RampSettingsLayout(QVBoxLayout):
 
 
 
+
+
 class GraphLayout(QVBoxLayout):
-    def __init__(self, channelDict, parent=None, *args, **kwargs): #channelDict, pipe_input, pipe_plota, guirefresh, pipe_guirefresha,
+    def __init__(self, channelDict, parent=None, dock=False, *args, **kwargs): #channelDict, pipe_input, pipe_plota, guirefresh, pipe_guirefresha,
         super().__init__(parent, *args, **kwargs)
         self.channelDict = channelDict
-        """
-        self.pipe_input = pipe_input
-        self.channelDict = channelDict
-        self.pipe_plota = pipe_plota
-        self.guirefresh = guirefresh
-        self.pipe_guirefresha = pipe_guirefresha
-        """
+        
+        if dock:
+            self.dock = DockArea()
         
         # Create a plot for each input channel
         for channel in self.channelDict:
+            if dock == True:
+                self.channelDict[channel].dock = pg.dockarea.Dock(self.channelDict[channel].name)
+                self.channelDict[channel].dock.hideTitleBar()
             self.channelDict[channel].plot = pg.PlotWidget(title=self.channelDict[channel].name)
             self.channelDict[channel].plot.setLabel('left', 'Voltage (V)')
             self.channelDict[channel].plot.setLabel('bottom', 'Elapsed Time (s)')
@@ -856,13 +858,19 @@ class GraphLayout(QVBoxLayout):
             self.elapsed_time = []
             self.channelDict[channel].plot.line = self.channelDict[channel].plot.plot(self.elapsed_time,
                                                                                       self.channelDict[channel].plot.data)
-            self.addWidget(self.channelDict[channel].plot, 1)
+            if not dock:
+                self.addWidget(self.channelDict[channel].plot, 1)
             
             # Annotation for the x and y coordinates
             self.channelDict[channel].label = pg.LabelItem()
             self.channelDict[channel].label.setParentItem(self.channelDict[channel].plot.getPlotItem())
             self.channelDict[channel].label.anchor(itemPos=(1,0), parentPos=(1,0), offset=(-10,10))
         
+            if dock:
+                self.channelDict[channel].dock.addWidget(self.channelDict[channel].plot)
+                self.dock.addDock(self.channelDict[channel].dock)
+        if dock:
+            self.addWidget(self.dock)
         
         self.on = False
         self.counter = 0
@@ -877,10 +885,13 @@ class GraphLayout(QVBoxLayout):
         
         
         
-        
+        for channel in self.channelDict:
+            self.channelDict[channel].time = []
+            self.channelDict[channel].data = []
         
         self.timer = QTimer()
         #self.timer.setInterval(self.guirefresh) #ms
+        self.timer.setInterval(100) #ms
         self.timer.timeout.connect(self.update_plots)
         self.timer.start()
     
@@ -903,6 +914,25 @@ class GraphLayout(QVBoxLayout):
     
     
     def update_plots(self):
+        for channel in self.channelDict:
+            if self.channelDict[channel].pipe[0].poll():
+                time, data = self.channelDict[channel].pipe[0].recv()
+                self.channelDict[channel].time.append(time)
+                self.channelDict[channel].data.append(data)
+                
+                #print(f"time = {time}")
+                #print(f"data = {data}")
+                
+                self.channelDict[channel].plot.line.setData(self.channelDict[channel].time,
+                                                            self.channelDict[channel].data)
+        
+        
+        
+        
+        
+        
+        
+        
         pass
         """
         if self.pipe_plota.poll():                 # If start/stop button pressed
@@ -1078,10 +1108,10 @@ class Layout(QGridLayout):
 
 
         #layout_output = GraphLayout(self.output_channelDict)#self.output_channelDict, self.pipe_output, self.pipe_outputplota, self.guirefresh, self.pipe_guirefresha_output)
-        layout_output = GraphLayout(self.coil_dict)#self.output_channelDict, self.pipe_output, self.pipe_outputplota, self.guirefresh, self.pipe_guirefresha_output)
+        #layout_output = GraphLayout(self.coil_dict)#self.output_channelDict, self.pipe_output, self.pipe_outputplota, self.guirefresh, self.pipe_guirefresha_output)
         layout_input = GraphLayout(self.input_channelDict)#self.input_channelDict, self.pipe_input, self.pipe_inputplota, self.guirefresh, self.pipe_guirefresha_input)
         
-
+       
 
 
 
@@ -1090,7 +1120,7 @@ class Layout(QGridLayout):
 
         self.addLayout(layout_fsettings, 0, 0, 1, 3)
         self.addLayout(layout_ramp, 1, 0, 1, 1)
-        self.addLayout(layout_output, 1, 1, 1, 1)
+        #self.addLayout(layout_output, 1, 1, 1, 1)
         self.addLayout(layout_input, 1, 2, 1, 1)
         
 
@@ -1305,9 +1335,10 @@ class PreferencesTab(QWidget):
         
         
 class InputChannel():
-    def __init__(self, channel, name, pipe=Pipe(duplex=True)):
+    def __init__(self, channel, name, index, pipe=Pipe(duplex=True)):
         self.channel = channel
         self.name = name
+        self.index = index
         self.pipe = pipe
 """
 class OutputChannel():
@@ -1510,16 +1541,20 @@ class MainWindow(QMainWindow):
           
     def init_channels(self):
         # Define all input channels
-        #                   Channel      name      
-        input_channels = [("Dev1/ai17", "ai17"),
-                          ("Dev1/ai18", "ai18"),
-                          ("Dev1/ai19", "ai19"),
-                          ("Dev1/ai20", "ai20"),
-                          ("Dev1/ai21", "ai21"),
-                          ("Dev1/ai6", "ai6"),
-                          ("Dev1/ai7", "ai7")]
+        #                   Channel      name     index 
+        input_channels = [("Dev1/ai17", "ai17", 0),
+                          ("Dev1/ai18", "ai18", 1),
+                          ("Dev1/ai19", "ai19", 2),
+                          ("Dev1/ai20", "ai20", 3),
+                          ("Dev1/ai21", "ai21", 4),
+                          ("Dev1/ai6", "ai6", 5),
+                          ("Dev1/ai7", "ai7", 6)]
         
-        self.input_channelDict = {channel: InputChannel(channel=channel, name=name) for channel, name in input_channels}
+        self.input_channelDict = {channel: InputChannel(channel=channel,
+                                                        name=name,
+                                                        index=index) for channel,
+                                                                         name,
+                                                                         index in input_channels}
 
 
         # Define all coil/output channels    
