@@ -339,8 +339,8 @@ class RampSettingsLayout(QVBoxLayout):
     def create_daq_thread(self):
         
         self.thread_daq = Worker(0, daq_continuous_adv,
+                                 1000,
                                  10000,
-                                 100000,
                                  self.input_channelDict)
         self.thread_daq.signals.error.connect(self.thread_error)
         #self.thread_force_profile.signals.result.connect()
@@ -891,7 +891,7 @@ class GraphLayout(QVBoxLayout):
         
         self.timer = QTimer()
         #self.timer.setInterval(self.guirefresh) #ms
-        self.timer.setInterval(100) #ms
+        self.timer.setInterval(5) #ms
         self.timer.timeout.connect(self.update_plots)
         self.timer.start()
     
@@ -916,12 +916,16 @@ class GraphLayout(QVBoxLayout):
     def update_plots(self):
         for channel in self.channelDict:
             if self.channelDict[channel].pipe[0].poll():
+                #while self.channelDict[channel].pipe[0].poll():
                 time, data = self.channelDict[channel].pipe[0].recv()
-                self.channelDict[channel].time.append(time)
-                self.channelDict[channel].data.append(data)
+                self.channelDict[channel].time.extend(time)
+                self.channelDict[channel].data.extend(data)
                 
-                #print(f"time = {time}")
-                #print(f"data = {data}")
+                if len(self.channelDict[channel].time) > 2500:
+                    self.channelDict[channel].time = self.channelDict[channel].time[1:]
+                if len(self.channelDict[channel].data) > 2500:
+                    self.channelDict[channel].data = self.channelDict[channel].data[1:]
+                    
                 
                 self.channelDict[channel].plot.line.setData(self.channelDict[channel].time,
                                                             self.channelDict[channel].data)
