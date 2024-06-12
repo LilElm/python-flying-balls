@@ -515,7 +515,7 @@ class RampSettingsLayout(QVBoxLayout):
         
         
         #self.check_preferences()
-        success = self.check_input()
+        success, points = self.check_input()
         if success:
             for coil in self.coil_dict:
                 try:
@@ -532,25 +532,14 @@ class RampSettingsLayout(QVBoxLayout):
         time_start = time.time()
         while True:
             if time.time() > time_start + timeout:
-                print("Timeout error")
+                time_estimated = (points * 9e-6)
+                print(f"Estimated prep time: {int(time_estimated)} s")
+                print(f"Elapsed time: {int(time.time() - time_start)} s")
+                timeout = timeout + 10
                 
-                for coil in self.coil_dict:
-                    try:
-                       # self.coil_dict[coil].thread_force_profile.get_id()
-                        self.coil_dict[coil].thread_force_profile.quit()
-                    except:    
-                    
-                        print("failed to kill threads")
-                        
-                        # QRunnables cannot be stopped (it seems) without events
-                        # i.e. inside a large loop 'if event: stop'
-                        #
-                        # I may need to use a QThread if I want to be able to kill it
-                
-                break
             
             if self.pool.activeThreadCount() == 0:
-                print("Force profile threads completed")
+                print("Force profiles evaluated")
                 break
         """
         timed_out = not self.pool.waitForDone(10000)
@@ -561,7 +550,9 @@ class RampSettingsLayout(QVBoxLayout):
         else:
             print("success")
         """
-        print("===========")
+
+        
+
         # Send start signal to graphs
         """
         self.pipe_inputplotb.send(False) ######12/06/2023
@@ -620,6 +611,7 @@ class RampSettingsLayout(QVBoxLayout):
         error_code = 0
         error_message = []
         tot_times = []
+        points = 0
         
         """
         # Check preferences data
@@ -832,7 +824,9 @@ class RampSettingsLayout(QVBoxLayout):
                 msg.exec_()
         else:
             success = True
-        return success
+            print(str(tot_times))
+            points = tot_times[0] * self.sampling_rate
+        return success, points
 
       
 
