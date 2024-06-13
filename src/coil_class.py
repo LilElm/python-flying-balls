@@ -39,13 +39,16 @@ Module contains class definitions for: CoilChannel,
 
 
 class CoilChannel():
-    def __init__(self, channel, channel_measured, name, pipe=Pipe(duplex=True)):
+    def __init__(self, channel, channel_measured, name, index, pipe=False):
         self.channel = channel
         self.channel_measured = channel_measured
         self.name = name
-        self.pipe = pipe
+        self.index = index
         self.add_layout()
         self.add_box()
+        
+        if pipe:
+            self.pipe = Pipe(duplex=True)
 
 
     def add_layout(self):

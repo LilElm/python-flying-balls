@@ -312,8 +312,8 @@ class RampSettingsLayout(QVBoxLayout):
         self.create_check_input_thread()
         for coil in self.coil_dict:
             self.create_force_profile_thread(coil)
-            
         self.create_daq_thread()
+        
           #  break
     
     
@@ -349,7 +349,8 @@ class RampSettingsLayout(QVBoxLayout):
         self.thread_daq = Worker(0, daq_continuous_adv,
                                  10000,
                                  100000,
-                                 self.input_channelDict)
+                                 self.input_channelDict,
+                                 self.coil_dict)
         self.thread_daq.signals.error.connect(self.thread_error)
         #self.thread_force_profile.signals.result.connect()
         self.thread_daq.signals.finished.connect(self.thread_complete)
@@ -1173,7 +1174,7 @@ class Layout(QGridLayout):
 
 
         #layout_output = GraphLayout(self.output_channelDict)#self.output_channelDict, self.pipe_output, self.pipe_outputplota, self.guirefresh, self.pipe_guirefresha_output)
-        #layout_output = GraphLayout(self.coil_dict)#self.output_channelDict, self.pipe_output, self.pipe_outputplota, self.guirefresh, self.pipe_guirefresha_output)
+        layout_output = GraphLayout(self.coil_dict)#self.output_channelDict, self.pipe_output, self.pipe_outputplota, self.guirefresh, self.pipe_guirefresha_output)
         layout_input = GraphLayout(self.input_channelDict)#self.input_channelDict, self.pipe_input, self.pipe_inputplota, self.guirefresh, self.pipe_guirefresha_input)
         
        
@@ -1185,7 +1186,7 @@ class Layout(QGridLayout):
 
         self.addLayout(layout_fsettings, 0, 0, 1, 3)
         self.addLayout(layout_ramp, 1, 0, 1, 1)
-        #self.addLayout(layout_output, 1, 1, 1, 1)
+        self.addLayout(layout_output, 1, 1, 1, 1)
         self.addLayout(layout_input, 1, 2, 1, 1)
         
 
@@ -1625,14 +1626,18 @@ class MainWindow(QMainWindow):
                                                                          index in input_channels}
 
 
-        # Define all coil/output channels    
-        coils = [("Dev1/ao3", "Dev1/ai3", "Lateral Coils\nao3/ai3"),
-                 ("Dev1/ao1", "Dev1/ai0", "Longitudinal Coils\nao1/ai0")]
+        # Define all coil/output channels 
+        #          channel  channel_measured        name          index
+        coils = [("Dev1/ao3", "Dev1/ai3", "Lateral Coils\nao3/ai3", 7),
+                 ("Dev1/ao1", "Dev1/ai0", "Longitudinal Coils\nao1/ai0", 8)]
         self.coil_dict = {name: CoilChannel(channel=channel,
                                                     channel_measured=channel_measured,
-                                                    name=name) for channel,
+                                                    name=name,
+                                                    index=index,
+                                                    pipe=True) for channel,
                                                                    channel_measured,
-                                                                   name in coils}
+                                                                   name,
+                                                                   index in coils}
         
        
              

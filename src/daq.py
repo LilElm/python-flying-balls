@@ -75,13 +75,18 @@ def daq_continuous_simple(sampling_rate=1, num_samples=4, input_channels=None):
             
         
 
-def daq_continuous_adv(sampling_rate=1, num_samples=4, input_channel_dict=None):
+def daq_continuous_adv(sampling_rate=1, num_samples=4, input_channel_dict=None, output_channel_dict=None):
     
     input_channels = []
     for channel in input_channel_dict:
         input_channels.append(input_channel_dict[channel].channel)
     
     
+    
+    force_profiles = []
+    for channel in output_channel_dict:
+        input_channels.append(output_channel_dict[channel].channel_measured)
+        force_profiles.append(output_channel_dict[channel].force_profile)
     
     """
     This has been adapted from the solution posted by GitHub user spalatofhi at
@@ -123,24 +128,52 @@ def daq_continuous_adv(sampling_rate=1, num_samples=4, input_channel_dict=None):
                 number_of_samples_per_channel, timeout,
                 fill_mode=FillMode.GROUP_BY_SCAN_NUMBER)
         
-        
-        
-
-    # Configure input task
-    with nidaqmx.Task() as task:
-        
+    
+    
+    
     
         
+
+    with nidaqmx.Task() as task_output, nidaqmx.Task() as task_input:
+        # Configure output task
+        num_samples = np.size(force_profiles[0])
+        
+        for channel in output_channel_dict:
+            task_output.ao_channels.add_ao_voltage_chan(output_channel_dict[channel].channel)
+        task_output.ao_channels.all.ao_max = 10.0 #0.5 #max voltage
+        task_output.ao_channels.all.ao_min = -10.0 #0.5 #min voltage
+        task_output.timing.cfg_samp_clk_timing(sampling_rate,
+                                               active_edge=nidaqmx.constants.Edge.RISING,
+                                               sample_mode=nidaqmx.constants.AcquisitionType.FINITE,
+                                               samps_per_chan=num_samples)
+     
+        try:
+            writer = AnalogMultiChannelWriter(task_output.out_stream, auto_start=False)
+            buffer_output = np.vstack((force_profiles))
+            writer.write_many_sample(buffer_output, timeout=60)
+        except nidaqmx.errors.DaqError as err:
+            print(err)
+            if task_output:
+                task_output.close()
+            if task_input:
+                task_input.close()
+            sys.exit(1)
+    
+    
+    
+    
+    
+        # Configure input task   
         for channel in input_channels:
-            task.ai_channels.add_ai_voltage_chan(channel)
+            task_input.ai_channels.add_ai_voltage_chan(channel)
         
-        task.ai_channels.all.ai_max = 10.0 # max voltage
-        task.ai_channels.all.ai_min = -10.0 # min voltage
-        task.timing.cfg_samp_clk_timing(sampling_rate,
-                                        active_edge=nidaqmx.constants.Edge.RISING,
-                                        sample_mode=nidaqmx.constants.AcquisitionType.CONTINUOUS)
+        task_input.ai_channels.all.ai_max = 10.0 # max voltage
+        task_input.ai_channels.all.ai_min = -10.0 # min voltage
+        task_input.timing.cfg_samp_clk_timing(sampling_rate,
+                                              active_edge=nidaqmx.constants.Edge.RISING,
+                                              sample_mode=nidaqmx.constants.AcquisitionType.CONTINUOUS)
         
-        reader = TAMR(task.in_stream)
+        reader = TAMR(task_input.in_stream)
         buffer = np.memmap(
             f"./buffer.tmp",
             dtype=np.float64,
@@ -158,11 +191,13 @@ def daq_continuous_adv(sampling_rate=1, num_samples=4, input_channel_dict=None):
         
         
         ##### START
-        task.start()
+        task_output.triggers.start_trigger.cfg_dig_edge_start_trig(task_input.triggers.start_trigger.term)
+        task_output.start()
+        task_input.start()
         
         
         
-        while not task.is_task_done() and i < num_samples:
+        while not task_input.is_task_done() and i < num_samples:
             n = reader._in_stream.avail_samp_per_chan
             if n == 0: continue
             n = min(n, num_samples-i) # prevent reading too many samples
@@ -179,11 +214,11 @@ def daq_continuous_adv(sampling_rate=1, num_samples=4, input_channel_dict=None):
             
             for channel in input_channel_dict:
                 data_channel = data[:,input_channel_dict[channel].index]
-                #if "ai17" in channel:
-                 #   print(f"times = {times}")
-                  #  print(f"data_channel = {data_channel}")
-              
                 input_channel_dict[channel].pipe[1].send([times, data_channel])
+            
+            for channel in output_channel_dict:
+                data_channel = data[:,output_channel_dict[channel].index]
+                output_channel_dict[channel].pipe[1].send([times, data_channel])
             
         
             times_full.extend(times)
@@ -194,6 +229,7 @@ def daq_continuous_adv(sampling_rate=1, num_samples=4, input_channel_dict=None):
        
         
         # Stop and check results
+        task_output.stop()
         buffer.flush()
         assert np.all(buffer > -1000)
         
