@@ -238,7 +238,6 @@ class RampSettingsLayout(QVBoxLayout):
         box_start.setMaximumWidth(250)
         self.addWidget(box_start)
         
-        
         """
         
                  pipe_param,
@@ -312,7 +311,7 @@ class RampSettingsLayout(QVBoxLayout):
         self.create_check_input_thread()
         for coil in self.coil_dict:
             self.create_force_profile_thread(coil)
-        self.create_daq_thread()
+        
         
           #  break
     
@@ -347,8 +346,8 @@ class RampSettingsLayout(QVBoxLayout):
     def create_daq_thread(self):
         
         self.thread_daq = Worker(0, daq_continuous_adv,
-                                 10000,
-                                 100000,
+                                 self.sampling_rate,
+                                 self.num_samples,
                                  self.input_channelDict,
                                  self.coil_dict)
         self.thread_daq.signals.error.connect(self.thread_error)
@@ -433,6 +432,7 @@ class RampSettingsLayout(QVBoxLayout):
         print(f"coil = {coil}, force_profile = {force_profile}")
         
         self.coil_dict[coil].force_profile = force_profile
+        self.num_samples = np.size(force_profile)
         
         #return coil, force_profile
         
@@ -530,13 +530,13 @@ class RampSettingsLayout(QVBoxLayout):
         success, points = self.check_input()
         if success:
             for coil in self.coil_dict:
-                try:
-                    if self.coil_dict[coil].fp:
-                        print(f"coil.fp = {coil.fp}")
-                except:
-                    pass
+               # try:
+                #    if self.coil_dict[coil].fp:
+                 #       print(f"coil.fp = {coil.fp}")
+               # except:
+                #    pass
                 
-                self.coil_dict[coil].drive_current = float(np.average(daq_single(sampling_rate=1000, num_samples=10, input_channels=[self.coil_dict[coil].channel_measured])))
+                self.coil_dict[coil].drive_current = float(np.average(daq_single(sampling_rate=1000, num_samples=10, input_channels=[self.coil_dict[coil].channel])))
                 self.pool.start(self.coil_dict[coil].thread_force_profile)
 
 
@@ -564,6 +564,7 @@ class RampSettingsLayout(QVBoxLayout):
         """
 
         print("start daq thread")
+        self.create_daq_thread()
         self.pool.start(self.thread_daq)
 
         # Send start signal to graphs
@@ -1627,17 +1628,17 @@ class MainWindow(QMainWindow):
 
 
         # Define all coil/output channels 
-        #          channel  channel_measured        name          index
+        #      channel_output  channel             name             index
         coils = [("Dev1/ao3", "Dev1/ai3", "Lateral Coils\nao3/ai3", 7),
                  ("Dev1/ao1", "Dev1/ai0", "Longitudinal Coils\nao1/ai0", 8)]
-        self.coil_dict = {name: CoilChannel(channel=channel,
-                                                    channel_measured=channel_measured,
-                                                    name=name,
-                                                    index=index,
-                                                    pipe=True) for channel,
-                                                                   channel_measured,
-                                                                   name,
-                                                                   index in coils}
+        self.coil_dict = {name: CoilChannel(channel_output=channel_output,
+                                            channel=channel,
+                                            name=name,
+                                            index=index,
+                                            pipe=True) for channel_output,
+                                                           channel,
+                                                           name,
+                                                           index in coils}
         
        
              

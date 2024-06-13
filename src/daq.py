@@ -76,7 +76,7 @@ def daq_continuous_simple(sampling_rate=1, num_samples=4, input_channels=None):
         
 
 def daq_continuous_adv(sampling_rate=1, num_samples=4, input_channel_dict=None, output_channel_dict=None):
-    
+    print(f"sampling rate = {sampling_rate}")
     input_channels = []
     for channel in input_channel_dict:
         input_channels.append(input_channel_dict[channel].channel)
@@ -85,8 +85,9 @@ def daq_continuous_adv(sampling_rate=1, num_samples=4, input_channel_dict=None, 
     
     force_profiles = []
     for channel in output_channel_dict:
-        input_channels.append(output_channel_dict[channel].channel_measured)
+        input_channels.append(output_channel_dict[channel].channel)
         force_profiles.append(output_channel_dict[channel].force_profile)
+        #print(f"\n==\nfp = {output_channel_dict[channel].force_profile}\n\n")
     
     """
     This has been adapted from the solution posted by GitHub user spalatofhi at
@@ -139,7 +140,7 @@ def daq_continuous_adv(sampling_rate=1, num_samples=4, input_channel_dict=None, 
         num_samples = np.size(force_profiles[0])
         
         for channel in output_channel_dict:
-            task_output.ao_channels.add_ao_voltage_chan(output_channel_dict[channel].channel)
+            task_output.ao_channels.add_ao_voltage_chan(output_channel_dict[channel].channel_output)
         task_output.ao_channels.all.ao_max = 10.0 #0.5 #max voltage
         task_output.ao_channels.all.ao_min = -10.0 #0.5 #min voltage
         task_output.timing.cfg_samp_clk_timing(sampling_rate,
@@ -149,7 +150,9 @@ def daq_continuous_adv(sampling_rate=1, num_samples=4, input_channel_dict=None, 
      
         try:
             writer = AnalogMultiChannelWriter(task_output.out_stream, auto_start=False)
+            #buffer_output = np.vstack((force_profiles[0], force_profiles[1]))
             buffer_output = np.vstack((force_profiles))
+            #buffer0 = np.vstack((force_profile_lat, force_profile_long))
             writer.write_many_sample(buffer_output, timeout=60)
         except nidaqmx.errors.DaqError as err:
             print(err)
@@ -236,6 +239,9 @@ def daq_continuous_adv(sampling_rate=1, num_samples=4, input_channel_dict=None, 
         # Send 'False' signal to stop the GUI
         for channel in input_channel_dict:
             input_channel_dict[channel].pipe[1].send(False)
+            
+        for channel in output_channel_dict:
+            output_channel_dict[channel].pipe[1].send(False)
         
         #input(str(times_full))
         #input(str(data_full))
