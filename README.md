@@ -375,6 +375,16 @@
 
  * GUI plots data using multiple threads (QRunnables)
 
+ **13-Jun-24**
+
+ * DAQ output works
+
+ * Coil input data is plotted using GraphLayout
+
+ * Compare textboxDict[textbox].textbox.text() to textboxDict[textbox].val
+
+   * Is .val needed?
+
 
 
 </sub>

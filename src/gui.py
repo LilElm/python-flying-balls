@@ -308,7 +308,7 @@ class RampSettingsLayout(QVBoxLayout):
     
     def init_thread_pool(self):
         self.pool = QThreadPool()
-        self.create_check_input_thread()
+        #self.create_check_input_thread()
         for coil in self.coil_dict:
             self.create_force_profile_thread(coil)
         
@@ -317,8 +317,8 @@ class RampSettingsLayout(QVBoxLayout):
     
     
     
-    def create_check_input_thread(self):
-        pass
+   # def create_check_input_thread(self):
+     #   pass
         """
         self.thread_check_input = Worker(self.check_input,
                                          kwargs=None)
@@ -391,9 +391,14 @@ class RampSettingsLayout(QVBoxLayout):
         profile =  self.coil_dict[coil].layout.profile
         self.coil_dict[coil].layout.vals = []
         for textbox in self.coil_dict[coil].layout.textboxDict:
-            self.coil_dict[coil].layout.vals.append(self.coil_dict[coil].layout.textboxDict[textbox].val)
+            #self.coil_dict[coil].layout.vals.append(self.coil_dict[coil].layout.textboxDict[textbox].val)
+            self.coil_dict[coil].layout.vals.append(float(self.coil_dict[coil].layout.textboxDict[textbox].textbox.text()))
         vals = self.coil_dict[coil].layout.vals
-         
+        print(f"{coil} vals = {vals}\n")
+        
+#        self.coil_dict[coil].layout.textboxDict[textbox].textbox.setText(str(rest))
+        
+        
         if profile == "Ramp Profile":
            # Measure current drive, get input parameters, generate ramp profile
             #drive_current = float(np.average(daq_single(sampling_rate=1000, num_samples=10, input_channels=[coil.channel_measured])))
@@ -525,10 +530,18 @@ class RampSettingsLayout(QVBoxLayout):
         self.df = self.textbox_df.text()
         self.k = self.textbox_k.text()
         
+        """
+        for coil in self.coil_dict:
+            for textbox in self.coil_dict[coil].layout.textboxDict:
+                if "Rest" in textbox:
+                    self.coil_dict[coil].layout.textboxDict[textbox].textbox.setText(str("55"))
+        """
         
         #self.check_preferences()
         success, points = self.check_input()
         if success:
+            
+            
             for coil in self.coil_dict:
                # try:
                 #    if self.coil_dict[coil].fp:
