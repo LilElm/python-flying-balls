@@ -311,7 +311,7 @@ class RampSettingsLayout(QVBoxLayout):
         #self.create_check_input_thread()
         for coil in self.coil_dict:
             self.create_force_profile_thread(coil)
-        
+        self.create_supervisor_thread()
         
           #  break
     
@@ -327,6 +327,64 @@ class RampSettingsLayout(QVBoxLayout):
         self.thread_check_input.signals.finished.connect()
         """
         
+    
+    
+    
+    # Supervisor thread waits until the force profile threads have finished, then initiates the DAQ thread
+    def create_supervisor_thread(self):
+        
+        
+        
+        self.supervisor_thread = Worker(0, self.supervisor_thread)
+        self.supervisor_thread.signals.error.connect(self.thread_error)
+        #self.supervisor_thread.signals.result.connect(self.thread_result)
+        self.supervisor_thread.signals.finished.connect(self.thread_complete)
+        
+    
+    
+    def supervisor_thread(self):
+        
+        active_threads = self.pool.activeThreadCount()
+        
+        for coil in self.coil_dict:
+            self.coil_dict[coil].drive_current = float(np.average(daq_single(sampling_rate=1000, num_samples=10, input_channels=[self.coil_dict[coil].channel])))
+            self.pool.start(self.coil_dict[coil].thread_force_profile)
+    
+        
+    
+        timeout = 10.0
+        time_start = time.time()
+        while True:
+            if time.time() > time_start + timeout:
+                time_estimated = (self.points * 9e-6)
+                print(f"Estimated prep time: {int(time_estimated)} s")
+                print(f"Elapsed time: {int(time.time() - time_start)} s")
+                timeout = timeout + 10
+                
+            
+            if self.pool.activeThreadCount() == active_threads:#1:
+                print("Force profiles evaluated")
+                break
+        """
+        timed_out = not self.pool.waitForDone(10000)
+        if timed_out:
+            print("timed out")
+            self.pool.close()
+            self.pool.
+        else:
+            print("success")
+        """
+
+        print("start daq thread")
+        self.create_daq_thread()
+        self.pool.start(self.thread_daq)
+    
+    
+    
+    
+    
+    
+    
     
     
     
@@ -532,12 +590,17 @@ class RampSettingsLayout(QVBoxLayout):
         
         
         #self.check_preferences()
-        success, points = self.check_input()
+        self.points = None
+        success, self.points = self.check_input()
         if success:
-            for coil in self.coil_dict:
-                self.coil_dict[coil].drive_current = float(np.average(daq_single(sampling_rate=1000, num_samples=10, input_channels=[self.coil_dict[coil].channel])))
-                self.pool.start(self.coil_dict[coil].thread_force_profile)
+            
+            #for coil in self.coil_dict:
+             #   self.coil_dict[coil].drive_current = float(np.average(daq_single(sampling_rate=1000, num_samples=10, input_channels=[self.coil_dict[coil].channel])))
+                #self.pool.start(self.coil_dict[coil].thread_force_profile)
 
+
+            self.pool.start(self.supervisor_thread)
+            """
             timeout = 10.0
             time_start = time.time()
             while True:
@@ -552,6 +615,7 @@ class RampSettingsLayout(QVBoxLayout):
                     print("Force profiles evaluated")
                     break
             """
+            """
             timed_out = not self.pool.waitForDone(10000)
             if timed_out:
                 print("timed out")
@@ -561,9 +625,9 @@ class RampSettingsLayout(QVBoxLayout):
                 print("success")
             """
     
-            print("start daq thread")
-            self.create_daq_thread()
-            self.pool.start(self.thread_daq)
+            #print("start daq thread")
+            #self.create_daq_thread()
+            #self.pool.start(self.thread_daq)
     
             # Send start signal to graphs
             """
@@ -899,11 +963,8 @@ class GraphLayout(QVBoxLayout):
         
         for channel in self.channelDict:
             self.is_running(channel=channel, running=False)
-        
             self.channelDict[channel].time = []
             self.channelDict[channel].data = []
-            #self.channelDict[channel].time_full = []
-            #self.channelDict[channel].data_full = []
             
             self.create_plot_thread(channel)
             self.channelDict[channel].thread_plot.run()
@@ -940,8 +1001,6 @@ class GraphLayout(QVBoxLayout):
         if not self.channelDict[channel].running:
             self.channelDict[channel].time = []
             self.channelDict[channel].data = []
-            #self.channelDict[channel].time_full = []
-            #self.channelDict[channel].data_full = []
             
         return self.channelDict[channel].running
 
@@ -971,12 +1030,6 @@ class GraphLayout(QVBoxLayout):
                     else:
                         self.channelDict[channel].time.extend(data[0])
                         self.channelDict[channel].data.extend(data[1])
-                        
-                        #self.channelDict[channel].time_full.extend(data[0])
-                        #self.channelDict[channel].data_full.extend(data[1])
-                        
-                        
-                        
                         
                         
                         if len(self.channelDict[channel].time) > 10000:
@@ -1183,8 +1236,8 @@ class Layout(QGridLayout):
 
 
         #layout_output = GraphLayout(self.output_channelDict)#self.output_channelDict, self.pipe_output, self.pipe_outputplota, self.guirefresh, self.pipe_guirefresha_output)
-        layout_output = GraphLayout(self.coil_dict)#self.output_channelDict, self.pipe_output, self.pipe_outputplota, self.guirefresh, self.pipe_guirefresha_output)
-        layout_input = GraphLayout(self.input_channelDict)#self.input_channelDict, self.pipe_input, self.pipe_inputplota, self.guirefresh, self.pipe_guirefresha_input)
+        #layout_output = GraphLayout(self.coil_dict)#self.output_channelDict, self.pipe_output, self.pipe_outputplota, self.guirefresh, self.pipe_guirefresha_output)
+        #layout_input = GraphLayout(self.input_channelDict)#self.input_channelDict, self.pipe_input, self.pipe_inputplota, self.guirefresh, self.pipe_guirefresha_input)
         
        
 
@@ -1195,8 +1248,8 @@ class Layout(QGridLayout):
 
         self.addLayout(layout_fsettings, 0, 0, 1, 3)
         self.addLayout(layout_ramp, 1, 0, 1, 1)
-        self.addLayout(layout_output, 1, 1, 1, 1)
-        self.addLayout(layout_input, 1, 2, 1, 1)
+        #self.addLayout(layout_output, 1, 1, 1, 1)
+        #self.addLayout(layout_input, 1, 2, 1, 1)
         
 
 
