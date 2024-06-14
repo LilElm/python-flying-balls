@@ -948,15 +948,25 @@ class GraphLayout(QVBoxLayout):
         
         
         
-        #self.pool = QThreadPool()
+        self.pool = QThreadPool()
         for channel in self.channelDict:
             self.is_running(channel=channel, running=False)
             self.channelDict[channel].time = []
             self.channelDict[channel].data = []
             
             self.create_plot_thread(channel)
-            self.channelDict[channel].thread_plot.run()
-            #self.pool.start(self.channelDict[channel].thread_plot)#.run()
+            #self.channelDict[channel].thread_plot.run()
+            
+        self.timer = QTimer()
+        self.timer.setInterval(100) #ms
+        self.timer.timeout.connect(self.start_thread)
+        self.timer.start()
+            
+        
+            
+    def start_thread(self):
+        for channel in self.channelDict:
+            self.pool.start(self.channelDict[channel].thread_plot)#.run()
 
         
         
@@ -967,7 +977,7 @@ class GraphLayout(QVBoxLayout):
     
     
     def create_plot_thread(self, channel):
-        self.channelDict[channel].thread_plot = TimedWorker(0, self.update_plots, channel)
+        self.channelDict[channel].thread_plot = Worker(0, self.update_plots, channel)
        # self.create_plot_thread.signals.error.connect(self.thread_error)
         #self.coil_dict[coil].thread_force_profile.signals.result.connect(self.thread_result)
        # self.create_plot_thread.signals.finished.connect(self.thread_complete)
