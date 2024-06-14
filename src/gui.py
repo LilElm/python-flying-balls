@@ -530,30 +530,13 @@ class RampSettingsLayout(QVBoxLayout):
         self.df = self.textbox_df.text()
         self.k = self.textbox_k.text()
         
-        """
-        for coil in self.coil_dict:
-            for textbox in self.coil_dict[coil].layout.textboxDict:
-                if "Rest" in textbox:
-                    self.coil_dict[coil].layout.textboxDict[textbox].textbox.setText(str("55"))
-        """
         
         #self.check_preferences()
         success, points = self.check_input()
-        print(f"success outside = {success}")
-        
         if success:
-            
-            
             for coil in self.coil_dict:
-               # try:
-                #    if self.coil_dict[coil].fp:
-                 #       print(f"coil.fp = {coil.fp}")
-               # except:
-                #    pass
-                
                 self.coil_dict[coil].drive_current = float(np.average(daq_single(sampling_rate=1000, num_samples=10, input_channels=[self.coil_dict[coil].channel])))
                 self.pool.start(self.coil_dict[coil].thread_force_profile)
-
 
             timeout = 10.0
             time_start = time.time()
@@ -742,7 +725,6 @@ class RampSettingsLayout(QVBoxLayout):
                                     print("Please enter a valid " + str(textbox))
                                     error_message.append("Please enter a valid " + str(textbox))
                                     error_code = 1
-                                    print("bnfkajnfkajdn kd ")
                                         
                                         
                     # Check if values are positive    
@@ -855,7 +837,6 @@ class RampSettingsLayout(QVBoxLayout):
         else:
             success = True
             points = tot_times[0] * self.sampling_rate
-        print(f"success inside = {success}")
         return success, points
 
       
@@ -865,11 +846,10 @@ class RampSettingsLayout(QVBoxLayout):
 
 
 class GraphLayout(QVBoxLayout):
-    def __init__(self, channelDict, parent=None, dock=False, *args, **kwargs): #channelDict, pipe_input, pipe_plota, guirefresh, pipe_guirefresha,
+    def __init__(self, channelDict, sampling_rate=1000, parent=None, dock=False, *args, **kwargs): #channelDict, pipe_input, pipe_plota, guirefresh, pipe_guirefresha,
         super().__init__(parent, *args, **kwargs)
         self.channelDict = channelDict
-        
-        
+        self.sampling_rate = sampling_rate
         
         
     
@@ -922,6 +902,9 @@ class GraphLayout(QVBoxLayout):
         
             self.channelDict[channel].time = []
             self.channelDict[channel].data = []
+            #self.channelDict[channel].time_full = []
+            #self.channelDict[channel].data_full = []
+            
             self.create_plot_thread(channel)
             self.channelDict[channel].thread_plot.run()
     
@@ -957,6 +940,9 @@ class GraphLayout(QVBoxLayout):
         if not self.channelDict[channel].running:
             self.channelDict[channel].time = []
             self.channelDict[channel].data = []
+            #self.channelDict[channel].time_full = []
+            #self.channelDict[channel].data_full = []
+            
         return self.channelDict[channel].running
 
     
@@ -986,14 +972,19 @@ class GraphLayout(QVBoxLayout):
                         self.channelDict[channel].time.extend(data[0])
                         self.channelDict[channel].data.extend(data[1])
                         
-                        if len(self.channelDict[channel].time) > 20000:
-                            self.channelDict[channel].time = self.channelDict[channel].time[-20000:]
-                        if len(self.channelDict[channel].data) > 20000:
-                            self.channelDict[channel].data = self.channelDict[channel].data[-20000:]
-                            
+                        #self.channelDict[channel].time_full.extend(data[0])
+                        #self.channelDict[channel].data_full.extend(data[1])
                         
-                        self.channelDict[channel].plot.line.setData(self.channelDict[channel].time,
-                                                                    self.channelDict[channel].data)
+                        
+                        
+                        
+                        
+                        if len(self.channelDict[channel].time) > 10000:
+                            self.channelDict[channel].plot.line.setData(self.channelDict[channel].time[::self.sampling_rate],
+                                                                        self.channelDict[channel].data[::self.sampling_rate])
+                        else:
+                            self.channelDict[channel].plot.line.setData(self.channelDict[channel].time,
+                                                                        self.channelDict[channel].data)
     
         else:
             if self.channelDict[channel].pipe[0].poll():
