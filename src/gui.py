@@ -539,6 +539,8 @@ class RampSettingsLayout(QVBoxLayout):
         
         #self.check_preferences()
         success, points = self.check_input()
+        print(f"success outside = {success}")
+        
         if success:
             
             
@@ -553,50 +555,50 @@ class RampSettingsLayout(QVBoxLayout):
                 self.pool.start(self.coil_dict[coil].thread_force_profile)
 
 
-        timeout = 10.0
-        time_start = time.time()
-        while True:
-            if time.time() > time_start + timeout:
-                time_estimated = (points * 9e-6)
-                print(f"Estimated prep time: {int(time_estimated)} s")
-                print(f"Elapsed time: {int(time.time() - time_start)} s")
-                timeout = timeout + 10
+            timeout = 10.0
+            time_start = time.time()
+            while True:
+                if time.time() > time_start + timeout:
+                    time_estimated = (points * 9e-6)
+                    print(f"Estimated prep time: {int(time_estimated)} s")
+                    print(f"Elapsed time: {int(time.time() - time_start)} s")
+                    timeout = timeout + 10
+                    
                 
+                if self.pool.activeThreadCount() == 0:
+                    print("Force profiles evaluated")
+                    break
+            """
+            timed_out = not self.pool.waitForDone(10000)
+            if timed_out:
+                print("timed out")
+                self.pool.close()
+                self.pool.
+            else:
+                print("success")
+            """
+    
+            print("start daq thread")
+            self.create_daq_thread()
+            self.pool.start(self.thread_daq)
+    
+            # Send start signal to graphs
+            """
+            self.pipe_inputplotb.send(False) ######12/06/2023
+            self.pipe_outputplotb.send(False) ######12/06/2023
             
-            if self.pool.activeThreadCount() == 0:
-                print("Force profiles evaluated")
-                break
-        """
-        timed_out = not self.pool.waitForDone(10000)
-        if timed_out:
-            print("timed out")
-            self.pool.close()
-            self.pool.
-        else:
-            print("success")
-        """
-
-        print("start daq thread")
-        self.create_daq_thread()
-        self.pool.start(self.thread_daq)
-
-        # Send start signal to graphs
-        """
-        self.pipe_inputplotb.send(False) ######12/06/2023
-        self.pipe_outputplotb.send(False) ######12/06/2023
-        
-        
-        
-        self.pipe_inputplotb.send(True) ######12/06/2023
-        self.pipe_outputplotb.send(True) ######12/06/2023
-        """
-
-        # Get all parameters from preferences menu
-        #self.textbox_ni_val = int(self.textbox_ni.text())
-        #self.checkbox_ni_val = self.checkbox_ni.isChecked()
-        #self.textbox_guiresolution_val = float(self.textbox_guiresolution.text())
-        
-
+            
+            
+            self.pipe_inputplotb.send(True) ######12/06/2023
+            self.pipe_outputplotb.send(True) ######12/06/2023
+            """
+    
+            # Get all parameters from preferences menu
+            #self.textbox_ni_val = int(self.textbox_ni.text())
+            #self.checkbox_ni_val = self.checkbox_ni.isChecked()
+            #self.textbox_guiresolution_val = float(self.textbox_guiresolution.text())
+            
+    
 
 
 
@@ -740,6 +742,7 @@ class RampSettingsLayout(QVBoxLayout):
                                     print("Please enter a valid " + str(textbox))
                                     error_message.append("Please enter a valid " + str(textbox))
                                     error_code = 1
+                                    print("bnfkajnfkajdn kd ")
                                         
                                         
                     # Check if values are positive    
@@ -852,6 +855,7 @@ class RampSettingsLayout(QVBoxLayout):
         else:
             success = True
             points = tot_times[0] * self.sampling_rate
+        print(f"success inside = {success}")
         return success, points
 
       
