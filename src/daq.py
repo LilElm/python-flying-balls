@@ -14,6 +14,8 @@ import numpy as np
 import sys
 
 import threading
+import tempfile
+from multiprocessing import Pool
 
 def daq_single(sampling_rate=1, num_samples=4, input_channels=None):
     
@@ -139,7 +141,7 @@ def daq_continuous_adv(sampling_rate=1, num_samples=4,
     
         
 
-    with nidaqmx.Task() as task_output, nidaqmx.Task() as task_input:
+    with nidaqmx.Task() as task_output, nidaqmx.Task() as task_input, tempfile.NamedTemporaryFile() as ntf:
         # Configure output task
         num_samples = np.size(force_profiles[0])
         
@@ -182,7 +184,8 @@ def daq_continuous_adv(sampling_rate=1, num_samples=4,
         
         reader = TAMR(task_input.in_stream)
         buffer = np.memmap(
-            f"./buffer.tmp",
+            #ntf,
+            "./buffer.tmp",
             dtype=np.float64,
             mode="w+",
             shape=(num_samples, len(input_channels))
@@ -202,7 +205,7 @@ def daq_continuous_adv(sampling_rate=1, num_samples=4,
         task_output.start()
         task_input.start()
         
-        
+        pool = Pool()
         
         while not task_input.is_task_done() and i < num_samples:
             n = reader._in_stream.avail_samp_per_chan
@@ -215,32 +218,36 @@ def daq_continuous_adv(sampling_rate=1, num_samples=4,
                 buffer[i:i+n, :], # read directly into array using a view
                 number_of_samples_per_channel=n
             )
+            
             data = buffer[i-n:i, :].astype(np.float32)
             times = [dt * k for k in range(j, i)]
-
+            
             
             for channel in input_channel_dict:
                 data_channel = data[:,input_channel_dict[channel].index]
-                input_channel_dict[channel].pipe[1].send([times, data_channel])
-            
+                input_channel_dict[channel].pipe[1].send([times[::100], data_channel[::100]])
+                
             for channel in output_channel_dict:
                 data_channel = data[:,output_channel_dict[channel].index]
-                output_channel_dict[channel].pipe[1].send([times, data_channel])
+                output_channel_dict[channel].pipe[1].send([times[::100], data_channel[::100]])
+                
             
         
             times_full.extend(times)
             data_full.extend(data)
             j = i
             
-            
+            """
             # Check if the main thread is still running
             # This ensures that the DAQ board will quit with the main thread
             # Otherwise it may still be in use when the program is restarted
             # This hasn't been formally checked to see if it works
-            is_alive = any([th for th in threading.enumerate() if th.ident == main_thread_id])
-            if not is_alive:
-                sys.exit(1) #   close
-        
+            if main_thread_id:
+                is_alive = any([th for th in threading.enumerate() if th.ident == main_thread_id])
+                print(str(is_alive))
+                if not is_alive:
+                    sys.exit(1) #   close
+           """
        
         
         # Stop and check results
@@ -258,13 +265,6 @@ def daq_continuous_adv(sampling_rate=1, num_samples=4,
         #input(str(times_full))
         #input(str(data_full))
         print("daq finished")
-        
-        
-        
-        
-        
-        
-        
         
         
         

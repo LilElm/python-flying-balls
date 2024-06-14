@@ -1026,7 +1026,7 @@ class GraphLayout(QVBoxLayout):
                         self.channelDict[channel].data.extend(data[1])
                         
                         
-                        if len(self.channelDict[channel].time) > 50000:
+                        if len(self.channelDict[channel].time) > 20000:
                             self.channelDict[channel].plot.line.setData(self.channelDict[channel].time[::self.sampling_rate],
                                                                         self.channelDict[channel].data[::self.sampling_rate])
                         else:
@@ -1046,7 +1046,7 @@ class GraphLayout(QVBoxLayout):
                         self.channelDict[channel].time.extend(data[0])
                         self.channelDict[channel].data.extend(data[1])
         #                
-                        if len(self.channelDict[channel].time) > 50000:
+                        if len(self.channelDict[channel].time) > 20000:
                             self.channelDict[channel].plot.line.setData(self.channelDict[channel].time[::self.sampling_rate],
                                                                         self.channelDict[channel].data[::self.sampling_rate])
                         else:
