@@ -385,6 +385,19 @@
 
    * Is .val needed?
 
+ **14-Jun-24**
+
+ * Supervisor thread starts and waits for force profile threads, after which it starts the daq thread
+
+ * Graph QRunnables are started continuously through a QTimer
+
+ * Data is sampled before being piped
+
+ * If there's too much data, data is sampled at time of plotting
+
+ * Lines added to daq.py to stop if the main thread is not running, but have been commented out
+
+
 
 
 </sub>
