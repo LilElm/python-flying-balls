@@ -397,6 +397,8 @@
 
  * Lines added to daq.py to stop if the main thread is not running, but have been commented out
 
+ * DAQ np.memmap buffer created as tempfile.NamedTemporaryFile()
+
 
 
 

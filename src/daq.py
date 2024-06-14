@@ -184,8 +184,8 @@ def daq_continuous_adv(sampling_rate=1, num_samples=4,
         
         reader = TAMR(task_input.in_stream)
         buffer = np.memmap(
-            #ntf,
-            "./buffer.tmp",
+            ntf,
+            #"./buffer.tmp",
             dtype=np.float64,
             mode="w+",
             shape=(num_samples, len(input_channels))
