@@ -305,6 +305,7 @@ class RampSettingsLayout(QVBoxLayout):
         
     
     def init_thread_pool(self):
+        self.main_thread_id = int(QThread.currentThreadId())
         self.pool = QThreadPool()
         #self.create_check_input_thread()
         for coil in self.coil_dict:
@@ -330,6 +331,11 @@ class RampSettingsLayout(QVBoxLayout):
     
     # Supervisor thread waits until the force profile threads have finished, then initiates the DAQ thread
     def create_supervisor_thread(self):
+        
+        
+        #print(f"number of active threads in self.plot = {self.pool.activeThreadCount()}")
+        #print(f"current thread id = {int(QThread.currentThreadId())}, channel = {channel}")
+        
         
         
         
@@ -403,7 +409,8 @@ class RampSettingsLayout(QVBoxLayout):
                                  self.sampling_rate,
                                  self.num_samples,
                                  self.input_channelDict,
-                                 self.coil_dict)
+                                 self.coil_dict,
+                                 self.main_thread_id)
         self.thread_daq.signals.error.connect(self.thread_error)
         #self.thread_force_profile.signals.result.connect()
         self.thread_daq.signals.finished.connect(self.thread_complete)

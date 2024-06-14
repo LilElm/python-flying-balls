@@ -13,6 +13,8 @@ from nidaqmx.constants import READ_ALL_AVAILABLE, FillMode, AcquisitionType
 import numpy as np
 import sys
 
+import threading
+
 def daq_single(sampling_rate=1, num_samples=4, input_channels=None):
     
     data = np.zeros(num_samples)
@@ -75,7 +77,9 @@ def daq_continuous_simple(sampling_rate=1, num_samples=4, input_channels=None):
             
         
 
-def daq_continuous_adv(sampling_rate=1, num_samples=4, input_channel_dict=None, output_channel_dict=None):
+def daq_continuous_adv(sampling_rate=1, num_samples=4,
+                       input_channel_dict=None, output_channel_dict=None,
+                       main_thread_id=None):
     print(f"sampling rate = {sampling_rate}")
     input_channels = []
     for channel in input_channel_dict:
@@ -229,6 +233,14 @@ def daq_continuous_adv(sampling_rate=1, num_samples=4, input_channel_dict=None, 
             j = i
             
             
+            # Check if the main thread is still running
+            # This ensures that the DAQ board will quit with the main thread
+            # Otherwise it may still be in use when the program is restarted
+            # This hasn't been formally checked to see if it works
+            is_alive = any([th for th in threading.enumerate() if th.ident == main_thread_id])
+            if not is_alive:
+                sys.exit(1) #   close
+        
        
         
         # Stop and check results
