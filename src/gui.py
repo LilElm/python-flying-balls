@@ -1675,13 +1675,13 @@ class MainWindow(QMainWindow):
     def init_channels(self):
         # Define all input channels
         #                   Channel      name     index 
-        input_channels = [("Dev1/ai17", "ai17", 0),
-                          ("Dev1/ai18", "ai18", 1),
-                          ("Dev1/ai19", "ai19", 2),
-                          ("Dev1/ai20", "ai20", 3),
-                          ("Dev1/ai21", "ai21", 4),
-                          ("Dev1/ai6", "ai6", 5),
-                          ("Dev1/ai7", "ai7", 6)]
+        input_channels = [("Dev1/ai17", "ai17", 2),
+                          ("Dev1/ai18", "ai18", 3),
+                          ("Dev1/ai19", "ai19", 4),
+                          ("Dev1/ai20", "ai20", 5),
+                          ("Dev1/ai21", "ai21", 6),
+                          ("Dev1/ai6", "ai6", 7),
+                          ("Dev1/ai7", "ai7", 8)]
         
         self.input_channelDict = {channel: InputChannel(channel=channel,
                                                         name=name,
@@ -1693,8 +1693,8 @@ class MainWindow(QMainWindow):
 
         # Define all coil/output channels 
         #      channel_output  channel             name             index
-        coils = [("Dev1/ao3", "Dev1/ai3", "Lateral Coils\nao3/ai3", 7),
-                 ("Dev1/ao1", "Dev1/ai0", "Longitudinal Coils\nao1/ai0", 8)]
+        coils = [("Dev1/ao3", "Dev1/ai3", "Lateral Coils\nao3/ai3", 0),
+                 ("Dev1/ao1", "Dev1/ai0", "Longitudinal Coils\nao1/ai0", 1)]
         self.coil_dict = {name: CoilChannel(channel_output=channel_output,
                                             channel=channel,
                                             name=name,

@@ -13,9 +13,7 @@ from nidaqmx.constants import READ_ALL_AVAILABLE, FillMode, AcquisitionType
 import numpy as np
 import sys
 
-import threading
 import tempfile
-from multiprocessing import Pool
 
 def daq_single(sampling_rate=1, num_samples=4, input_channels=None):
     
@@ -84,16 +82,15 @@ def daq_continuous_adv(sampling_rate=1, num_samples=4,
                        main_thread_id=None):
     print(f"sampling rate = {sampling_rate}")
     input_channels = []
-    for channel in input_channel_dict:
-        input_channels.append(input_channel_dict[channel].channel)
-    
-    
-    
     force_profiles = []
     for channel in output_channel_dict:
         input_channels.append(output_channel_dict[channel].channel)
         force_profiles.append(output_channel_dict[channel].force_profile)
-        #print(f"\n==\nfp = {output_channel_dict[channel].force_profile}\n\n")
+        
+    for channel in input_channel_dict:
+        input_channels.append(input_channel_dict[channel].channel)
+    
+    
     
     """
     This has been adapted from the solution posted by GitHub user spalatofhi at
@@ -140,8 +137,14 @@ def daq_continuous_adv(sampling_rate=1, num_samples=4,
     
     
         
-
-    with nidaqmx.Task() as task_output, nidaqmx.Task() as task_input, tempfile.NamedTemporaryFile() as ntf:
+    filename = 'output.dat'
+    with (nidaqmx.Task() as task_output,
+          nidaqmx.Task() as task_input,
+          tempfile.NamedTemporaryFile() as ntf,
+          open(filename, 'w+') as f):
+        f.write("Elapsed time (s), " + ", ".join(input_channels) + "\n")
+        
+        
         # Configure output task
         num_samples = np.size(force_profiles[0])
         
@@ -184,8 +187,8 @@ def daq_continuous_adv(sampling_rate=1, num_samples=4,
         
         reader = TAMR(task_input.in_stream)
         buffer = np.memmap(
-            ntf,
-            #"./buffer.tmp",
+            #ntf,
+            "./buffer.tmp",
             dtype=np.float64,
             mode="w+",
             shape=(num_samples, len(input_channels))
@@ -205,7 +208,6 @@ def daq_continuous_adv(sampling_rate=1, num_samples=4,
         task_output.start()
         task_input.start()
         
-        pool = Pool()
         
         while not task_input.is_task_done() and i < num_samples:
             n = reader._in_stream.avail_samp_per_chan
@@ -222,14 +224,19 @@ def daq_continuous_adv(sampling_rate=1, num_samples=4,
             data = buffer[i-n:i, :].astype(np.float32)
             times = [dt * k for k in range(j, i)]
             
-            
-            for channel in input_channel_dict:
-                data_channel = data[:,input_channel_dict[channel].index]
-                input_channel_dict[channel].pipe[1].send([times[::100], data_channel[::100]])
+            for t in range(len(times)):
+                #f.write(f"{times[t]}, {', '.join(data[t])}\n")
+                f.write(f"{times[t]}, {', '.join(map(str, data[t]))}\n")
                 
+            
+            
             for channel in output_channel_dict:
                 data_channel = data[:,output_channel_dict[channel].index]
                 output_channel_dict[channel].pipe[1].send([times[::100], data_channel[::100]])
+                
+            for channel in input_channel_dict:
+                data_channel = data[:,input_channel_dict[channel].index]
+                input_channel_dict[channel].pipe[1].send([times[::100], data_channel[::100]])
                 
             
         
@@ -267,6 +274,10 @@ def daq_continuous_adv(sampling_rate=1, num_samples=4,
         print("daq finished")
         
         
+        
+        print("testing memmap...")
+        
+        print(f"memmap[1] = {(buffer[1])}")
         
         
         
