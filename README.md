@@ -403,6 +403,12 @@
 
  * Graphs call update function in main thread via signal
 
+ * QRunnables are no longer continuously called via a QTimer, but are persistently running
+
+   * The thinking is that this frees up the main thread, as it will no longer be occupied with starting new threads
+
+   * The efficacy has not yet been tested
+
  * DAQ outputs text-based data file
 
  **16-Jun-24**
