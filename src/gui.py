@@ -386,7 +386,8 @@ class RampSettingsLayout(QVBoxLayout):
     
     
     
-    
+    #def daq_result(self, *args):
+     #   print(str(args))
     
     
     
@@ -412,7 +413,7 @@ class RampSettingsLayout(QVBoxLayout):
                                  self.coil_dict,
                                  self.main_thread_id)
         self.thread_daq.signals.error.connect(self.thread_error)
-        #self.thread_force_profile.signals.result.connect()
+        #self.thread_daq.signals.result.connect(self.daq_result)
         self.thread_daq.signals.finished.connect(self.thread_complete)
         
         
@@ -968,11 +969,12 @@ class GraphLayout(QVBoxLayout):
         self.pool = QThreadPool()
         for channel in self.channelDict:
             self.create_plot_thread(channel)
+        self.start_plot_threads()
             
-        self.timer = QTimer()
-        self.timer.setInterval(1) #ms
-        self.timer.timeout.connect(self.start_plot_threads)
-        self.timer.start()
+        #self.timer = QTimer()
+        #self.timer.setInterval(1) #ms
+        #self.timer.timeout.connect(self.start_plot_threads)
+        #self.timer.start()
             
         
             
@@ -987,10 +989,10 @@ class GraphLayout(QVBoxLayout):
         if channel:
             if self.channelDict[channel].running == True:
                 
-                if len(self.channelDict[channel].time) > 20000:
-                    self.channelDict[channel].plot.line.setData(self.channelDict[channel].time[::self.sampling_rate],
-                                                                self.channelDict[channel].data[::self.sampling_rate])
-                else:
+                #if len(self.channelDict[channel].time) > 20000:
+                 #   self.channelDict[channel].plot.line.setData(self.channelDict[channel].time[::self.sampling_rate],
+                  #                                              self.channelDict[channel].data[::self.sampling_rate])
+                #else:
                     
                     self.channelDict[channel].plot.line.setData(self.channelDict[channel].time,
                                                                 self.channelDict[channel].data)
@@ -1035,55 +1037,65 @@ class GraphLayout(QVBoxLayout):
     
     def receive_data(self, channel):
         #print(f"number of active threads in self.plot = {self.pool.activeThreadCount()}")
-        #print(f"current thread id = {int(QThread.currentThreadId())}, channel = {channel}")
-        if self.channelDict[channel].running:
-            if self.channelDict[channel].pipe[0].poll():
-                while self.channelDict[channel].pipe[0].poll():
-                    data = self.channelDict[channel].pipe[0].recv()
-                    if data == False:
-                        self.is_running(channel=channel, running=False)
-                    else:
-                        self.channelDict[channel].time.extend(data[0])
-                        self.channelDict[channel].data.extend(data[1])
+        print(f"current thread id = {int(QThread.currentThreadId())}, channel = {channel}")
+        
+        #self.channelDict[channel].signals = WorkerSignals()
+        
+        while True:
+            time.sleep(0.05)
+            if self.channelDict[channel].running:
+                if self.channelDict[channel].pipe[0].poll():
+                    while self.channelDict[channel].pipe[0].poll():
+                        try:
+                            data = self.channelDict[channel].pipe[0].recv()
+                            if data == False:
+                                self.is_running(channel=channel, running=False)
+                            else:
+                                self.channelDict[channel].time.extend(data[0])
+                                self.channelDict[channel].data.extend(data[1])
+                                
+                                
+                                #if len(self.channelDict[channel].time) > 20000:
+                                    #self.channelDict[channel].plot.line.setData(self.channelDict[channel].time[::self.sampling_rate],
+                                                                                #self.channelDict[channel].data[::self.sampling_rate])
+                                                                                
+                                  #  return channel#"yoy" 
+                               # else:
+                                   
+                                self.channelDict[channel].thread_plot.signals.result.emit(channel)
+                                #self.update_data(channel)
+                            #return channel
+                                #self.channelDict[channel].plot.line.setData(self.channelDict[channel].time,
+                                                                            #self.channelDict[channel].data)
+                        except:
+                            pass#print("err")
+            else:
+                if self.channelDict[channel].pipe[0].poll():
+                    while self.channelDict[channel].pipe[0].poll():
+                        data = self.channelDict[channel].pipe[0].recv()
                         
-                        
-                        #if len(self.channelDict[channel].time) > 20000:
-                            #self.channelDict[channel].plot.line.setData(self.channelDict[channel].time[::self.sampling_rate],
-                                                                        #self.channelDict[channel].data[::self.sampling_rate])
-                                                                        
-                          #  return channel#"yoy" 
-                       # else:
-                        return channel
-                            #self.channelDict[channel].plot.line.setData(self.channelDict[channel].time,
-                                                                        #self.channelDict[channel].data)
-    
-        else:
-            if self.channelDict[channel].pipe[0].poll():
-                while self.channelDict[channel].pipe[0].poll():
-                    data = self.channelDict[channel].pipe[0].recv()
+                        if data == False:
+                            self.is_running(channel=channel, running=False)
                     
-                    if data == False:
-                        self.is_running(channel=channel, running=False)
-                
-                    # Automatically start if sent data
-                    elif len(data[0]) > 0:
-                        self.channelDict[channel].time.extend(data[0])
-                        self.channelDict[channel].data.extend(data[1])
-        #               
-                        #pass
-                        #if len(self.channelDict[channel].time) > 20000:
-                        #    self.channelDict[channel].plot.line.setData(self.channelDict[channel].time[::self.sampling_rate],
-                        #                                                self.channelDict[channel].data[::self.sampling_rate])
-                        #else:
-                        #    self.channelDict[channel].plot.line.setData(self.channelDict[channel].time,
-                        #                                                self.channelDict[channel].data)
-        
-        
-                        
-                        
-                        self.is_running(channel=channel, running=True)
-                        return channel
-        
+                        # Automatically start if sent data
+                        elif len(data[0]) > 0:
+                            self.channelDict[channel].time.extend(data[0])
+                            self.channelDict[channel].data.extend(data[1])
+            #               
+                            #pass
+                            #if len(self.channelDict[channel].time) > 20000:
+                            #    self.channelDict[channel].plot.line.setData(self.channelDict[channel].time[::self.sampling_rate],
+                            #                                                self.channelDict[channel].data[::self.sampling_rate])
+                            #else:
+                            #    self.channelDict[channel].plot.line.setData(self.channelDict[channel].time,
+                            #                                                self.channelDict[channel].data)
+            
+            
+                            
+                            
+                            self.is_running(channel=channel, running=True)
+                           # return channel
+            
         
         
         

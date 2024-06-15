@@ -399,6 +399,15 @@
 
  * DAQ np.memmap buffer created as tempfile.NamedTemporaryFile()
 
+ **15-Jun-24**
+
+ * Graphs call update function in main thread via signal
+
+ * DAQ outputs text-based data file
+
+ **16-Jun-24**
+
+ * DAQ function samples data based on a 'pipe_rate' i.e. samples per second to be piped and plotted
 
 
 

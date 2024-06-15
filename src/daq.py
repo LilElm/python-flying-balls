@@ -80,7 +80,13 @@ def daq_continuous_simple(sampling_rate=1, num_samples=4, input_channels=None):
 def daq_continuous_adv(sampling_rate=1, num_samples=4,
                        input_channel_dict=None, output_channel_dict=None,
                        main_thread_id=None):
-    print(f"sampling rate = {sampling_rate}")
+    
+    pipe_rate = 200 #samples per sec
+    if sampling_rate > pipe_rate:
+        n_sampling = int(sampling_rate / pipe_rate)
+    else:
+        n_sampling = 1
+    
     input_channels = []
     force_profiles = []
     for channel in output_channel_dict:
@@ -187,8 +193,8 @@ def daq_continuous_adv(sampling_rate=1, num_samples=4,
         
         reader = TAMR(task_input.in_stream)
         buffer = np.memmap(
-            #ntf,
-            "./buffer.tmp",
+            ntf,
+            #"./buffer.tmp",
             dtype=np.float64,
             mode="w+",
             shape=(num_samples, len(input_channels))
@@ -208,13 +214,12 @@ def daq_continuous_adv(sampling_rate=1, num_samples=4,
         task_output.start()
         task_input.start()
         
-        
+        n_mod = 0
         while not task_input.is_task_done() and i < num_samples:
             n = reader._in_stream.avail_samp_per_chan
             if n == 0: continue
             n = min(n, num_samples-i) # prevent reading too many samples
             ##### READ
-            
             
             i += reader.read_many_sample(
                 buffer[i:i+n, :], # read directly into array using a view
@@ -225,21 +230,25 @@ def daq_continuous_adv(sampling_rate=1, num_samples=4,
             times = [dt * k for k in range(j, i)]
             
             for t in range(len(times)):
-                #f.write(f"{times[t]}, {', '.join(data[t])}\n")
                 f.write(f"{times[t]}, {', '.join(map(str, data[t]))}\n")
                 
-            
-            
-            for channel in output_channel_dict:
-                data_channel = data[:,output_channel_dict[channel].index]
-                output_channel_dict[channel].pipe[1].send([times[::100], data_channel[::100]])
+            #if True:
+            if n + n_mod >= n_sampling:       
+                n_index = n_sampling-n_mod-1
                 
-            for channel in input_channel_dict:
-                data_channel = data[:,input_channel_dict[channel].index]
-                input_channel_dict[channel].pipe[1].send([times[::100], data_channel[::100]])
+                time_data = times[n_index::n_sampling]
+                #time_data = times[::100]
                 
+                for channel in output_channel_dict:
+                    data_channel = data[:,output_channel_dict[channel].index]
+                    output_channel_dict[channel].pipe[1].send([time_data, data_channel[n_index::n_sampling]])
+                    #output_channel_dict[channel].pipe[1].send([time_data, data_channel[::100]])
+                for channel in input_channel_dict:
+                    data_channel = data[:,input_channel_dict[channel].index]
+                    input_channel_dict[channel].pipe[1].send([time_data, data_channel[n_index::n_sampling]])
+                    #input_channel_dict[channel].pipe[1].send([time_data, data_channel[::100]])
+            n_mod = (n + n_mod) % n_sampling
             
-        
             times_full.extend(times)
             data_full.extend(data)
             j = i
@@ -275,18 +284,7 @@ def daq_continuous_adv(sampling_rate=1, num_samples=4,
         
         
         
-        print("testing memmap...")
-        
-        print(f"memmap[1] = {(buffer[1])}")
-        
-        
-        
-        
-        
-    
-    
-    
-
+   
 
 
 
