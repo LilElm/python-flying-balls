@@ -956,6 +956,12 @@ class GraphLayout(QVBoxLayout):
         self.timer_refresh.start()
         """
         
+        """
+        self.timer_update = QTimer()
+        self.timer_update.setInterval(100) #ms
+        self.timer.timeout.connect(self.update_data)
+        self.timer.start()
+        """
         
         
     def init_thread_pool(self):
@@ -964,7 +970,7 @@ class GraphLayout(QVBoxLayout):
             self.create_plot_thread(channel)
             
         self.timer = QTimer()
-        self.timer.setInterval(100) #ms
+        self.timer.setInterval(1) #ms
         self.timer.timeout.connect(self.start_plot_threads)
         self.timer.start()
             
@@ -977,13 +983,28 @@ class GraphLayout(QVBoxLayout):
         
         
     
-
-        
+    def update_data(self, channel=None):
+        if channel:
+            if self.channelDict[channel].running == True:
+                
+                if len(self.channelDict[channel].time) > 20000:
+                    self.channelDict[channel].plot.line.setData(self.channelDict[channel].time[::self.sampling_rate],
+                                                                self.channelDict[channel].data[::self.sampling_rate])
+                else:
+                    
+                    self.channelDict[channel].plot.line.setData(self.channelDict[channel].time,
+                                                                self.channelDict[channel].data)
+            
+            
+           # self.channelDict[channel].plot.line.setData(self.channelDict[channel].time,
+            #                                            self.channelDict[channel].data)
+  #          pg.QtGui.QApplication.processEvents()
     
     
     
     def create_plot_thread(self, channel):
-        self.channelDict[channel].thread_plot = Worker(0, self.update_plots, channel)
+        self.channelDict[channel].thread_plot = Worker(0, self.receive_data, channel)
+        self.channelDict[channel].thread_plot.signals.result.connect(self.update_data)
        # self.create_plot_thread.signals.error.connect(self.thread_error)
         #self.coil_dict[coil].thread_force_profile.signals.result.connect(self.thread_result)
        # self.create_plot_thread.signals.finished.connect(self.thread_complete)
@@ -1012,7 +1033,7 @@ class GraphLayout(QVBoxLayout):
             self.timer.setInterval(self.guirefresh)
         """
     
-    def update_plots(self, channel):
+    def receive_data(self, channel):
         #print(f"number of active threads in self.plot = {self.pool.activeThreadCount()}")
         #print(f"current thread id = {int(QThread.currentThreadId())}, channel = {channel}")
         if self.channelDict[channel].running:
@@ -1026,12 +1047,15 @@ class GraphLayout(QVBoxLayout):
                         self.channelDict[channel].data.extend(data[1])
                         
                         
-                        if len(self.channelDict[channel].time) > 20000:
-                            self.channelDict[channel].plot.line.setData(self.channelDict[channel].time[::self.sampling_rate],
-                                                                        self.channelDict[channel].data[::self.sampling_rate])
-                        else:
-                            self.channelDict[channel].plot.line.setData(self.channelDict[channel].time,
-                                                                        self.channelDict[channel].data)
+                        #if len(self.channelDict[channel].time) > 20000:
+                            #self.channelDict[channel].plot.line.setData(self.channelDict[channel].time[::self.sampling_rate],
+                                                                        #self.channelDict[channel].data[::self.sampling_rate])
+                                                                        
+                          #  return channel#"yoy" 
+                       # else:
+                        return channel
+                            #self.channelDict[channel].plot.line.setData(self.channelDict[channel].time,
+                                                                        #self.channelDict[channel].data)
     
         else:
             if self.channelDict[channel].pipe[0].poll():
@@ -1045,26 +1069,27 @@ class GraphLayout(QVBoxLayout):
                     elif len(data[0]) > 0:
                         self.channelDict[channel].time.extend(data[0])
                         self.channelDict[channel].data.extend(data[1])
-        #                
-                        if len(self.channelDict[channel].time) > 20000:
-                            self.channelDict[channel].plot.line.setData(self.channelDict[channel].time[::self.sampling_rate],
-                                                                        self.channelDict[channel].data[::self.sampling_rate])
-                        else:
-                            self.channelDict[channel].plot.line.setData(self.channelDict[channel].time,
-                                                                        self.channelDict[channel].data)
+        #               
+                        #pass
+                        #if len(self.channelDict[channel].time) > 20000:
+                        #    self.channelDict[channel].plot.line.setData(self.channelDict[channel].time[::self.sampling_rate],
+                        #                                                self.channelDict[channel].data[::self.sampling_rate])
+                        #else:
+                        #    self.channelDict[channel].plot.line.setData(self.channelDict[channel].time,
+                        #                                                self.channelDict[channel].data)
         
         
                         
                         
                         self.is_running(channel=channel, running=True)
-
+                        return channel
         
         
         
         
         
-        pg.QtGui.QApplication.processEvents()
-        pass
+        #pg.QtGui.QApplication.processEvents()
+        #pass
         """
         if self.pipe_plota.poll():                 # If start/stop button pressed
             
