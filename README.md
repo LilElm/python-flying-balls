@@ -415,6 +415,8 @@
 
  * DAQ function samples data based on a 'pipe_rate' i.e. samples per second to be piped and plotted
 
+ * Basic camera functionality added
+
 
 
 </sub>

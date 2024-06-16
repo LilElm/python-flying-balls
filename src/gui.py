@@ -44,6 +44,10 @@ from daq import daq_single, daq_continuous_adv
 
 from coil_class import CoilChannel, CoilProfileLayout
 
+from camera import start_camera
+
+
+
 class MenuLayout(QHBoxLayout):
     def __init__(self, parent=None, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
@@ -176,10 +180,12 @@ class RampSettingsLayout(QVBoxLayout):
     def __init__(self,
                  coil_dict,
                  input_channelDict,
+                 pipe_camera,
                  parent=None, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
         self.coil_dict = coil_dict
         self.input_channelDict = input_channelDict
+        self.pipe_camera = pipe_camera
         
         self.counter = 0
         self.timer = QTimer()
@@ -414,13 +420,20 @@ class RampSettingsLayout(QVBoxLayout):
                                  self.main_thread_id)
         self.thread_daq.signals.error.connect(self.thread_error)
         #self.thread_daq.signals.result.connect(self.daq_result)
-        self.thread_daq.signals.finished.connect(self.thread_complete)
+        self.thread_daq.signals.finished.connect(self.thread_daq_complete)
         
         
     def thread_error(self, exctype, value, traceback):
         #self.console_plot.append("Error!")
         print("Error!")
-        
+    
+    
+    def thread_daq_complete(self):
+        print("Thread done")
+        # Stop the camera
+        self.pipe_camera[1].send(False)
+    
+    
     def thread_complete(self):
         print("Thread done")
         #self.console_plot.append("Finished!")
@@ -564,6 +577,7 @@ class RampSettingsLayout(QVBoxLayout):
 
     
     def stop_on_click(self):
+        self.pipe_camera[1].send(False)
         #self.pipe_signal.send(False) # Send signal to main.py to restart
         self.pipe_inputplotb.send(False) ######12/06/2023
         self.pipe_outputplotb.send(False) ######12/06/2023
@@ -590,6 +604,8 @@ class RampSettingsLayout(QVBoxLayout):
         self.points = None
         success, self.points = self.check_input()
         if success:
+            self.pipe_camera[1].send(True)
+            print("---------------")
             
             #for coil in self.coil_dict:
              #   self.coil_dict[coil].drive_current = float(np.average(daq_single(sampling_rate=1000, num_samples=10, input_channels=[self.coil_dict[coil].channel])))
@@ -1168,6 +1184,7 @@ class Layout(QGridLayout):
                  input_channelDict,
                 # output_channelDict,
                  coil_dict,
+                 pipe_camera,
                  parent=None,
                  *args,
                  **kwargs):
@@ -1175,6 +1192,7 @@ class Layout(QGridLayout):
         self.input_channelDict = input_channelDict
        # self.output_channelDict = output_channelDict
         self.coil_dict = coil_dict
+        self.pipe_camera = pipe_camera
         
         """
                  input_channelDict,
@@ -1251,7 +1269,7 @@ class Layout(QGridLayout):
         
         
         layout_fsettings = FileSettingsLayout(self.checkbox, self.path_textbox, self.db_textbox)
-        layout_ramp = RampSettingsLayout(self.coil_dict, self.input_channelDict)
+        layout_ramp = RampSettingsLayout(self.coil_dict, self.input_channelDict, self.pipe_camera)
         """    
                                          self.pipe_param,
                                          self.pipe_signal,
@@ -1543,12 +1561,28 @@ class MainWindow(QMainWindow):
         
         
         self.init_channels()
+        
+        self.pipe_camera = Pipe(duplex=True)
+        
+        
+        # Make init_camera a thread
+        print(f"main thread id = {int(QThread.currentThreadId())}")
+        self.init_camera_thread = Worker(0, self.init_camera)
+        self.pool = QThreadPool()
+        self.pool.start(self.init_camera_thread)
+        #self.supervisor_thread.signals.error.connect(self.thread_error)
+        #self.supervisor_thread.signals.result.connect(self.thread_result)
+        #self.supervisor_thread.signals.finished.connect(self.thread_complete)
+        
+        
+        
+        
+        #self.init_camera()
         self.init_UI()
         self._createMenuBar()
 
         
    
-        
         
         
         
@@ -1650,7 +1684,29 @@ class MainWindow(QMainWindow):
         
         
         
+    def init_camera(self):
+        # Connect to camera
+        print(f"camera thread id = {int(QThread.currentThreadId())}")
         
+        self.proc_camera = Process(target=start_camera, args=(self.pipe_camera[0],))# pipe_msgb, ))
+        #self.processlist.append(self.proc_camera)
+        self.proc_camera.start()
+        self.pipe_camera[1].send(4)
+        
+        timeout = 10.0
+        time_start = time.time()
+        while time.time() < time_start + timeout:
+            if self.pipe_camera[1].poll():
+                while self.pipe_camera[1].poll():
+                    signal = self.pipe_camera[1].recv()
+                    if signal == True:
+                        print("Successfully connected to the camera")
+                    else:
+                        print("Failed to connect to the camera")
+                    break
+                
+            
+    
 
     
     def _createMenuBar(self):
@@ -1752,7 +1808,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(self.title)
         self.setWindowIcon(QIcon(self.icon))
         #grid_layout = Layout(self.input_channelDict, self.output_channelDict, self.coil_dict)
-        grid_layout = Layout(self.input_channelDict, self.coil_dict)
+        grid_layout = Layout(self.input_channelDict, self.coil_dict, self.pipe_camera)
         """
                              self.input_channelDict,
                              self.output_channelDict,
