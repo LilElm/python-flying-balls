@@ -23,10 +23,12 @@
 <sub>
 
    - [ ] Debug force profiles
+   - [ ] Extend force profile options
    - [ ] Configure output files
    - [ ] Reconnect the database
    - [ ] Reimplement the 'Preferences' page
    - [ ] Write documentation
+   - [ ] Configure error signals for threads
 
 
 </sub>
