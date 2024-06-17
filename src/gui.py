@@ -189,7 +189,7 @@ class RampSettingsLayout(QVBoxLayout):
         self.console = console
         #self.console = []
         self.pipe_camera = pipe_camera
-        
+        self.pipe_daq = Pipe(duplex=False)
         
         
         self.init_textboxes()
@@ -459,7 +459,8 @@ class RampSettingsLayout(QVBoxLayout):
                                  self.num_samples,
                                  self.input_channelDict,
                                  self.coil_dict,
-                                 self.main_thread_id)
+                                 self.main_thread_id,
+                                 self.pipe_daq[0])
         self.daq_thread.signals.error.connect(self.thread_error)
         #self.daq_thread.signals.result.connect(self.daq_result)
         self.daq_thread.signals.finished.connect(self.daq_thread_complete)
@@ -609,16 +610,13 @@ class RampSettingsLayout(QVBoxLayout):
 
     
     def stop_on_click(self):
+        self.console.pipe[1].send("Sending stop signal to DAQ")
+        self.pipe_daq[1].send(False)
         #self.console.append("Stop button pressed")
         self.pool.start(self.stop_camera_thread)
         
-        #self.pipe_camera[1].send(False)
-        #self.pipe_signal.send(False) # Send signal to main.py to restart
-        """
-        self.pipe_inputplotb.send(False) ######12/06/2023
-        self.pipe_outputplotb.send(False) ######12/06/2023
-        self.pipe_getdatab.send(False)
-        """
+        
+        
 
     def start_on_click(self):
         #self.console.append("Start button pressed")

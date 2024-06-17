@@ -79,7 +79,7 @@ def daq_continuous_simple(sampling_rate=1, num_samples=4, input_channels=None):
 
 def daq_continuous_adv(sampling_rate=1, num_samples=4,
                        input_channel_dict=None, output_channel_dict=None,
-                       main_thread_id=None):
+                       main_thread_id=None, pipe=None):
     
     pipe_rate = 200 #samples per sec
     if sampling_rate > pipe_rate:
@@ -216,6 +216,26 @@ def daq_continuous_adv(sampling_rate=1, num_samples=4,
         
         n_mod = 0
         while not task_input.is_task_done() and i < num_samples:
+            
+            if pipe:
+                if pipe.poll():
+                    while pipe.poll():
+                        sig = pipe.recv()
+                        
+                    # Send 'False' signal to stop the GUI
+                    for channel in input_channel_dict:
+                        input_channel_dict[channel].pipe[1].send(False)
+                        
+                    for channel in output_channel_dict:
+                        output_channel_dict[channel].pipe[1].send(False)
+                        
+                    # Close tasks and exit
+                    print("DAQ interrupted by user")
+                    break
+                    
+            
+            
+            
             n = reader._in_stream.avail_samp_per_chan
             if n == 0: continue
             n = min(n, num_samples-i) # prevent reading too many samples
