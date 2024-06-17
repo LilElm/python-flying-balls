@@ -187,12 +187,13 @@ class RampSettingsLayout(QVBoxLayout):
         self.coil_dict = coil_dict
         self.input_channelDict = input_channelDict
         self.console = console
+        #self.console = []
         self.pipe_camera = pipe_camera
         
         
         
         self.init_textboxes()
-        self.init_console()
+        #self.init_console()
         self.init_thread_pool()
         
       
@@ -251,9 +252,7 @@ class RampSettingsLayout(QVBoxLayout):
         self.textbox_df = QLineEdit("0.090", placeholderText="Line Width")
         self.textbox_k = QLineEdit("0.465", placeholderText="Spring Constant")
         
-        #self.led = QPixmap('../fig/LED_red.png').scaled(20,20)
-        #self.led_label = QLabel()
-        #self.led_label.setPixmap(self.led)
+
         self.start_button = QPushButton("Start")
         self.stop_button = QPushButton("Stop")
         self.start_button.clicked.connect(self.start_on_click)
@@ -270,13 +269,10 @@ class RampSettingsLayout(QVBoxLayout):
         layout_start.addWidget(QLabel("Line Width\n(Hz)"))
         layout_start.addWidget(self.textbox_k)
         layout_start.addWidget(QLabel("Spring Constant\n(mm/V)"))
-        #layout_start.addWidget(self.led_label)
         
         
         layout_start.addWidget(self.start_button)
         layout_start.addWidget(self.stop_button)
-       
-        
         layout_start.addWidget(self.console)
         
         
@@ -285,23 +281,25 @@ class RampSettingsLayout(QVBoxLayout):
         box_start.setMaximumWidth(250)
         self.addWidget(box_start)
         
-        
+    """    
     def init_console(self):
         self.counter = 0
         self.timer = QTimer()
         self.timer.setInterval(250) #ms
         self.timer.timeout.connect(self.update_console)
         self.timer.start()
+    """
     
-    
-    def update_console(self):
-        pass
-        """
+   # def update_console(self):
+        # I believe the console, like the graphs, only wants to be updated
+        # via the main thread.
+    #    pass
+    """
         if self.pipe_console.poll():
             while self.pipe_console.poll():
                 msg = self.pipe_console.recv()
                 self.console.append(msg)
-        """            
+    """            
     
     
     
@@ -348,11 +346,13 @@ class RampSettingsLayout(QVBoxLayout):
     
     
     def start_daq_thread(self):
+        self.console.pipe[1].send("Starting DAQ")
         self.pool.start(self.daq_thread)
     
 
     def send_start_sig_camera(self):
         print(f"camera thread id = {int(QThread.currentThreadId())}")
+        self.console.pipe[1].send("Sending start signal to camera")
         self.pipe_camera[1].send(True)
         timeout = 10.0
         time_start = time.time()
@@ -362,17 +362,17 @@ class RampSettingsLayout(QVBoxLayout):
                     signal = self.pipe_camera[1].recv()
                     if signal == True:
                         print("Recording started")
+                        self.console.pipe[1].send("Recording started")
                     else:
                         print("Failed to communicate with the camera")
-                    break
-                else:
-                    print("Failed to communicate with the camera")
+                        self.console.pipe[1].send("Failed to communicate with the camera")
                 break
                 
                 
 
     def send_stop_sig_camera(self):
         print(f"camera thread id = {int(QThread.currentThreadId())}")
+        self.console.pipe[1].send("Sending stop signal to camera")
         self.pipe_camera[1].send(False)
         timeout = 10.0
         time_start = time.time()
@@ -382,9 +382,12 @@ class RampSettingsLayout(QVBoxLayout):
                     signal = self.pipe_camera[1].recv()
                     if signal == True:
                         print("Recording stopped")
+                        self.console.pipe[1].send("Recording stopped")
                     else:
+                        print(f"signal = {signal}")
                         print("Failed to communicate with the camera")
-                    break
+                        self.console.pipe[1].send("Failed to communicate with the camera")
+                break
                 
       
       
@@ -409,6 +412,7 @@ class RampSettingsLayout(QVBoxLayout):
     
     def supervise_threads(self):
         active_threads = self.pool.activeThreadCount()
+        self.console.pipe[1].send("Evaluating force profiles")
         for coil in self.coil_dict:
             self.coil_dict[coil].drive_current = float(np.average(daq_single(sampling_rate=1000, num_samples=10, input_channels=[self.coil_dict[coil].channel])))
             self.pool.start(self.coil_dict[coil].thread_force_profile)
@@ -426,6 +430,7 @@ class RampSettingsLayout(QVBoxLayout):
             
             if self.pool.activeThreadCount() == active_threads:#1:
                 print("Force profiles evaluated")
+                self.console.pipe[1].send("Force profiles evaluated")
                 break
         """
         timed_out = not self.pool.waitForDone(10000)
@@ -466,6 +471,7 @@ class RampSettingsLayout(QVBoxLayout):
     
     
     def daq_thread_complete(self):
+        self.console.pipe[1].send("DAQ finished")
         # Stop the camera
         self.pool.start(self.stop_camera_thread)
         
@@ -603,6 +609,7 @@ class RampSettingsLayout(QVBoxLayout):
 
     
     def stop_on_click(self):
+        #self.console.append("Stop button pressed")
         self.pool.start(self.stop_camera_thread)
         
         #self.pipe_camera[1].send(False)
@@ -614,7 +621,7 @@ class RampSettingsLayout(QVBoxLayout):
         """
 
     def start_on_click(self):
-        
+        #self.console.append("Start button pressed")
         
         
         # Get 'save to file' and sampling rate
@@ -623,7 +630,6 @@ class RampSettingsLayout(QVBoxLayout):
         
         #self.save = self.checkbox.isChecked()
         self.sampling_rate = self.textbox_srate.text()
-        
         self.f0 = self.textbox_f0.text()
         self.df = self.textbox_df.text()
         self.k = self.textbox_k.text()
@@ -654,45 +660,7 @@ class RampSettingsLayout(QVBoxLayout):
 
 
             self.pool.start(self.supervisor_thread)
-            """
-            timeout = 10.0
-            time_start = time.time()
-            while True:
-                if time.time() > time_start + timeout:
-                    time_estimated = (points * 9e-6)
-                    print(f"Estimated prep time: {int(time_estimated)} s")
-                    print(f"Elapsed time: {int(time.time() - time_start)} s")
-                    timeout = timeout + 10
-                    
-                
-                if self.pool.activeThreadCount() == 0:
-                    print("Force profiles evaluated")
-                    break
-            """
-            """
-            timed_out = not self.pool.waitForDone(10000)
-            if timed_out:
-                print("timed out")
-                self.pool.close()
-                self.pool.
-            else:
-                print("success")
-            """
-    
-            #print("start daq thread")
-            #self.create_daq_thread()
-            #self.pool.start(self.daq_thread)
-    
-            # Send start signal to graphs
-            """
-            self.pipe_inputplotb.send(False) ######12/06/2023
-            self.pipe_outputplotb.send(False) ######12/06/2023
             
-            
-            
-            self.pipe_inputplotb.send(True) ######12/06/2023
-            self.pipe_outputplotb.send(True) ######12/06/2023
-            """
     
             # Get all parameters from preferences menu
             #self.textbox_ni_val = int(self.textbox_ni.text())
@@ -1220,6 +1188,35 @@ class GraphLayout(QVBoxLayout):
         """
 
 
+
+
+class Console(QTextEdit):
+    def __init__(self,
+                 pipe=True,
+                 parent=None,
+                 *args,
+                 **kwargs):
+        super().__init__(parent, *args, **kwargs)
+        self.setStyleSheet("background-color:black; color:lightgray")
+        self.pipe = Pipe(duplex=False)
+        self.init_timer()
+
+
+    def init_timer(self):
+        self.counter = 0
+        self.timer = QTimer()
+        self.timer.setInterval(250) #ms
+        self.timer.timeout.connect(self.update_console)
+        self.timer.start()
+
+    def update_console(self):
+        if self.pipe[0].poll():
+            while self.pipe[0].poll():
+                msg = self.pipe[0].recv()
+                self.append(msg)
+        
+
+
 class Layout(QGridLayout):
     def __init__(self,
                  input_channelDict,
@@ -1305,8 +1302,7 @@ class Layout(QGridLayout):
         self.db_textbox = QLineEdit(f"{path}.env")
         
 
-        self.console = QTextEdit()
-        self.console.setStyleSheet("background-color:black; color:lightgray")
+        self.console = Console()
         
         
         layout_fsettings = FileSettingsLayout(self.checkbox, self.path_textbox,

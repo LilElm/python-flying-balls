@@ -417,6 +417,16 @@
 
  * Basic camera functionality added
 
+ **17-Jun-24**
+
+ * The camera signals are sent in separate threads
+
+   * The camera will listen for a reply from camera.py
+
+ * A Console() class has been added and integrated into the program
+
+   * The console, like the graphs, can only update in the main thread
+
 
 
 </sub>

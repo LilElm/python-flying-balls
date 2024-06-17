@@ -158,8 +158,10 @@ async def main(pipe):#, pipe_msgb):
                                     
                                     
                                     
-                            except:
+                            except Exception as error:
                                 print("An error occured in camera.py")
+                                print(f"{error}")
+                                print("====================")
                                 #pipe_msgb.send("An error occured in camera.py")
                                 break
                             
@@ -173,7 +175,30 @@ async def main(pipe):#, pipe_msgb):
                 #    sys.exit(1)
         
                     
+                finally:
+                    data2 = bytearray([1,5,0,0,10,1,1,0,0,0,0,0])
+                    logging.info("Sending 'STOP RECORDING' bytearray")
+                    print("Sending 'STOP RECORDING' bytearray")
+                    #pipe_msgb.send("Sending 'STOP RECORDING' bytearray")
+                    try:
+                        await client.write_gatt_char(MODEL_NBR_UUID, data2, response=True)
+                        print("Recording stopped")
+                        logging.info("Recording stopped")
+                        #pipe_msgb.send("Recording stopped")
+                    except:
+                        pipe.send(False)
+                        print("Failed to communicate with the camera")
+                        logging.info("Failed to communicate with the camera")
+                        #pipe_msgb.send("Failed to communicate with the camera")
                     
+                    
+                    print("Closing Bluetooth connection")
+                    logging.info("Closing Bluetooth connection")
+                    #pipe_msgb.send("Closing Bluetooth connection")
+                    logging.info("Exiting camera.py")
+                    #pipe_msgb.send("Exiting camera.py")
+                    pipe.send(True)
+                    connected = False
                     
         
         
