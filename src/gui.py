@@ -527,8 +527,10 @@ class RampSettingsLayout(QVBoxLayout):
         profile =  self.coil_dict[coil].layout.profile
         self.coil_dict[coil].layout.vals = []
         for textbox in self.coil_dict[coil].layout.textboxDict:
-            #self.coil_dict[coil].layout.vals.append(self.coil_dict[coil].layout.textboxDict[textbox].val)
-            self.coil_dict[coil].layout.vals.append(float(self.coil_dict[coil].layout.textboxDict[textbox].textbox.text()))
+            if profile != "Upload Custom":
+                self.coil_dict[coil].layout.vals.append(float(self.coil_dict[coil].layout.textboxDict[textbox].textbox.text()))
+            else:            
+                self.coil_dict[coil].layout.vals.append(self.coil_dict[coil].layout.textboxDict[textbox].textbox.text())
         vals = self.coil_dict[coil].layout.vals
         print(f"{coil} vals = {vals}\n")
         
@@ -562,65 +564,53 @@ class RampSettingsLayout(QVBoxLayout):
          
          
         elif profile == "Upload Custom":
+#            directory, _ = vals
+            directory, = vals
+            print(str(directory))
+            force_profile = np.genfromtxt(directory, delimiter='\n')
+#            with open (directory, 'r') as f:
+ #               force_profile = f.readlines()
+            print(f"force_profile = {force_profile}")
+            
+            
+            
+            
+            
+            """
+            f_profile = []
+            t = 0
+            dt = 1.0 / sampling_rate
+            
+            path_old = params[0]
+            #path_new = f"../tmp/{coil}_custom_profile.csv"
+            path_new = f"{outfolder}{coil}_custom_profile_{timestamp}.csv"
+            with open((path_old), "r") as f_old:
+                with open((path_new), 'w') as f_new:
+                    f_new.write("Seconds, Profile\n")
+                    for line in f_old:
+                        l = float(line.lower().strip("\n"))
+                        f_profile.append(l)
+                        f_new.write(f"{t}, {l}\n")
+                        t = t + dt
+                    f_old.seek(0)
+            
+            """
+            
+            
             pass
          
          
          
-        #self.coil_dict[]
-        print(f"coil = {coil}, force_profile = {force_profile}")
-        
+        #print(f"coil = {coil}, force_profile = {force_profile}")
         self.coil_dict[coil].force_profile = force_profile
         self.num_samples = np.size(force_profile)
         
-        #return coil, force_profile
         
         
         
         
         
         
-        
-        
-        
-        
-        
-        
-    
-    """
-       # for coil in self.coil_dict:
-            profile =  self.coil_dict[coil].layout.profile
-            self.coil_dict[coil].layout.vals = []
-            for textbox in self.coil_dict[coil].layout.textboxDict:
-                self.coil_dict[coil].layout.vals.append(self.coil_dict[coil].layout.textboxDict[textbox].val)
-            vals = self.coil_dict[coil].layout.vals
-            
-            if profile == "Ramp Profile":
-               # Measure current drive, get input parameters, generate ramp profile
-                drive_current = float(np.average(daq_single(sampling_rate=1000, num_samples=10, input_channels=[self.coil_dict[coil].channel_measured])))
-                drive_target, time_idle, time_acc, time_ramp, time_rest = vals
-                force_profile = generate_ramp_profile(self.f0, self.df,
-                                                      self.k, drive_current,
-                                                      drive_target, time_idle,
-                                                      time_acc, time_ramp,
-                                                      time_rest, self.sampling_rate)
-                
-            
-            elif profile == "Sine Profile":
-                pass
-            
-            
-            elif profile == "Half-sine Profile":
-                force_profile = generate_halfsine_profile(amp, freq,
-                                                          time_idle, time_rest,
-                                                          self.sampling_rate)
-                
-                
-            
-            
-            elif profile == "Upload Custom":
-                pass
-    """
-                
         
 
 
@@ -814,6 +804,7 @@ class RampSettingsLayout(QVBoxLayout):
                     for textbox in self.coil_dict[coil].layout.textboxDict:
                         val = self.coil_dict[coil].layout.textboxDict[textbox].textbox.text()
                         self.coil_dict[coil].layout.textboxDict[textbox].val = val
+                        tot_times = [0]
                 else:
                     # Check if values are floats
                     if error_code == 0:

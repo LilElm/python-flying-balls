@@ -62,6 +62,8 @@ def generate_sine_profile(amp=1.0, freq=2.0,
     times_sine = np.arange(0.0, time_sine, dt)
     times_rest = np.arange(0.0, time_rest, dt)
     
+    # Convert from degrees to radians
+    phase = phase / (2.0 * np.arccos(-1.0))
     
     omega = 2.0 * np.pi * freq
     x_idle = [offset for time in times_idle]

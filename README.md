@@ -24,11 +24,17 @@
 
    - [X] Debug force profiles
    - [ ] Extend force profile options
+     - [X] Ramp 
+     - [X] Half-sine
+     - [ ] Half-sine pulses
+     - [X] Sine
+     - [X] Custom
    - [ ] Configure output files
    - [ ] Reconnect the database
    - [ ] Reimplement the 'Preferences' page
    - [ ] Write documentation
    - [ ] Configure error signals for threads
+   - [ ] Assign spring contant box group to the ramp profile
 
 
 </sub>
@@ -411,6 +417,10 @@
    * DAQ input array dimensions do not match for time inputs: (1, 1, 1, 6) and (2, 2, 2, 2) at 20,000 Hz
 
    * Fix from previous code edited and implemented
+
+ * Custom force profiles reimplemented
+
+ * Degrees converted to radians in generate_sine_profile() function
 
 
 
