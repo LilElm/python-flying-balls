@@ -231,7 +231,8 @@ def daq_continuous_adv(sampling_rate=1, num_samples=4,
                         
                     # Close tasks and exit
                     print("DAQ interrupted by user")
-                    break
+                    pipe.send(True)
+                    sys.exit(1)
                     
             
             

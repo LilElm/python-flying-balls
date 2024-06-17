@@ -189,7 +189,7 @@ class RampSettingsLayout(QVBoxLayout):
         self.console = console
         #self.console = []
         self.pipe_camera = pipe_camera
-        self.pipe_daq = Pipe(duplex=False)
+        self.pipe_daq = Pipe(duplex=True)
         
         
         self.init_textboxes()
@@ -314,6 +314,7 @@ class RampSettingsLayout(QVBoxLayout):
             self.create_force_profile_thread(coil)
         self.create_start_camera_thread()
         self.create_stop_camera_thread()
+        self.create_stop_daq_thread()
         self.create_supervisor_thread()
         
     
@@ -342,6 +343,9 @@ class RampSettingsLayout(QVBoxLayout):
     
     def create_stop_camera_thread(self):
         self.stop_camera_thread = Worker(0, self.send_stop_sig_camera)
+    
+    def create_stop_daq_thread(self):
+        self.stop_daq_thread = Worker(0, self.send_stop_sig_daq)
     
     
     
@@ -387,6 +391,27 @@ class RampSettingsLayout(QVBoxLayout):
                         print(f"signal = {signal}")
                         print("Failed to communicate with the camera")
                         self.console.pipe[1].send("Failed to communicate with the camera")
+                break
+                
+                  
+
+    def send_stop_sig_daq(self):
+        self.console.pipe[1].send("Sending stop signal to DAQ")
+        self.pipe_daq[1].send(False)
+
+        timeout = 10.0
+        time_start = time.time()
+        while time.time() < time_start + timeout:
+            if self.pipe_daq[1].poll():
+                while self.pipe_daq[1].poll():
+                    signal = self.pipe_daq[1].recv()
+                    if signal == True:
+                        print("DAQ stopped")
+                        self.console.pipe[1].send("DAQ interrupted by user")
+                    else:
+                        print(f"signal = {signal}")
+                        print("Failed to communicate with the DAQ board")
+                        self.console.pipe[1].send("Failed to communicate with the DAQ board")
                 break
                 
       
@@ -461,7 +486,7 @@ class RampSettingsLayout(QVBoxLayout):
                                  self.coil_dict,
                                  self.main_thread_id,
                                  self.pipe_daq[0])
-        self.daq_thread.signals.error.connect(self.thread_error)
+        #self.daq_thread.signals.error.connect(self.thread_error)
         #self.daq_thread.signals.result.connect(self.daq_result)
         self.daq_thread.signals.finished.connect(self.daq_thread_complete)
         
@@ -610,8 +635,10 @@ class RampSettingsLayout(QVBoxLayout):
 
     
     def stop_on_click(self):
-        self.console.pipe[1].send("Sending stop signal to DAQ")
-        self.pipe_daq[1].send(False)
+        
+        self.pool.start(self.stop_daq_thread)
+        
+        #self.pipe_daq[1].send(False)
         #self.console.append("Stop button pressed")
         self.pool.start(self.stop_camera_thread)
         
