@@ -180,13 +180,14 @@ class RampSettingsLayout(QVBoxLayout):
     def __init__(self,
                  coil_dict,
                  input_channelDict,
+                 console,
                  pipe_camera,
                  parent=None, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
         self.coil_dict = coil_dict
         self.input_channelDict = input_channelDict
+        self.console = console
         self.pipe_camera = pipe_camera
-        
         
         
         
@@ -249,9 +250,10 @@ class RampSettingsLayout(QVBoxLayout):
         self.textbox_f0 = QLineEdit("7.300", placeholderText="Frequency")
         self.textbox_df = QLineEdit("0.090", placeholderText="Line Width")
         self.textbox_k = QLineEdit("0.465", placeholderText="Spring Constant")
-        self.led = QPixmap('../fig/LED_red.png').scaled(20,20)
-        self.led_label = QLabel()
-        self.led_label.setPixmap(self.led)
+        
+        #self.led = QPixmap('../fig/LED_red.png').scaled(20,20)
+        #self.led_label = QLabel()
+        #self.led_label.setPixmap(self.led)
         self.start_button = QPushButton("Start")
         self.stop_button = QPushButton("Stop")
         self.start_button.clicked.connect(self.start_on_click)
@@ -268,15 +270,15 @@ class RampSettingsLayout(QVBoxLayout):
         layout_start.addWidget(QLabel("Line Width\n(Hz)"))
         layout_start.addWidget(self.textbox_k)
         layout_start.addWidget(QLabel("Spring Constant\n(mm/V)"))
-        layout_start.addWidget(self.led_label)
+        #layout_start.addWidget(self.led_label)
         
         
         layout_start.addWidget(self.start_button)
         layout_start.addWidget(self.stop_button)
        
-        """
+        
         layout_start.addWidget(self.console)
-        """
+        
         
         box_start = QGroupBox()
         box_start.setLayout(layout_start)
@@ -1307,8 +1309,10 @@ class Layout(QGridLayout):
         self.console.setStyleSheet("background-color:black; color:lightgray")
         
         
-        layout_fsettings = FileSettingsLayout(self.checkbox, self.path_textbox, self.db_textbox)
-        layout_ramp = RampSettingsLayout(self.coil_dict, self.input_channelDict, self.pipe_camera)
+        layout_fsettings = FileSettingsLayout(self.checkbox, self.path_textbox,
+                                              self.db_textbox)
+        layout_ramp = RampSettingsLayout(self.coil_dict, self.input_channelDict,
+                                         self.console, self.pipe_camera)
         """    
                                          self.pipe_param,
                                          self.pipe_signal,
