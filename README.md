@@ -22,7 +22,7 @@
 #### To Do
 <sub>
 
-   - [ ] Debug force profiles
+   - [X] Debug force profiles
    - [ ] Extend force profile options
    - [ ] Configure output files
    - [ ] Reconnect the database
@@ -409,6 +409,8 @@
  * Bug noticed in evaluating the ramp profiles
 
    * DAQ input array dimensions do not match for time inputs: (1, 1, 1, 6) and (2, 2, 2, 2) at 20,000 Hz
+
+   * Fix from previous code edited and implemented
 
 
 

@@ -454,6 +454,30 @@ class RampSettingsLayout(QVBoxLayout):
                 
             
             if self.pool.activeThreadCount() == active_threads:#1:
+                
+                
+                
+                # Check lengths of force profiles and adjust accordingly
+                lengths = []
+                for coil in self.coil_dict:
+                    lengths.append(len(self.coil_dict[coil].force_profile))
+                res = all(l == lengths[0] for l in lengths)
+                
+                if not res:
+                    print("Adjusting lengths")
+                    for coil in self.coil_dict:
+                        while len(self.coil_dict[coil].force_profile) < max(lengths):
+                            val = self.coil_dict[coil].force_profile[-1]
+                            self.coil_dict[coil].force_profile = np.append(self.coil_dict[coil].force_profile, val)
+                            
+                    
+                
+                
+                
+                
+                
+                
+                
                 print("Force profiles evaluated")
                 self.console.pipe[1].send("Force profiles evaluated")
                 break
@@ -664,9 +688,6 @@ class RampSettingsLayout(QVBoxLayout):
         self.points = None
         success, self.points = self.check_input()
         if success:
-            
-            
-            
             
             
             
