@@ -39,7 +39,10 @@ import multiprocessing.connection
 multiprocessing.connection.BUFSIZE = 2**32-1 # This is the absolute limit for this PC
 from multiprocessing import Process, Pipe
 
-from profiles import generate_halfsine_profile, generate_ramp_profile
+from profiles import (generate_halfsine_profile,
+                      generate_ramp_profile,
+                      generate_sine_profile)
+                      
 from daq import daq_single, daq_continuous_adv
 
 from coil_class import CoilChannel, CoilProfileLayout
@@ -529,17 +532,8 @@ class RampSettingsLayout(QVBoxLayout):
         vals = self.coil_dict[coil].layout.vals
         print(f"{coil} vals = {vals}\n")
         
-#        self.coil_dict[coil].layout.textboxDict[textbox].textbox.setText(str(rest))
-        
         
         if profile == "Ramp Profile":
-           # Measure current drive, get input parameters, generate ramp profile
-            #drive_current = float(np.average(daq_single(sampling_rate=1000, num_samples=10, input_channels=[coil.channel_measured])))
-            
-            #drive_current = None
-            #drive_current = float(np.average(daq_single(sampling_rate=1000, num_samples=10, input_channels=[self.coil_dict[coil].channel_measured])))
-            
-            
             drive_current = self.coil_dict[coil].drive_current
             drive_target, time_idle, time_acc, time_ramp, time_rest = vals
             force_profile = generate_ramp_profile(self.f0, self.df,
@@ -550,8 +544,13 @@ class RampSettingsLayout(QVBoxLayout):
              
          
         elif profile == "Sine Profile":
-            pass
-         
+            amp, freq, phase, offset, cycles, time_idle, time_rest = vals
+            force_profile = generate_sine_profile(amp, freq,
+                                                  phase, offset,
+                                                  cycles, time_idle,
+                                                  time_rest,
+                                                  self.sampling_rate)
+            
          
         elif profile == "Half-sine Profile":
             amp, freq, time_idle, time_rest = vals
@@ -833,7 +832,11 @@ class RampSettingsLayout(QVBoxLayout):
                     if error_code == 0:
                         for textbox in self.coil_dict[coil].layout.textboxDict:
                             if error_code == 0:
-                                if "Velo" not in textbox and "Amp" not in textbox and "Phase" not in textbox and "Drive" not in textbox:  
+                                if ("Velo" not in textbox and
+                                    "Amp" not in textbox and
+                                    "Phase" not in textbox and
+                                    "Drive" not in textbox and
+                                    "Cycles" not in textbox):  
                                     if self.coil_dict[coil].layout.textboxDict[textbox].val < 0.0:
                                         print(str(textbox) + " is negative")
                                         error_message.append(str(textbox) + " is negative")
@@ -893,10 +896,18 @@ class RampSettingsLayout(QVBoxLayout):
                                 if self.coil_dict[coil].layout.profile == "Half-sine Profile":
                                     t = 0.5 / val
                                 elif self.coil_dict[coil].layout.profile == "Sine Profile":
-                                    t = 1.0 / val
-                            elif "Velo" not in textbox and "Amp" not in textbox and "Freq" not in textbox and "Phase" not in textbox and "Drive" not in textbox:
+                                    t = 0
+                                    f = val
+                            elif ("Velo" not in textbox and
+                                  "Amp" not in textbox and
+                                  "Freq" not in textbox and
+                                  "Phase" not in textbox and
+                                  "Drive" not in textbox and
+                                  "Offset" not in textbox):
                                 if "Acc" in textbox:
                                     t = val * 2.0
+                                elif "Cycles" in textbox:
+                                    t = val / f
                                 else:
                                     t = val
                             t = float(t)

@@ -13,6 +13,126 @@ import time
 
 
 
+
+
+
+def generate_sine_profile(amp=1.0, freq=2.0,
+                          phase=0.0, offset=0.0,
+                          cycles=10, time_idle=1.0,
+                          time_rest=4.0, sampling_rate=10000.0,
+                          coil=None, outfolder="../out/",
+                          timestamp=None, figure=False):
+    
+    logfolder = "../log/"
+    outfolder = "../out/"
+    tmpfolder = "../tmp/"
+            
+    os.makedirs(outfolder, exist_ok=True)
+    os.makedirs(logfolder, exist_ok=True)
+    os.makedirs(tmpfolder, exist_ok=True)
+    currentDT = datetime.datetime.now()
+    logging.basicConfig(filename = logfolder + "sine_profile.log", encoding='utf-8', level=logging.DEBUG)
+    logging.info(currentDT.strftime("%d/%m/%Y, %H:%M:%S"))  
+    
+    
+    dt = 1.0 / sampling_rate
+    time_sine = cycles / freq
+    
+    """
+    # Modulo, whether via % of math.fmod() is completely broken
+    # Decimal(str()) % Decimal(str()) offers a solution, even if clunky
+    # Nota bene, this does not work with math.fmod(); only %
+    if Decimal(str(time_idle)) % Decimal(str(dt)) != 0:
+        print("time_idle is not a multiple of dt")
+        input()
+        exit()
+        
+    if Decimal(str(time_half)) % Decimal(str(dt)) != 0:
+        print("time_ramp is not a multiple of dt")
+        input()
+        exit()
+        
+    if Decimal(str(time_rest)) % Decimal(str(dt)) != 0:
+        print("time_rest is not a multiple of dt")
+        input()
+        exit()
+    """
+    
+    times_idle = np.arange(0.0, time_idle, dt)
+    times_sine = np.arange(0.0, time_sine, dt)
+    times_rest = np.arange(0.0, time_rest, dt)
+    
+    
+    omega = 2.0 * np.pi * freq
+    x_idle = [offset for time in times_idle]
+    #x_half = [amp * np.sin(omega * time) for time in times_half]
+    x_sine = [offset + amp * np.sin(omega * time + phase) for time in times_sine] #A sin (wt + phi)
+    x_rest = [offset for time in times_rest]
+    profile = x_idle + x_sine + x_rest
+    
+    
+    times_sine = times_sine + time_idle
+    times_rest = times_rest + time_idle + time_sine
+    
+        
+    times_tot = np.concatenate((times_idle, times_sine, times_rest), axis=None)
+    dec = Decimal(str(dt)).as_tuple().exponent * -1
+    times_tot = np.round(times_tot, dec)
+    
+    
+    # Print to file
+    with open((tmpfolder + "sine_profile.csv"), "w") as f:
+        f.write("Seconds, Profile\n")
+        for i in range(len(times_tot)):
+            f.write(f"{times_tot[i]}, {profile[i]}\n")
+    
+    
+
+    if coil is None:
+        path = f"{tmpfolder}sine_profile.png"
+    else:
+        path = f"{tmpfolder}{coil}_sine_profile.png"
+    
+        
+    
+    
+    if figure:
+        path = path + ".png"
+        fig = plt.figure()
+        ax = fig.add_subplot(1,1,1)
+        ax.plot(times_tot, profile)
+        #plt.show()
+        fig.savefig(path, bbox_inches="tight", dpi=600)
+        plt.close()
+    
+  
+    
+    return profile
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 def generate_halfsine_profile(amp=1.0, freq=3.0,
                               time_idle=1.0, time_rest=4.0,
                               sampling_rate=100.0, coil=None,

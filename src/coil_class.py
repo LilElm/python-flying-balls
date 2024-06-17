@@ -133,16 +133,28 @@ class CoilProfileLayout(QGridLayout):
         
         # Make profile for Sine Profile
         elif profile == self.combo_box_list[1]:
-            textbox_placeholders = ["Amplitude", "Freq", "Phase"]
+            textbox_placeholders = ["Amplitude", "Freq", "Phase", "Offset", "Cycles", "Idle", "Rest"]
             textbox_locs = [[0, 1, 1, 1],
                             [2, 0, 1, 1],
-                            [2, 1, 1, 1]]
+                            [2, 1, 1, 1],
+                            [4, 0, 1, 1],
+                            [4, 1, 1, 1],
+                            [6, 0, 1, 1],
+                            [6, 1, 1, 1]]
             textbox_labels = ["Amplitude\n(V)",
                               "Frequency\n(Hz)",
-                              "Phase\n(deg)"]
+                              "Phase\n(deg)",
+                              "Offset\n(V)",
+                              "Cycles",
+                              "Time Idle\n(s)",
+                              "Time Rest\n(s)"]
             textbox_labellocs = [[1, 1, 1, 1],
                                  [3, 0, 1, 1],
-                                 [3, 1, 1, 1]]
+                                 [3, 1, 1, 1],
+                                 [5, 0, 1, 1],
+                                 [5, 1, 1, 1],
+                                 [7, 0, 1, 1],
+                                 [7, 1, 1, 1]]
         
         
         # Make profile for Half-sine Profile
