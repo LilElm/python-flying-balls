@@ -22,36 +22,11 @@
 #### To Do
 <sub>
 
- * Main Program:
-
-   - [X] Evaluate force profile (via force_profile.py)
-   - [X] Store force profile in MySQL database
-   - [X] Implement multiprocessing
-   - [X] Listen to user input and Process 3 for kill signal
-   - [X] Implement GUI
-   - [X] Implement customisable number of input channels
-
- * Process 1:
-
-   - [X] Output force profile
-   - [X] Acquire live data from relevant channels
-   - [X] Synchronise output and input
-   - [X] Pipe live data to Process 2 for manipulation
-   - [X] Store data
- 
- * Process 2:
-
-   - [X] Manipualte data for storage
-   - [ ] Evaluate position of sphere
-   - [X] Pipe buffered data to Process 3 for plotting
-
- * Process 3:
-   
-   - [X] Plot real-time data using Qt
-
- * Process 4:
-   
-   - [X] Record automatically via Bluetooth camera
+   - [ ] Debug force profiles
+   - [ ] Configure output files
+   - [ ] Reconnect the database
+   - [ ] Reimplement the 'Preferences' page
+   - [ ] Write documentation
 
 
 </sub>
@@ -426,6 +401,12 @@
  * A Console() class has been added and integrated into the program
 
    * The console, like the graphs, can only update in the main thread
+
+ * The stop button stops the DAQ and camera by piping signals and listening for replies in threads
+
+ * Bug noticed in evaluating the ramp profiles
+
+   * DAQ input array dimensions do not match for time inputs: (1, 1, 1, 6) and (2, 2, 2, 2) at 20,000 Hz
 
 
 
