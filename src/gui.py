@@ -187,82 +187,15 @@ class RampSettingsLayout(QVBoxLayout):
         self.input_channelDict = input_channelDict
         self.pipe_camera = pipe_camera
         
-        self.counter = 0
-        self.timer = QTimer()
-        self.timer.setInterval(250) #ms
-        self.timer.timeout.connect(self.update_console)
-        self.timer.start()
-    
-    
-    
-
-
-  
-        for coil in self.coil_dict:
-            self.addWidget(self.coil_dict[coil].box)
         
         
         
-        layout_start = QGridLayout()
+        self.init_textboxes()
+        self.init_console()
+        self.init_thread_pool()
         
+      
         
-        self.textbox_srate = QLineEdit(placeholderText="Sampling Rate")
-        self.textbox_f0 = QLineEdit("7.300", placeholderText="Frequency")
-        self.textbox_df = QLineEdit("0.090", placeholderText="Line Width")
-        self.textbox_k = QLineEdit("0.465", placeholderText="Spring Constant")
-        self.led = QPixmap('../fig/LED_red.png').scaled(20,20)
-        self.led_label = QLabel()
-        self.led_label.setPixmap(self.led)
-        self.start_button = QPushButton("Start")
-        self.stop_button = QPushButton("Stop")
-        self.start_button.clicked.connect(self.start_on_click)
-        self.stop_button.clicked.connect(self.stop_on_click)
-    
-        layout_start.addWidget(self.textbox_srate)
-        layout_start.addWidget(QLabel("Sampling Rate\n(Hz)"))
-        
-        layout_start.addWidget(self.textbox_f0)
-        layout_start.addWidget(QLabel("Frequency\n(Hz)"))
-        layout_start.addWidget(self.textbox_df)
-        layout_start.addWidget(QLabel("Line Width\n(Hz)"))
-        layout_start.addWidget(self.textbox_k)
-        layout_start.addWidget(QLabel("Spring Constant\n(mm/V)"))
-        layout_start.addWidget(self.led_label)
-        
-        
-        layout_start.addWidget(self.start_button)
-        layout_start.addWidget(self.stop_button)
-       
-        """
-        layout_start.addWidget(self.console)
-        """
-        
-        box_start = QGroupBox()
-        box_start.setLayout(layout_start)
-        box_start.setMaximumWidth(250)
-        self.addWidget(box_start)
-        
-        """
-        
-                 pipe_param,
-                 pipe_signal,
-                 checkbox,
-                 path_textbox,
-                 db_textbox,
-                 console,
-                 pipe_console,
-                 pipe_outputplotb,
-                 pipe_inputplotb,
-                 textbox_ni,
-                 checkbox_ni,
-                 textbox_guiresolution,
-                 #textbox_guirefresh,
-                 pipe_buffer,
-                 pipe_getdatab,
-                 textbox_cameratimeout,
-                 checkbox_camera,
-        
-        """
         
         #============================================================
         # Layout of Ramp Settings
@@ -304,11 +237,74 @@ class RampSettingsLayout(QVBoxLayout):
         #self.consoleprocess.write("fnlkfnalsk")
         #connect(self.console)
         
-        self.init_thread_pool()
         
         
         
+    def init_textboxes(self):
+        for coil in self.coil_dict:
+            self.addWidget(self.coil_dict[coil].box)
         
+        
+        self.textbox_srate = QLineEdit(placeholderText="Sampling Rate")
+        self.textbox_f0 = QLineEdit("7.300", placeholderText="Frequency")
+        self.textbox_df = QLineEdit("0.090", placeholderText="Line Width")
+        self.textbox_k = QLineEdit("0.465", placeholderText="Spring Constant")
+        self.led = QPixmap('../fig/LED_red.png').scaled(20,20)
+        self.led_label = QLabel()
+        self.led_label.setPixmap(self.led)
+        self.start_button = QPushButton("Start")
+        self.stop_button = QPushButton("Stop")
+        self.start_button.clicked.connect(self.start_on_click)
+        self.stop_button.clicked.connect(self.stop_on_click)
+    
+    
+        layout_start = QGridLayout()
+        layout_start.addWidget(self.textbox_srate)
+        layout_start.addWidget(QLabel("Sampling Rate\n(Hz)"))
+        
+        layout_start.addWidget(self.textbox_f0)
+        layout_start.addWidget(QLabel("Frequency\n(Hz)"))
+        layout_start.addWidget(self.textbox_df)
+        layout_start.addWidget(QLabel("Line Width\n(Hz)"))
+        layout_start.addWidget(self.textbox_k)
+        layout_start.addWidget(QLabel("Spring Constant\n(mm/V)"))
+        layout_start.addWidget(self.led_label)
+        
+        
+        layout_start.addWidget(self.start_button)
+        layout_start.addWidget(self.stop_button)
+       
+        """
+        layout_start.addWidget(self.console)
+        """
+        
+        box_start = QGroupBox()
+        box_start.setLayout(layout_start)
+        box_start.setMaximumWidth(250)
+        self.addWidget(box_start)
+        
+        
+    def init_console(self):
+        self.counter = 0
+        self.timer = QTimer()
+        self.timer.setInterval(250) #ms
+        self.timer.timeout.connect(self.update_console)
+        self.timer.start()
+    
+    
+    def update_console(self):
+        pass
+        """
+        if self.pipe_console.poll():
+            while self.pipe_console.poll():
+                msg = self.pipe_console.recv()
+                self.console.append(msg)
+        """            
+    
+    
+    
+    
+    
     
     def init_thread_pool(self):
         self.main_thread_id = int(QThread.currentThreadId())
@@ -316,50 +312,106 @@ class RampSettingsLayout(QVBoxLayout):
         #self.create_check_input_thread()
         for coil in self.coil_dict:
             self.create_force_profile_thread(coil)
+        self.create_start_camera_thread()
+        self.create_stop_camera_thread()
         self.create_supervisor_thread()
         
-          #  break
     
     
-    
-   # def create_check_input_thread(self):
-     #   pass
-        """
-        self.thread_check_input = Worker(self.check_input,
-                                         kwargs=None)
-        self.thread_check_input.signals.error.connect(self.thread_error)
-        self.thread_check_input.signals.result.connect()
-        self.thread_check_input.signals.finished.connect()
-        """
+    def create_force_profile_thread(self, coil):
+        self.coil_dict[coil].thread_force_profile = Worker(0, self.generate_force_profile,
+                                                           coil, None)
+        self.coil_dict[coil].thread_force_profile.signals.error.connect(self.thread_error)
+        #self.coil_dict[coil].thread_force_profile.signals.result.connect(self.thread_result)
+        self.coil_dict[coil].thread_force_profile.signals.finished.connect(self.thread_complete)
         
+    
+    
+                    
+    
+    def create_start_camera_thread(self):
+        #print(f"number of active threads in self.plot = {self.pool.activeThreadCount()}")
+        #print(f"current thread id = {int(QThread.currentThreadId())}, channel = {channel}")
+        self.start_camera_thread = Worker(0, self.send_start_sig_camera)
+        #self.supervisor_thread.signals.error.connect(self.thread_error)
+        #self.supervisor_thread.signals.result.connect(self.thread_result)
+        self.start_camera_thread.signals.finished.connect(self.start_daq_thread)
+    
+    
+                    
+    
+    def create_stop_camera_thread(self):
+        self.stop_camera_thread = Worker(0, self.send_stop_sig_camera)
+    
+    
+    
+    def start_daq_thread(self):
+        self.pool.start(self.daq_thread)
+    
+
+    def send_start_sig_camera(self):
+        print(f"camera thread id = {int(QThread.currentThreadId())}")
+        self.pipe_camera[1].send(True)
+        timeout = 10.0
+        time_start = time.time()
+        while time.time() < time_start + timeout:
+            if self.pipe_camera[1].poll():
+                while self.pipe_camera[1].poll():
+                    signal = self.pipe_camera[1].recv()
+                    if signal == True:
+                        print("Recording started")
+                    else:
+                        print("Failed to communicate with the camera")
+                    break
+                else:
+                    print("Failed to communicate with the camera")
+                break
+                
+                
+
+    def send_stop_sig_camera(self):
+        print(f"camera thread id = {int(QThread.currentThreadId())}")
+        self.pipe_camera[1].send(False)
+        timeout = 10.0
+        time_start = time.time()
+        while time.time() < time_start + timeout:
+            if self.pipe_camera[1].poll():
+                while self.pipe_camera[1].poll():
+                    signal = self.pipe_camera[1].recv()
+                    if signal == True:
+                        print("Recording stopped")
+                    else:
+                        print("Failed to communicate with the camera")
+                    break
+                
+      
+      
+    
+    
+    
+    
     
     
     
     # Supervisor thread waits until the force profile threads have finished, then initiates the DAQ thread
     def create_supervisor_thread(self):
-        
-        
         #print(f"number of active threads in self.plot = {self.pool.activeThreadCount()}")
         #print(f"current thread id = {int(QThread.currentThreadId())}, channel = {channel}")
-        
-        
-        
-        
-        self.supervisor_thread = Worker(0, self.supervisor_thread)
+        self.supervisor_thread = Worker(0, self.supervise_threads)
         self.supervisor_thread.signals.error.connect(self.thread_error)
         #self.supervisor_thread.signals.result.connect(self.thread_result)
         self.supervisor_thread.signals.finished.connect(self.thread_complete)
         
     
     
-    def supervisor_thread(self):
+    
+    def supervise_threads(self):
         active_threads = self.pool.activeThreadCount()
         for coil in self.coil_dict:
             self.coil_dict[coil].drive_current = float(np.average(daq_single(sampling_rate=1000, num_samples=10, input_channels=[self.coil_dict[coil].channel])))
             self.pool.start(self.coil_dict[coil].thread_force_profile)
     
-        
-    
+        # Wait for the force proile threads to be finished before starting the camera and DAQ threads
         timeout = 10.0
         time_start = time.time()
         while True:
@@ -383,44 +435,27 @@ class RampSettingsLayout(QVBoxLayout):
             print("success")
         """
 
-        print("start daq thread")
         self.create_daq_thread()
-        self.pool.start(self.thread_daq)
-    
-    
-    
-    
-    
-    
-    #def daq_result(self, *args):
-     #   print(str(args))
-    
-    
-    
-    def create_force_profile_thread(self, coil):
+        self.pool.start(self.start_camera_thread)
         
+        # start_camera_thread() sends a signal to start_daq_thread() on its completion
         
-        
-        self.coil_dict[coil].thread_force_profile = Worker(0, self.generate_force_profile,
-                                                           #kwargs=self.coil_dict[coil])
-                                                           coil, None)
-        self.coil_dict[coil].thread_force_profile.signals.error.connect(self.thread_error)
-        #self.coil_dict[coil].thread_force_profile.signals.result.connect(self.thread_result)
-        self.coil_dict[coil].thread_force_profile.signals.finished.connect(self.thread_complete)
-        
+    
+    
+    
         
     
     def create_daq_thread(self):
         
-        self.thread_daq = Worker(0, daq_continuous_adv,
+        self.daq_thread = Worker(0, daq_continuous_adv,
                                  self.sampling_rate,
                                  self.num_samples,
                                  self.input_channelDict,
                                  self.coil_dict,
                                  self.main_thread_id)
-        self.thread_daq.signals.error.connect(self.thread_error)
-        #self.thread_daq.signals.result.connect(self.daq_result)
-        self.thread_daq.signals.finished.connect(self.thread_daq_complete)
+        self.daq_thread.signals.error.connect(self.thread_error)
+        #self.daq_thread.signals.result.connect(self.daq_result)
+        self.daq_thread.signals.finished.connect(self.daq_thread_complete)
         
         
     def thread_error(self, exctype, value, traceback):
@@ -428,10 +463,13 @@ class RampSettingsLayout(QVBoxLayout):
         print("Error!")
     
     
-    def thread_daq_complete(self):
-        print("Thread done")
+    def daq_thread_complete(self):
         # Stop the camera
-        self.pipe_camera[1].send(False)
+        self.pool.start(self.stop_camera_thread)
+        
+        
+        
+        
     
     
     def thread_complete(self):
@@ -561,28 +599,17 @@ class RampSettingsLayout(QVBoxLayout):
 
 
 
-    def update_console(self):
-        pass
-        """
-        if self.pipe_console.poll():
-            while self.pipe_console.poll():
-                msg = self.pipe_console.recv()
-                self.console.append(msg)
-        """            
-                    
-                    
-        
-
-
-
     
     def stop_on_click(self):
-        self.pipe_camera[1].send(False)
+        self.pool.start(self.stop_camera_thread)
+        
+        #self.pipe_camera[1].send(False)
         #self.pipe_signal.send(False) # Send signal to main.py to restart
+        """
         self.pipe_inputplotb.send(False) ######12/06/2023
         self.pipe_outputplotb.send(False) ######12/06/2023
         self.pipe_getdatab.send(False)
-
+        """
 
     def start_on_click(self):
         
@@ -604,8 +631,20 @@ class RampSettingsLayout(QVBoxLayout):
         self.points = None
         success, self.points = self.check_input()
         if success:
-            self.pipe_camera[1].send(True)
-            print("---------------")
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            #self.pipe_camera[1].send(True)
+            #print("---------------")
+            
+            
             
             #for coil in self.coil_dict:
              #   self.coil_dict[coil].drive_current = float(np.average(daq_single(sampling_rate=1000, num_samples=10, input_channels=[self.coil_dict[coil].channel])))
@@ -640,7 +679,7 @@ class RampSettingsLayout(QVBoxLayout):
     
             #print("start daq thread")
             #self.create_daq_thread()
-            #self.pool.start(self.thread_daq)
+            #self.pool.start(self.daq_thread)
     
             # Send start signal to graphs
             """

@@ -119,6 +119,7 @@ async def main(pipe):#, pipe_msgb):
                                             await client.write_gatt_char(MODEL_NBR_UUID, data2, response=True)
                                             print("Recording stopped")
                                             logging.info("Recording stopped")
+                                            pipe.send(True)
                                             #pipe_msgb.send("Recording stopped")
                                         except:
                                             pipe.send(False)
