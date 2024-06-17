@@ -281,27 +281,7 @@ class RampSettingsLayout(QVBoxLayout):
         box_start.setMaximumWidth(250)
         self.addWidget(box_start)
         
-    """    
-    def init_console(self):
-        self.counter = 0
-        self.timer = QTimer()
-        self.timer.setInterval(250) #ms
-        self.timer.timeout.connect(self.update_console)
-        self.timer.start()
-    """
-    
-   # def update_console(self):
-        # I believe the console, like the graphs, only wants to be updated
-        # via the main thread.
-    #    pass
-    """
-        if self.pipe_console.poll():
-            while self.pipe_console.poll():
-                msg = self.pipe_console.recv()
-                self.console.append(msg)
-    """            
-    
-    
+
     
     
     
@@ -453,10 +433,7 @@ class RampSettingsLayout(QVBoxLayout):
                 timeout = timeout + 10
                 
             
-            if self.pool.activeThreadCount() == active_threads:#1:
-                
-                
-                
+            if self.pool.activeThreadCount() == active_threads:
                 # Check lengths of force profiles and adjust accordingly
                 lengths = []
                 for coil in self.coil_dict:
@@ -464,19 +441,11 @@ class RampSettingsLayout(QVBoxLayout):
                 res = all(l == lengths[0] for l in lengths)
                 
                 if not res:
-                    print("Adjusting lengths")
                     for coil in self.coil_dict:
                         while len(self.coil_dict[coil].force_profile) < max(lengths):
                             val = self.coil_dict[coil].force_profile[-1]
                             self.coil_dict[coil].force_profile = np.append(self.coil_dict[coil].force_profile, val)
-                            
-                    
-                
-                
-                
-                
-                
-                
+             
                 
                 print("Force profiles evaluated")
                 self.console.pipe[1].send("Force profiles evaluated")
@@ -585,6 +554,7 @@ class RampSettingsLayout(QVBoxLayout):
          
          
         elif profile == "Half-sine Profile":
+            amp, freq, time_idle, time_rest = vals
             force_profile = generate_halfsine_profile(amp, freq,
                                                       time_idle, time_rest,
                                                       self.sampling_rate)
