@@ -11,9 +11,13 @@ from nidaqmx.constants import READ_ALL_AVAILABLE, FillMode, AcquisitionType
 
 
 import numpy as np
-import sys
+import sys, os
 
 import tempfile
+import time
+
+from datetime import datetime
+
 
 def daq_single(sampling_rate=1, num_samples=4, input_channels=None):
     
@@ -79,7 +83,16 @@ def daq_continuous_simple(sampling_rate=1, num_samples=4, input_channels=None):
 
 def daq_continuous_adv(sampling_rate=1, num_samples=4,
                        input_channel_dict=None, output_channel_dict=None,
-                       main_thread_id=None, pipe=None):
+                       main_thread_id=None, pipe=None,
+                       directory='../out/'):
+    
+    timestamp = time.time()
+    date = datetime.utcfromtimestamp(timestamp).strftime("%Y-%m-%d")
+    directory = f"{directory}{date}/out_{timestamp}/"
+    filename = f"data_{timestamp}.csv"
+    path = f"{directory}{filename}"
+    os.makedirs(directory, exist_ok=True)
+    
     
     pipe_rate = 200 #samples per sec
     if sampling_rate > pipe_rate:
@@ -141,13 +154,11 @@ def daq_continuous_adv(sampling_rate=1, num_samples=4,
     
     
     
-    
-        
-    filename = 'output.dat'
+
     with (nidaqmx.Task() as task_output,
           nidaqmx.Task() as task_input,
           tempfile.NamedTemporaryFile() as ntf,
-          open(filename, 'w+') as f):
+          open(path, 'w+') as f):
         f.write("Elapsed time (s), " + ", ".join(input_channels) + "\n")
         
         

@@ -564,41 +564,12 @@ class RampSettingsLayout(QVBoxLayout):
          
          
         elif profile == "Upload Custom":
-#            directory, _ = vals
             directory, = vals
-            print(str(directory))
             force_profile = np.genfromtxt(directory, delimiter='\n')
-#            with open (directory, 'r') as f:
- #               force_profile = f.readlines()
-            print(f"force_profile = {force_profile}")
+            #print(str(directory))
+            #print(f"force_profile = {force_profile}")
             
             
-            
-            
-            
-            """
-            f_profile = []
-            t = 0
-            dt = 1.0 / sampling_rate
-            
-            path_old = params[0]
-            #path_new = f"../tmp/{coil}_custom_profile.csv"
-            path_new = f"{outfolder}{coil}_custom_profile_{timestamp}.csv"
-            with open((path_old), "r") as f_old:
-                with open((path_new), 'w') as f_new:
-                    f_new.write("Seconds, Profile\n")
-                    for line in f_old:
-                        l = float(line.lower().strip("\n"))
-                        f_profile.append(l)
-                        f_new.write(f"{t}, {l}\n")
-                        t = t + dt
-                    f_old.seek(0)
-            
-            """
-            
-            
-            pass
-         
          
          
         #print(f"coil = {coil}, force_profile = {force_profile}")
@@ -610,19 +581,9 @@ class RampSettingsLayout(QVBoxLayout):
         
         
         
-        
-        
-
-
-
-
     
     def stop_on_click(self):
-        
         self.pool.start(self.stop_daq_thread)
-        
-        #self.pipe_daq[1].send(False)
-        #self.console.append("Stop button pressed")
         self.pool.start(self.stop_camera_thread)
         
         

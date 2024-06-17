@@ -35,6 +35,7 @@
    - [ ] Write documentation
    - [ ] Configure error signals for threads
    - [ ] Assign spring contant box group to the ramp profile
+   - [ ] Disable double-clicking of buttons
 
 
 </sub>
@@ -421,6 +422,10 @@
  * Custom force profiles reimplemented
 
  * Degrees converted to radians in generate_sine_profile() function
+
+ * Temporary solution for output directory created in daq.py
+
+   * Will need to read path from GUI in future
 
 
 
