@@ -92,7 +92,7 @@ class CoilProfileLayout(QGridLayout):
     def define_combo_box(self):
         self.combo_box = QComboBox()
 #        self.combo_box_list = ["Ramp Profile", "Sine Profile", "Half-sine Profile", "Half-sine Pulses Profile", "Upload Custom"]
-        self.combo_box_list = ["Ramp Profile", "Sine Profile", "Half-sine Profile", "Upload Custom"]
+        self.combo_box_list = ["Ramp Profile", "Sine Profile", "Half-sine Profile", "Half-sine Pulses Profile", "Upload Custom"]
         for item in self.combo_box_list:
             self.combo_box.addItem(item)
         self.combo_box.activated[str].connect(self.select_profile)
@@ -173,15 +173,14 @@ class CoilProfileLayout(QGridLayout):
                                  [3, 1, 1, 1],
                                  [5, 0, 1, 1]]
         
-            """
+            
         # Make profile for Half-sine Pulses Profile
         elif profile == self.combo_box_list[3]:
-            textbox_placeholders = ["Amplitude 1",
-                                    "Freq 1",
-                                    "Amplitude 2",
-                                    "Freq 2",
-                                    "Additional Delay",
-                                    "Ball Freq",
+            textbox_placeholders = ["Initial Amp",
+                                    "Initial Frequency",
+                                    "Subsequent Amplitude",
+                                    "Subsequent Frequency",
+                                    "Ball Frequency",
                                     "Orbits",
                                     "Idle",
                                     "Rest"]
@@ -192,13 +191,12 @@ class CoilProfileLayout(QGridLayout):
                             [4, 1, 1, 1],
                             [6, 0, 1, 1],
                             [6, 1, 1, 1],
-                            [8, 0, 1, 1],
-                            [8, 1, 1, 1]]
-            textbox_labels = ["Amplitude 1\n(V)",
-                              "Frequency 1\n(Hz)",
-                              "Amplitude 2\n(V)",
-                              "Frequency 2\n(Hz)",
-                              "Additional Delay\n(s)",
+                            [8, 0, 1, 1]]#,
+                            #[8, 1, 1, 1]]
+            textbox_labels = ["Initial Amplitude\n(V)",
+                              "Initial Frequency\n(Hz)",
+                              "Subsequent Amplitude\n(V)",
+                              "Subsequent Frequency\n(Hz)",
                               "Ball Frequency\n(Hz)",
                               "Orbits",
                               "Time Idle\n(s)",
@@ -210,17 +208,17 @@ class CoilProfileLayout(QGridLayout):
                                  [5, 1, 1, 1],
                                  [7, 0, 1, 1],
                                  [7, 1, 1, 1],
-                                 [9, 0, 1, 1],
-                                 [9, 1, 1, 1]]
+                                 [9, 0, 1, 1]]#,
+                                 #[9, 1, 1, 1]]
         
-            """
+            
         
         
         
         
         
         # Make profile for Custom Profile
-        elif profile == self.combo_box_list[3]:
+        elif profile == self.combo_box_list[4]:
             textbox_placeholders = ["Directory"]
             textbox_locs = [[2, 0, 1, 1]]
             textbox_labels = ["Directory"]

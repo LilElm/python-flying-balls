@@ -8,7 +8,222 @@ import matplotlib.pyplot as plt
 import datetime
 import logging
 import os
-import time
+
+
+
+
+def generate_halfsine_pulses_profile(amp_primary=0.6,            #0.7 = big ball, superfluid
+                                     amp_secondary=0.3,           #0.3 = big ball, superfluid  
+                                     freq_primary=2.0,
+                                     freq_secondary=1.8,
+                                     
+                                     time_idle=1.0,
+                                     time_rest=10.0,
+                                     
+                                     ball_freq=2,
+                                     orbits=20,
+                                     
+                                     sampling_rate=10000.0, # If lowered beneath 100, lengths won't match
+                                     negative=True):
+
+
+
+    # delay_primary is the time between the first and second pulses
+    # delay_secondary is the time between every subsequent pulse
+    dt = 1.0 / sampling_rate
+    time_orbit = 1.0/ball_freq
+    time_first_delay = time_orbit - (1.0/(4.0 * freq_primary)) - (1.0/(4.0*freq_secondary))
+    time_second_delay = time_orbit - (1.0/(2.0 * freq_secondary))
+    
+    
+    
+    times_idle = np.arange(0.0, time_idle, dt)
+    times_first_pulse = np.arange(0.0, 0.5/freq_primary, dt)
+    times_first_delay = np.arange(0.0, time_first_delay, dt)
+    times_second_pulse = np.arange(0.0, 0.5/freq_secondary, dt)
+    times_second_delay = np.arange(0.0, time_second_delay, dt)
+    times_rest = np.arange(0.0, time_rest, dt)
+    
+    
+    
+    
+    
+    
+    
+    omega_first = 2.0 * np.pi * freq_primary
+    omega_second = 2.0 * np.pi * freq_secondary
+    
+    
+    x_idle = [0 for time in times_idle]
+    x_first_pulse = [amp_primary * np.sin(omega_first * time) for time in times_first_pulse]
+    x_first_delay = [0 for time in times_first_delay]
+    x_second_pulse = [amp_secondary * np.sin(omega_second * time) for time in times_second_pulse]
+    x_second_delay = [0 for time in times_second_delay]
+    x_rest = [0 for time in times_rest]
+    
+    
+    
+    
+    if negative:
+        x_second_pulse_negative = [-x for x in x_second_pulse]
+        profile = x_idle + x_first_pulse + x_first_delay + x_second_pulse_negative
+        
+        for i in range(orbits-2):
+            profile = profile + x_second_delay + x_second_pulse + x_second_delay + x_second_pulse_negative
+    
+    profile = profile + x_rest
+    profile = np.array(profile, dtype=np.float64)
+    
+    
+    
+    
+    
+    
+    
+    
+    """
+    fig = plt.figure()
+    ax = fig.add_subplot(1,1,1)
+    ax.plot(profile)
+    plt.show()
+    """
+    
+    
+    
+    
+    
+    """
+    
+    
+    first_pulse = generate_halfsine_profile(amp=amp_primary,
+                                            freq=freq_primary,
+                                            time_idle=time_idle,
+                                            time_rest=delay_primary/2,
+                                            sampling_rate=sampling_rate)
+
+
+    second_pulse = generate_halfsine_profile(amp=amp_secondary,
+                                             freq=freq_secondary,
+                                             time_idle=delay_primary/2,
+                                             time_rest=delay_secondary/2,
+                                             sampling_rate=sampling_rate)
+
+    subsequent_pulse = generate_halfsine_profile(amp=amp_secondary,
+                                                 freq=freq_secondary,
+                                                 time_idle=delay_secondary/2,
+                                                 time_rest=delay_secondary/2,
+                                                 sampling_rate=sampling_rate)
+
+    if negative:
+        profile = first_pulse + -1*second_pulse + subsequent_pulse + -1*subsequent_pulse
+
+    """
+
+
+
+    return profile
+
+
+
+
+
+
+
+
+
+
+def generate_halfsine_profile(amp=1.0, freq=3.0,
+                              time_idle=1.0, time_rest=4.0,
+                              sampling_rate=100.0, coil=None,
+                              outfolder="../out/", timestamp=None,
+                              figure=False):
+    
+    logfolder = "../log/"
+    os.makedirs(outfolder, exist_ok=True)
+    os.makedirs(logfolder, exist_ok=True)
+    currentDT = datetime.datetime.now()
+    logging.basicConfig(filename = logfolder + "halfsine_profile.log", encoding='utf-8', level=logging.DEBUG)
+    logging.info(currentDT.strftime("%d/%m/%Y, %H:%M:%S"))  
+    
+    
+    dt = 1.0 / sampling_rate
+    time_half = 0.5 / freq
+    
+    
+    times_idle = np.arange(0.0, time_idle, dt)
+    times_half = np.arange(0.0, time_half, dt)
+    times_rest = np.arange(0.0, time_rest, dt)
+    
+    
+    omega = 2.0 * np.pi * freq
+    x_idle = [0 for time in times_idle]
+    x_half = [amp * np.sin(omega * time) for time in times_half]
+    x_rest = [0 for time in times_rest]
+    profile = x_idle + x_half + x_rest
+    profile = np.array(profile, dtype=np.float64)
+    
+    
+    times_half = times_half + time_idle
+    times_rest = times_rest + time_idle + time_half
+    
+        
+    times_tot = np.concatenate((times_idle, times_half, times_rest), axis=None)
+    dec = Decimal(str(dt)).as_tuple().exponent * -1
+    times_tot = np.round(times_tot, dec)
+    
+    
+    # Print to file
+    if coil is None:
+        if timestamp is None:
+            path = f"{outfolder}halfsine_profile"
+        else:
+            path = f"{outfolder}halfsine_profile_{timestamp}" 
+    else:
+        if timestamp is None:
+            path = f"{outfolder}{coil}_halfsine_profile"
+        else:
+            path = f"{outfolder}{coil}_halfsine_profile_{timestamp}"
+            
+    
+    with open((path + ".csv"), "w") as f:
+        f.write("Seconds, Profile\n")
+        for i in range(len(times_tot)):
+            f.write(f"{times_tot[i]}, {profile[i]}\n")
+        
+
+    if figure:
+        path = path + ".png"
+        fig = plt.figure()
+        ax = fig.add_subplot(1,1,1)
+        ax.plot(times_tot, profile)
+        #plt.show()
+        fig.savefig(path, bbox_inches="tight", dpi=600)
+        plt.close()
+    
+    
+    return profile
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -112,99 +327,6 @@ def generate_sine_profile(amp=1.0, freq=2.0,
     return profile
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-def generate_halfsine_profile(amp=1.0, freq=3.0,
-                              time_idle=1.0, time_rest=4.0,
-                              sampling_rate=100.0, coil=None,
-                              outfolder="../out/", timestamp=None,
-                              figure=False):
-    
-    logfolder = "../log/"
-    os.makedirs(outfolder, exist_ok=True)
-    os.makedirs(logfolder, exist_ok=True)
-    currentDT = datetime.datetime.now()
-    logging.basicConfig(filename = logfolder + "halfsine_profile.log", encoding='utf-8', level=logging.DEBUG)
-    logging.info(currentDT.strftime("%d/%m/%Y, %H:%M:%S"))  
-    
-    
-    dt = 1.0 / sampling_rate
-    time_half = 0.5 / freq
-    
-    
-    times_idle = np.arange(0.0, time_idle, dt)
-    times_half = np.arange(0.0, time_half, dt)
-    times_rest = np.arange(0.0, time_rest, dt)
-    
-    
-    omega = 2.0 * np.pi * freq
-    x_idle = [0 for time in times_idle]
-    x_half = [amp * np.sin(omega * time) for time in times_half]
-    x_rest = [0 for time in times_rest]
-    profile = x_idle + x_half + x_rest
-    profile = np.array(profile, dtype=np.float64)
-    
-    
-    times_half = times_half + time_idle
-    times_rest = times_rest + time_idle + time_half
-    
-        
-    times_tot = np.concatenate((times_idle, times_half, times_rest), axis=None)
-    dec = Decimal(str(dt)).as_tuple().exponent * -1
-    times_tot = np.round(times_tot, dec)
-    
-    
-    # Print to file
-    if coil is None:
-        if timestamp is None:
-            path = f"{outfolder}halfsine_profile"
-        else:
-            path = f"{outfolder}halfsine_profile_{timestamp}" 
-    else:
-        if timestamp is None:
-            path = f"{outfolder}{coil}_halfsine_profile"
-        else:
-            path = f"{outfolder}{coil}_halfsine_profile_{timestamp}"
-            
-    
-    with open((path + ".csv"), "w") as f:
-        f.write("Seconds, Profile\n")
-        for i in range(len(times_tot)):
-            f.write(f"{times_tot[i]}, {profile[i]}\n")
-        
-
-    if figure:
-        path = path + ".png"
-        fig = plt.figure()
-        ax = fig.add_subplot(1,1,1)
-        ax.plot(times_tot, profile)
-        #plt.show()
-        fig.savefig(path, bbox_inches="tight", dpi=600)
-        plt.close()
-    
-    
-    return profile
 
 
 
@@ -422,7 +544,8 @@ def generate_ramp_profile(f0=7.300, df=0.090,
 
 # Run
 if __name__ == "__main__":
-    generate_ramp_profile()
+    #generate_ramp_profile()
+    generate_halfsine_pulses_profile()
 
 
 

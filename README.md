@@ -427,6 +427,10 @@
 
    * Will need to read path from GUI in future
 
+ **18-Jun-24**
+
+ * Half-sine pulses profile redesigned and draft version implemented into GUI
+
 
 
 </sub>

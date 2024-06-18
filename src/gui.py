@@ -39,7 +39,8 @@ import multiprocessing.connection
 multiprocessing.connection.BUFSIZE = 2**32-1 # This is the absolute limit for this PC
 from multiprocessing import Process, Pipe
 
-from profiles import (generate_halfsine_profile,
+from profiles import (generate_halfsine_pulses_profile,
+                      generate_halfsine_profile,
                       generate_ramp_profile,
                       generate_sine_profile)
                       
@@ -559,6 +560,20 @@ class RampSettingsLayout(QVBoxLayout):
             force_profile = generate_halfsine_profile(amp, freq,
                                                       time_idle, time_rest,
                                                       self.sampling_rate)
+        elif profile == "Half-sine Pulses Profile":
+            (amp_primary, freq_primary,
+             amp_secondary, freq_secondary,
+             ball_freq, orbits,
+             time_idle, time_rest) = vals
+            
+            orbits = int(orbits)
+            
+            
+            force_profile = generate_halfsine_pulses_profile(amp_primary, amp_secondary,
+                                                             freq_primary, freq_secondary,
+                                                             time_idle, time_rest,
+                                                             ball_freq, orbits,
+                                                             self.sampling_rate)
              
              
          
@@ -766,6 +781,12 @@ class RampSettingsLayout(QVBoxLayout):
                         val = self.coil_dict[coil].layout.textboxDict[textbox].textbox.text()
                         self.coil_dict[coil].layout.textboxDict[textbox].val = val
                         tot_times = [0]
+                elif "Pulses" in self.coil_dict[coil].layout.profile:
+                    for textbox in self.coil_dict[coil].layout.textboxDict:
+                        val = self.coil_dict[coil].layout.textboxDict[textbox].textbox.text()
+                        self.coil_dict[coil].layout.textboxDict[textbox].val = val
+                        tot_times = [0]
+                        
                 else:
                     # Check if values are floats
                     if error_code == 0:
@@ -1046,7 +1067,7 @@ class GraphLayout(QVBoxLayout):
         #self.channelDict[channel].signals = WorkerSignals()
         
         while True:
-            time.sleep(0.05)
+            time.sleep(0.)
             if self.channelDict[channel].running:
                 if self.channelDict[channel].pipe[0].poll():
                     while self.channelDict[channel].pipe[0].poll():
