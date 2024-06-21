@@ -47,6 +47,7 @@ from profiles import (generate_halfsine_pulses_profile,
 from daq import daq_single, daq_continuous_adv
 
 from coil_class import CoilChannel, CoilProfileLayout
+from shared_textboxes import SharedGroupBox
 
 from camera import start_camera
 
@@ -186,6 +187,7 @@ class RampSettingsLayout(QVBoxLayout):
                  input_channelDict,
                  console,
                  pipe_camera,
+                 shared_box,
                  parent=None, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
         self.coil_dict = coil_dict
@@ -193,6 +195,7 @@ class RampSettingsLayout(QVBoxLayout):
         self.console = console
         #self.console = []
         self.pipe_camera = pipe_camera
+        self.shared_box = shared_box
         self.pipe_daq = Pipe(duplex=True)
         
         
@@ -249,13 +252,14 @@ class RampSettingsLayout(QVBoxLayout):
     def init_textboxes(self):
         for coil in self.coil_dict:
             self.addWidget(self.coil_dict[coil].box)
+        self.addWidget(self.shared_box)
         
-        
+        """
         self.textbox_srate = QLineEdit(placeholderText="Sampling Rate")
         self.textbox_f0 = QLineEdit("7.300", placeholderText="Frequency")
         self.textbox_df = QLineEdit("0.090", placeholderText="Line Width")
         self.textbox_k = QLineEdit("0.465", placeholderText="Spring Constant")
-        
+        """
 
         self.start_button = QPushButton("Start")
         self.stop_button = QPushButton("Stop")
@@ -264,6 +268,8 @@ class RampSettingsLayout(QVBoxLayout):
     
     
         layout_start = QGridLayout()
+        
+        """
         layout_start.addWidget(self.textbox_srate)
         layout_start.addWidget(QLabel("Sampling Rate\n(Hz)"))
         
@@ -273,6 +279,14 @@ class RampSettingsLayout(QVBoxLayout):
         layout_start.addWidget(QLabel("Line Width\n(Hz)"))
         layout_start.addWidget(self.textbox_k)
         layout_start.addWidget(QLabel("Spring Constant\n(mm/V)"))
+        """
+        
+        
+        #self.textbox_srate = QLineEdit(placeholderText="Sampling Rate")
+        #layout_start.addWidget(self.textbox_srate)
+        #layout_start.addWidget(QLabel("Sampling Rate\n(Hz)"))
+        
+        
         
         
         layout_start.addWidget(self.start_button)
@@ -561,19 +575,19 @@ class RampSettingsLayout(QVBoxLayout):
                                                       time_idle, time_rest,
                                                       self.sampling_rate)
         elif profile == "Half-sine Pulses Profile":
-            (amp_primary, freq_primary,
-             amp_secondary, freq_secondary,
+            (amp_primary, amp_secondary,
+             freq_primary, freq_secondary,
              ball_freq, orbits,
-             time_idle, time_rest) = vals
-            
+             time_idle, time_delay,
+             time_rest) = vals
             orbits = int(orbits)
             
             
             force_profile = generate_halfsine_pulses_profile(amp_primary, amp_secondary,
                                                              freq_primary, freq_secondary,
                                                              time_idle, time_rest,
-                                                             ball_freq, orbits,
-                                                             self.sampling_rate)
+                                                             time_delay, ball_freq,
+                                                             orbits, self.sampling_rate)
              
              
          
@@ -903,7 +917,7 @@ class RampSettingsLayout(QVBoxLayout):
                             for textbox in self.coil_dict[coil].layout.textboxDict:
                                 if "Rest" in textbox:
                                     val = self.coil_dict[coil].layout.textboxDict[textbox].val
-                                    rest = val + dif
+                                    rest = float(val) + dif
                                     self.coil_dict[coil].layout.textboxDict[textbox].textbox.setText(str(rest))
                                     print(f"{coil} Rest time has been increased to equate the total times")
                                     #error_message.append("Rest time has been increased to equate the total times")
@@ -1067,7 +1081,7 @@ class GraphLayout(QVBoxLayout):
         #self.channelDict[channel].signals = WorkerSignals()
         
         while True:
-            time.sleep(0.)
+            time.sleep(0.1)
             if self.channelDict[channel].running:
                 if self.channelDict[channel].pipe[0].poll():
                     while self.channelDict[channel].pipe[0].poll():
@@ -1223,6 +1237,7 @@ class Layout(QGridLayout):
                 # output_channelDict,
                  coil_dict,
                  pipe_camera,
+                 shared_box,
                  parent=None,
                  *args,
                  **kwargs):
@@ -1231,6 +1246,7 @@ class Layout(QGridLayout):
        # self.output_channelDict = output_channelDict
         self.coil_dict = coil_dict
         self.pipe_camera = pipe_camera
+        self.shared_box = shared_box
         
         """
                  input_channelDict,
@@ -1308,7 +1324,8 @@ class Layout(QGridLayout):
         layout_fsettings = FileSettingsLayout(self.checkbox, self.path_textbox,
                                               self.db_textbox)
         layout_ramp = RampSettingsLayout(self.coil_dict, self.input_channelDict,
-                                         self.console, self.pipe_camera)
+                                         self.console, self.pipe_camera,
+                                         self.shared_box)
         """    
                                          self.pipe_param,
                                          self.pipe_signal,
@@ -1596,6 +1613,7 @@ class MainWindow(QMainWindow):
         self.pipe_guirefresha_input, self.pipe_guirefreshb_input = Pipe(duplex=False)
         
         
+        self.shared_box = SharedGroupBox()
         
         
         
@@ -1623,50 +1641,6 @@ class MainWindow(QMainWindow):
         
    
         
-        
-        
-        
-        
-        
-        """
-                     input_channelDict,
-                     output_channelDict,
-                     pipe_param,
-                     pipe_input,
-                     pipe_output,
-                     pipe_signal,
-                     pipe_console,
-                     pipe_buffer,
-                     pipe_camb,
-                     pipe_getdatab,
-                     pipe_inputplota,
-                     pipe_inputplotb,
-                     pipe_outputplota,
-                     pipe_outputplotb,
-        """
-        
-        """        
-        self.input_channelDict = input_channelDict
-        self.output_channelDict = output_channelDict
-        self.pipe_param = pipe_param
-        self.pipe_signal = pipe_signal
-        self.pipe_input = pipe_input
-        self.pipe_output = pipe_output
-        self.pipe_console = pipe_console
-        self.pipe_buffer = pipe_buffer
-        self.pipe_camb = pipe_camb
-        self.pipe_getdatab = pipe_getdatab
-        """
-     
-        
-        
-        """
-        # Pipes for clearing the GUI
-        self.pipe_inputplota = pipe_inputplota
-        self.pipe_inputplotb = pipe_inputplotb
-        self.pipe_outputplota = pipe_outputplota
-        self.pipe_outputplotb = pipe_outputplotb
-        """
         
         
         
@@ -1831,11 +1805,13 @@ class MainWindow(QMainWindow):
                                             channel=channel,
                                             name=name,
                                             index=index,
+                                            shared_box=self.shared_box,
                                             pipe=True) for channel_output,
                                                            channel,
                                                            name,
                                                            index in coils}
-        
+        for coil in self.coil_dict:
+            self.coil_dict[coil].give_access_to_dict(self.coil_dict)
        
              
         
@@ -1847,7 +1823,8 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(self.title)
         self.setWindowIcon(QIcon(self.icon))
         #grid_layout = Layout(self.input_channelDict, self.output_channelDict, self.coil_dict)
-        grid_layout = Layout(self.input_channelDict, self.coil_dict, self.pipe_camera)
+        grid_layout = Layout(self.input_channelDict, self.coil_dict,
+                             self.pipe_camera, self.shared_box)
         """
                              self.input_channelDict,
                              self.output_channelDict,

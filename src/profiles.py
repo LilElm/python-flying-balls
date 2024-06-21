@@ -12,6 +12,102 @@ import os
 
 
 
+
+
+
+
+def generate_circular_motion_profile(amp_primary_coil1=0.6,            #0.7 = big ball, superfluid
+                                     amp_secondary_coil1=0.3,           #0.3 = big ball, superfluid  
+                                     freq_primary_coil1=0.5,
+                                     freq_secondary_coil1=1.0,
+                                     
+                                     #coil1_start_delay=10.25,
+                                     coil2_start_delay=10.25,
+                                     coil2_second_delay=5.4, # This will be worked out automatically from coil1_second_delay and ball_freq
+                                     #coil2_second_delay=0.0,
+                                     
+                                     amp_primary_coil2=0.6,            #0.7 = big ball, superfluid
+                                     amp_secondary_coil2=0.3,           #0.3 = big ball, superfluid  
+                                     freq_primary_coil2=0.5,
+                                     freq_secondary_coil2=1.0,
+                                     
+                                     time_idle=1.0,
+                                     time_rest=10.0,
+                                     
+                                     ball_freq=0.25,
+                                     orbits=10,
+                                     sampling_rate=10000.0):
+    
+    
+
+    
+    coil1_start_delay=0
+    time_idle_coil1 = time_idle + coil1_start_delay
+    time_idle_coil2 = time_idle + coil2_start_delay
+    
+    
+    
+    
+    
+    #coil2_second_delay = 0#coil2_second_delay
+    coil1_second_delay = coil2_second_delay + coil2_start_delay - 0.25/ball_freq
+    
+    
+    
+    
+    profile_1 = generate_halfsine_pulses_profile(amp_primary_coil1,
+                                                 amp_secondary_coil1,
+                                                 freq_primary_coil1,
+                                                 freq_secondary_coil1,
+                                                 
+                                                 time_idle_coil1,
+                                                 time_rest,
+                                                 coil1_second_delay,
+                                                 
+                                                 ball_freq,
+                                                 orbits,
+                                                 
+                                                 sampling_rate,
+                                                 negative=True)
+
+    profile_2 = generate_halfsine_pulses_profile(amp_primary_coil2,
+                                                 amp_secondary_coil2,
+                                                 freq_primary_coil2,
+                                                 freq_secondary_coil2,
+                                                 
+                                                 time_idle_coil2,
+                                                 time_rest,
+                                                 coil2_second_delay,
+                                                 
+                                                 ball_freq,
+                                                 orbits,
+                                                 
+                                                 sampling_rate,
+                                                 negative=True)
+
+
+    
+
+
+    
+    
+    
+    fig = plt.figure()
+    ax = fig.add_subplot(1,1,1)
+    ax.plot(profile_1, label="coil1")
+    ax.plot(profile_2, label="coil2")
+    ax.legend()
+    plt.show()
+    input()
+
+
+
+
+
+
+
+
+
 def generate_halfsine_pulses_profile(amp_primary=0.6,            #0.7 = big ball, superfluid
                                      amp_secondary=0.3,           #0.3 = big ball, superfluid  
                                      freq_primary=2.0,
@@ -19,20 +115,22 @@ def generate_halfsine_pulses_profile(amp_primary=0.6,            #0.7 = big ball
                                      
                                      time_idle=1.0,
                                      time_rest=10.0,
+                                     time_delay=0.0,
                                      
                                      ball_freq=2,
                                      orbits=20,
                                      
-                                     sampling_rate=10000.0, # If lowered beneath 100, lengths won't match
+                                     sampling_rate=10000.0,
                                      negative=True):
 
+    orbits = int(orbits)
 
 
     # delay_primary is the time between the first and second pulses
     # delay_secondary is the time between every subsequent pulse
     dt = 1.0 / sampling_rate
-    time_orbit = 1.0/ball_freq
-    time_first_delay = time_orbit - (1.0/(4.0 * freq_primary)) - (1.0/(4.0*freq_secondary))
+    time_orbit = 0.5/ball_freq
+    time_first_delay = time_orbit - (1.0/(4.0 * freq_primary)) - (1.0/(4.0*freq_secondary)) + time_delay
     time_second_delay = time_orbit - (1.0/(2.0 * freq_secondary))
     
     
@@ -68,13 +166,11 @@ def generate_halfsine_pulses_profile(amp_primary=0.6,            #0.7 = big ball
         x_second_pulse_negative = [-x for x in x_second_pulse]
         profile = x_idle + x_first_pulse + x_first_delay + x_second_pulse_negative
         
-        for i in range(orbits-2):
+        for i in range(orbits-1):
             profile = profile + x_second_delay + x_second_pulse + x_second_delay + x_second_pulse_negative
     
     profile = profile + x_rest
     profile = np.array(profile, dtype=np.float64)
-    
-    
     
     
     
@@ -545,7 +641,8 @@ def generate_ramp_profile(f0=7.300, df=0.090,
 # Run
 if __name__ == "__main__":
     #generate_ramp_profile()
-    generate_halfsine_pulses_profile()
+    #generate_halfsine_pulses_profile()
+    generate_circular_motion_profile()
 
 
 

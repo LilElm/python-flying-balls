@@ -431,6 +431,13 @@
 
  * Half-sine pulses profile redesigned and draft version implemented into GUI
 
+ **21-Jun-24**
+
+ * Shared textbox replaces shared parameters
+
+ * generate_circular_motion_profile() added
+
+
 
 
 </sub>
