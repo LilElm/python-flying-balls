@@ -40,6 +40,7 @@ multiprocessing.connection.BUFSIZE = 2**32-1 # This is the absolute limit for th
 from multiprocessing import Process, Pipe
 
 from profiles import (generate_halfsine_pulses_profile,
+                      generate_circular_motion_profile,
                       generate_halfsine_profile,
                       generate_ramp_profile,
                       generate_sine_profile)
@@ -317,11 +318,15 @@ class RampSettingsLayout(QVBoxLayout):
         
     
     
+    def thread_eval_cicular_motion(self):
+        pass
+    
+    
     def create_force_profile_thread(self, coil):
         self.coil_dict[coil].thread_force_profile = Worker(0, self.generate_force_profile,
                                                            coil, None)
         self.coil_dict[coil].thread_force_profile.signals.error.connect(self.thread_error)
-        #self.coil_dict[coil].thread_force_profile.signals.result.connect(self.thread_result)
+        self.coil_dict[coil].thread_force_profile.signals.result.connect(self.thread_eval_cicular_motion)
         self.coil_dict[coil].thread_force_profile.signals.finished.connect(self.thread_complete)
         
     
@@ -541,69 +546,161 @@ class RampSettingsLayout(QVBoxLayout):
         force_profile = None
         profile =  self.coil_dict[coil].layout.profile
         self.coil_dict[coil].layout.vals = []
-        for textbox in self.coil_dict[coil].layout.textboxDict:
-            if profile != "Upload Custom":
-                self.coil_dict[coil].layout.vals.append(float(self.coil_dict[coil].layout.textboxDict[textbox].textbox.text()))
-            else:            
-                self.coil_dict[coil].layout.vals.append(self.coil_dict[coil].layout.textboxDict[textbox].textbox.text())
-        vals = self.coil_dict[coil].layout.vals
-        print(f"{coil} vals = {vals}\n")
         
         
-        if profile == "Ramp Profile":
-            drive_current = self.coil_dict[coil].drive_current
-            drive_target, time_idle, time_acc, time_ramp, time_rest = vals
-            force_profile = generate_ramp_profile(self.f0, self.df,
-                                                  self.k, drive_current,
-                                                  drive_target, time_idle,
-                                                  time_acc, time_ramp,
-                                                  time_rest, self.sampling_rate)
-             
-         
-        elif profile == "Sine Profile":
-            amp, freq, phase, offset, cycles, time_idle, time_rest = vals
-            force_profile = generate_sine_profile(amp, freq,
-                                                  phase, offset,
-                                                  cycles, time_idle,
-                                                  time_rest,
-                                                  self.sampling_rate)
-            
-         
-        elif profile == "Half-sine Profile":
-            amp, freq, time_idle, time_rest = vals
-            force_profile = generate_halfsine_profile(amp, freq,
-                                                      time_idle, time_rest,
-                                                      self.sampling_rate)
-        elif profile == "Half-sine Pulses Profile":
-            (amp_primary, amp_secondary,
-             freq_primary, freq_secondary,
-             ball_freq, orbits,
-             time_idle, time_delay,
-             time_rest) = vals
+        
+        
+        if profile == "Circular Profile":
+            vals = []
+            for _coil in self.coil_dict:
+                for textbox in self.coil_dict[_coil].layout.textboxDict:
+                    vals.append(float(self.coil_dict[_coil].layout.textboxDict[textbox].textbox.text()))
+                
+            for textbox in self.coil_dict[_coil].shared_box.textboxDict:
+                vals.append(float(self.coil_dict[_coil].shared_box.textboxDict[textbox].textbox.text()))
+        
+                
+                
+            (amp_primary_coil1, amp_secondary_coil1,
+             freq_primary_coil1, freq_secondary_coil1,
+             amp_primary_coil2, amp_secondary_coil2,
+             freq_primary_coil2, freq_secondary_coil2,
+             self.sampling_rate, ball_freq,
+             orbits, time_idle,
+             time_rest, lag,
+             time_delay, *_) = vals
             orbits = int(orbits)
             
+            # At the moment, profiles for both coils are evaluated twice
+            # Simplify this in the future
+            force_profile = generate_circular_motion_profile(
+                                    amp_primary_coil1, amp_secondary_coil1,
+                                    freq_primary_coil1, freq_secondary_coil1,
+                                    lag, time_delay,
+                                    amp_primary_coil2, amp_secondary_coil2,
+                                    freq_primary_coil2, freq_secondary_coil2,
+                                    time_idle, time_rest,
+                                    ball_freq, orbits,
+                                    self.sampling_rate)[self.coil_dict[coil].index]
             
-            force_profile = generate_halfsine_pulses_profile(amp_primary, amp_secondary,
-                                                             freq_primary, freq_secondary,
-                                                             time_idle, time_rest,
-                                                             time_delay, ball_freq,
-                                                             orbits, self.sampling_rate)
+            self.coil_dict[coil].force_profile = force_profile
+            self.num_samples = np.size(force_profile)
+            
+            
+            
+        
+        
+        
+        
+        
+        else:
+            for textbox in self.coil_dict[coil].layout.textboxDict:
+                if profile != "Upload Custom":
+                    self.coil_dict[coil].layout.vals.append(float(self.coil_dict[coil].layout.textboxDict[textbox].textbox.text()))
+                
+                
+                
+                    
+                    
+                
+                else:            
+                    self.coil_dict[coil].layout.vals.append(self.coil_dict[coil].layout.textboxDict[textbox].textbox.text())
+            for textbox in self.coil_dict[coil].shared_box.textboxDict:
+                self.coil_dict[coil].layout.vals.append(float(self.coil_dict[coil].shared_box.textboxDict[textbox].textbox.text()))
+            vals = self.coil_dict[coil].layout.vals
+            print(f"{coil} vals = {vals}\n")
+            
+            
+            if profile == "Ramp Profile":
+                drive_current = self.coil_dict[coil].drive_current
+                (drive_target, time_idle,
+                 time_acc, time_ramp,
+                 time_rest, self.sampling_rate,
+                 f0, df,
+                 k, *_) = vals
+                force_profile = generate_ramp_profile(f0, df,
+                                                      k, drive_current,
+                                                      drive_target, time_idle,
+                                                      time_acc, time_ramp,
+                                                      time_rest, self.sampling_rate)
+                 
+             
+            elif profile == "Sine Profile":
+                (amp, freq,
+                 phase, offset,
+                 cycles, time_idle,
+                 time_rest, self.sampling_rate,
+                 *_) = vals
+                force_profile = generate_sine_profile(amp, freq,
+                                                      phase, offset,
+                                                      cycles, time_idle,
+                                                      time_rest,
+                                                      self.sampling_rate)
+            
+            
+            elif profile == "Half-sine Profile":
+                (amp, freq,
+                 time_idle, time_rest,
+                 self.sampling_rate, *_) = vals
+                force_profile = generate_halfsine_profile(amp, freq,
+                                                          time_idle, time_rest,
+                                                          self.sampling_rate)
+            
+            
+            elif profile == "Half-sine Pulses Profile":
+                (amp_primary, amp_secondary,
+                 freq_primary, freq_secondary,
+                 ball_freq, orbits,
+                 time_idle, time_delay,
+                 time_rest, self.sampling_rate,
+                 *_) = vals
+                orbits = int(orbits)
+                
+                
+                force_profile = generate_halfsine_pulses_profile(amp_primary, amp_secondary,
+                                                                 freq_primary, freq_secondary,
+                                                                 time_idle, time_rest,
+                                                                 time_delay, ball_freq,
+                                                                 orbits, self.sampling_rate)
+                 
+                 
+                """
+                elif profile == "Circular Profile":
+                    for coil in self.coil_dict:
+                        self.coil_dict[coil].
+                    
+                    
+                    
+                    (amp_primary, amp_secondary,
+                     freq_primary, freq_secondary,
+                     self.sampling_rate, ball_freq,
+                     orbits, time_idle,
+                     time_rest, lag,
+                     time_delay, *_) = vals
+                    orbits = int(orbits)
+                    
+                    
+                    force_profile, *_ = generate_circular_motion_profile(amp_primary, amp_secondary,
+                                                                     freq_primary, freq_secondary,
+                                                                     time_idle, time_rest,
+                                                                     time_delay, ball_freq,
+                                                                     orbits, self.sampling_rate)
+                """     
+                 
              
              
-         
-         
-        elif profile == "Upload Custom":
-            directory, = vals
-            force_profile = np.genfromtxt(directory, delimiter='\n')
-            #print(str(directory))
-            #print(f"force_profile = {force_profile}")
-            
-            
-         
-         
-        #print(f"coil = {coil}, force_profile = {force_profile}")
-        self.coil_dict[coil].force_profile = force_profile
-        self.num_samples = np.size(force_profile)
+            elif profile == "Upload Custom":
+                directory, self.sampling_rate, *_ = vals
+                force_profile = np.genfromtxt(directory, delimiter='\n')
+                #print(str(directory))
+                #print(f"force_profile = {force_profile}")
+                
+                
+             
+             
+            #print(f"coil = {coil}, force_profile = {force_profile}")
+            self.coil_dict[coil].force_profile = force_profile
+            self.num_samples = np.size(force_profile)
         
         
         
@@ -627,17 +724,17 @@ class RampSettingsLayout(QVBoxLayout):
         #self.db_env = self.db_textbox.text()
         
         #self.save = self.checkbox.isChecked()
-        self.sampling_rate = self.textbox_srate.text()
-        self.f0 = self.textbox_f0.text()
-        self.df = self.textbox_df.text()
-        self.k = self.textbox_k.text()
+     #   self.sampling_rate = self.textbox_srate.text()
+      #  self.f0 = self.textbox_f0.text()
+       # self.df = self.textbox_df.text()
+        #self.k = self.textbox_k.text()
         
         
         #self.check_preferences()
         self.points = None
-        success, self.points = self.check_input()
-        if success:
-            
+        #success, self.points = self.check_input()
+        #if success:
+        if True:    
             
             
             

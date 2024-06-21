@@ -90,7 +90,7 @@ def generate_circular_motion_profile(amp_primary_coil1=0.6,            #0.7 = bi
 
 
     
-    
+    """
     
     fig = plt.figure()
     ax = fig.add_subplot(1,1,1)
@@ -101,8 +101,8 @@ def generate_circular_motion_profile(amp_primary_coil1=0.6,            #0.7 = bi
     input()
 
 
-
-
+    """
+    return profile_1, profile_2
 
 
 

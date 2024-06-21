@@ -30,7 +30,7 @@ Module contains class definitions for: CoilChannel,
                                        
                                        
 """
-
+from textbox_class import TextBox
 import time
         
 
@@ -312,8 +312,9 @@ class CoilProfileLayout(QGridLayout):
         for i in range(len(textbox_placeholders)):
             self.textboxDict[textbox_placeholders[i]] = TextBox(
                                                     textbox_placeholders[i],
-                                                    textbox_locs[i],
                                                     textbox_labels[i],
+                                                    None,
+                                                    textbox_locs[i],
                                                     textbox_labellocs[i])
 
 
@@ -327,13 +328,3 @@ class CoilProfileLayout(QGridLayout):
             
 
 
-class TextBox():
-    def __init__(self, placeholder, loc, label_text, label_loc, parent=None, *args, **kwargs):
-        self.placeholder = placeholder
-        self.loc = loc
-        self.label_text = label_text
-        self.label_loc = label_loc
-        
-        self.textbox = QLineEdit(placeholderText=str(placeholder))
-        self.label = QLabel(str(label_text))
-        
