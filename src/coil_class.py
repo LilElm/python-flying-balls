@@ -133,11 +133,11 @@ class CoilProfileLayout(QGridLayout):
                             [2, 1, 1, 1],
                             [4, 0, 1, 1],
                             [4, 1, 1, 1]]
-            textbox_labels = ["Drive\n(V)",
-                              "Time Idle\n(s)",
-                              "Time Acc\n(s)",
-                              "Time Ramp\n(s)",
-                              "Time Rest\n(s)"]
+            textbox_labels = ["Drive (V)",
+                              "Time Idle (s)",
+                              "Time Acc (s)",
+                              "Time Ramp (s)",
+                              "Time Rest (s)"]
             textbox_labellocs = [[1, 1, 1, 1],
                                  [3, 0, 1, 1],
                                  [3, 1, 1, 1],
@@ -164,13 +164,13 @@ class CoilProfileLayout(QGridLayout):
                             [4, 1, 1, 1],
                             [6, 0, 1, 1],
                             [6, 1, 1, 1]]
-            textbox_labels = ["Amplitude\n(V)",
-                              "Frequency\n(Hz)",
-                              "Phase\n(deg)",
-                              "Offset\n(V)",
+            textbox_labels = ["Amplitude (V)",
+                              "Frequency (Hz)",
+                              "Phase (deg)",
+                              "Offset (V)",
                               "Cycles",
-                              "Time Idle\n(s)",
-                              "Time Rest\n(s)"]
+                              "Time Idle (s)",
+                              "Time Rest (s)"]
             textbox_labellocs = [[1, 1, 1, 1],
                                  [3, 0, 1, 1],
                                  [3, 1, 1, 1],
@@ -196,10 +196,10 @@ class CoilProfileLayout(QGridLayout):
                             [2, 0, 1, 1],
                             [2, 1, 1, 1],
                             [4, 0, 1, 1]]
-            textbox_labels = ["Amplitude\n(V)",
-                              "Frequency\n(Hz)",
-                              "Time Idle\n(s)",
-                              "Time Rest\n(s)"]
+            textbox_labels = ["Amplitude (V)",
+                              "Frequency (Hz)",
+                              "Time Idle (s)",
+                              "Time Rest (s)"]
             textbox_labellocs = [[1, 1, 1, 1],
                                  [3, 0, 1, 1],
                                  [3, 1, 1, 1],
@@ -226,15 +226,15 @@ class CoilProfileLayout(QGridLayout):
                             [6, 1, 1, 1],
                             [8, 0, 1, 1],
                             [8, 1, 1, 1]]
-            textbox_labels = ["Initial Amplitude\n(V)",
-                              "Subsequent Amplitude\n(V)",
-                              "Initial Frequency\n(Hz)",
-                              "Subsequent Frequency\n(Hz)",
-                              "Ball Frequency\n(Hz)",
+            textbox_labels = ["Initial Amplitude (V)",
+                              "Subsequent Amplitude (V)",
+                              "Initial Frequency (Hz)",
+                              "Subsequent Frequency (Hz)",
+                              "Ball Frequency (Hz)",
                               "Orbits",
-                              "Time Idle\n(s)",
-                              "Ad. Delay between Kicks\n(s)",
-                              "Time Rest\n(s)"]
+                              "Time Idle (s)",
+                              "Ad. Delay between Kicks (s)",
+                              "Time Rest (s)"]
             textbox_labellocs = [[1, 1, 1, 1],
                                  [3, 0, 1, 1],
                                  [3, 1, 1, 1],
@@ -276,10 +276,10 @@ class CoilProfileLayout(QGridLayout):
                             [2, 0, 1, 1],
                             [2, 1, 1, 1],
                             [4, 0, 1, 1]]
-            textbox_labels = ["Initial Amplitude\n(V)",
-                              "Subsequent Amplitude\n(V)",
-                              "Initial Frequency\n(Hz)",
-                              "Subsequent Frequency\n(Hz)"]
+            textbox_labels = ["Initial Amplitude (V)",
+                              "Subsequent Amplitude (V)",
+                              "Initial Frequency (Hz)",
+                              "Subsequent Frequency (Hz)"]
             textbox_labellocs = [[1, 1, 1, 1],
                                  [3, 0, 1, 1],
                                  [3, 1, 1, 1],

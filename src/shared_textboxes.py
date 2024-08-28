@@ -13,6 +13,7 @@ from textbox_class import TextBox
 class SharedGroupBox(QGroupBox):
     def __init__(self, parent=None, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
+        self.setMaximumWidth(250)
         self.layout = QGridLayout()    
         self.setLayout(self.layout)
         self.textboxDict = {}
@@ -32,7 +33,7 @@ class SharedGroupBox(QGroupBox):
         self.destroy_all_boxes()
         
         textbox_placeholders = ["Sampling Rate"]
-        textbox_labels = ["Sampling Rate\n(Hz)"]
+        textbox_labels = ["Sampling Rate (Hz)"]
         textbox_vals = ["1000"]
         
         self.textboxDict = {}
@@ -58,10 +59,10 @@ class SharedGroupBox(QGroupBox):
                                 "Line Width",
                                 "Spring Constant"]
         
-        textbox_labels = ["Sampling Rate\n(Hz)",
-                          "Frequency\n(Hz)",
-                          "Line Width\n(Hz)",
-                          "Spring Constant\n(mm/V)"]
+        textbox_labels = ["Sampling Rate (Hz)",
+                          "Frequency (Hz)",
+                          "Line Width (Hz)",
+                          "Spring Constant (mm/V)"]
         
         textbox_vals = ["1000",
                         "7.300",
@@ -98,13 +99,13 @@ class SharedGroupBox(QGroupBox):
                                 "Lag",
                                 "Additional Kick Delay"]
         
-        textbox_labels = ["Sampling Rate\n(Hz)",
-                          "Ball Frequency\n(Hz)",
+        textbox_labels = ["Sampling Rate (Hz)",
+                          "Ball Frequency  Hz)",
                           "Orbits",
-                          "Time Idle\n(s)",
-                          "Time Rest\n(s)",
-                          "Lag\n(s)",
-                          "Additional Kick Delay\n(s)"]
+                          "Time Idle (s)",
+                          "Time Rest (s)",
+                          "Lag (s)",
+                          "Additional Kick Delay (s)"]
         
         self.textboxDict = {}
         for i in range(len(textbox_placeholders)):

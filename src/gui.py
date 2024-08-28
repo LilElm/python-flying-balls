@@ -89,9 +89,17 @@ class MenuLayout(QHBoxLayout):
 
 
 class FileSettingsLayout(QGridLayout):
-    def __init__(self, checkbox, path_textbox, db_textbox, parent=None, *args, **kwargs):
+    def __init__(self,
+                 checkbox,
+                 checkbox_camera,
+                 path_textbox,
+                 db_textbox,
+                 parent=None,
+                 *args,
+                 **kwargs):
         super().__init__(parent, *args, **kwargs)
         self.checkbox = checkbox
+        self.checkbox_camera = checkbox_camera
         self.path_textbox = path_textbox
         self.db_textbox = db_textbox
 
@@ -119,7 +127,13 @@ class FileSettingsLayout(QGridLayout):
         
         
         self.addWidget(self.checkbox, 0, 2, 1, 1)
-        self.addWidget(QLabel("Save to File?"), 1, 2, 1, 1)
+        self.addWidget(QLabel("Save?"), 1, 2, 1, 1)
+        #self.addWidget(QLabel("Save to File?"), 1, 2, 1, 1)
+        
+
+        
+        self.addWidget(self.checkbox_camera, 0, 3, 1, 1)
+        self.addWidget(QLabel("Camera?"), 1, 3, 1, 1)
         
 
         
@@ -189,6 +203,8 @@ class RampSettingsLayout(QVBoxLayout):
                  console,
                  pipe_camera,
                  shared_box,
+                 checkbox,
+                 checkbox_camera,
                  parent=None, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
         self.coil_dict = coil_dict
@@ -197,12 +213,30 @@ class RampSettingsLayout(QVBoxLayout):
         #self.console = []
         self.pipe_camera = pipe_camera
         self.shared_box = shared_box
+        self.checkbox = checkbox
+        self.checkbox_camera = checkbox_camera
         self.pipe_daq = Pipe(duplex=True)
         
         
         self.init_textboxes()
         #self.init_console()
         self.init_thread_pool()
+        
+      
+        
+      
+        
+      
+        
+        
+        print("ooooooga")
+        print(f"self.checkbox_camera.isChecked() = {self.checkbox_camera.isChecked()}")
+        
+      
+        
+      
+        
+      
         
       
         
@@ -359,22 +393,32 @@ class RampSettingsLayout(QVBoxLayout):
 
     def send_start_sig_camera(self):
         print(f"camera thread id = {int(QThread.currentThreadId())}")
-        self.console.pipe[1].send("Sending start signal to camera")
-        self.pipe_camera[1].send(True)
-        timeout = 10.0
-        time_start = time.time()
-        while time.time() < time_start + timeout:
-            if self.pipe_camera[1].poll():
-                while self.pipe_camera[1].poll():
-                    signal = self.pipe_camera[1].recv()
-                    if signal == True:
-                        print("Recording started")
-                        self.console.pipe[1].send("Recording started")
-                    else:
-                        print("Failed to communicate with the camera")
-                        self.console.pipe[1].send("Failed to communicate with the camera")
-                break
-                
+        
+        
+        
+        self.cameracheckbox_val = self.checkbox_camera.isChecked()
+        if self.cameracheckbox_val:
+            
+            
+            
+            self.console.pipe[1].send("Sending start signal to camera")
+            self.pipe_camera[1].send(True)
+            timeout = 10.0
+            time_start = time.time()
+            while time.time() < time_start + timeout:
+                if self.pipe_camera[1].poll():
+                    while self.pipe_camera[1].poll():
+                        signal = self.pipe_camera[1].recv()
+                        if signal == True:
+                            print("Recording started")
+                            self.console.pipe[1].send("Recording started")
+                        else:
+                            print("Failed to communicate with the camera")
+                            self.console.pipe[1].send("Failed to communicate with the camera")
+                    break
+        else:
+            print("Camera not enabled")
+            self.console.pipe[1].send("Camera not enabled")
                 
 
     def send_stop_sig_camera(self):
@@ -1122,6 +1166,7 @@ class GraphLayout(QVBoxLayout):
         
     
     def update_data(self, channel=None):
+        #print(f"update_data thread = {int(QThread.currentThreadId())}")
         if channel:
             if self.channelDict[channel].running == True:
                 
@@ -1380,6 +1425,9 @@ class Layout(QGridLayout):
         """
         self.checkbox = QCheckBox()
         self.checkbox.setChecked(True)
+        
+        self.checkbox_camera = QCheckBox()
+        self.checkbox_camera.setChecked(True)
         """
         self.pipe_console = pipe_console
         self.guirefresh = guirefresh
@@ -1418,11 +1466,12 @@ class Layout(QGridLayout):
         self.console = Console()
         
         
-        layout_fsettings = FileSettingsLayout(self.checkbox, self.path_textbox,
-                                              self.db_textbox)
+        layout_fsettings = FileSettingsLayout(self.checkbox, self.checkbox_camera,
+                                              self.path_textbox, self.db_textbox)
         layout_ramp = RampSettingsLayout(self.coil_dict, self.input_channelDict,
                                          self.console, self.pipe_camera,
-                                         self.shared_box)
+                                         self.shared_box, self.checkbox,
+                                         self.checkbox_camera)
         """    
                                          self.pipe_param,
                                          self.pipe_signal,
@@ -1803,17 +1852,19 @@ class MainWindow(QMainWindow):
         self.proc_camera.start()
         self.pipe_camera[1].send(4)
         
-        timeout = 10.0
+        timeout = 6.0
         time_start = time.time()
+        signal = False
         while time.time() < time_start + timeout:
             if self.pipe_camera[1].poll():
                 while self.pipe_camera[1].poll():
                     signal = self.pipe_camera[1].recv()
-                    if signal == True:
-                        print("Successfully connected to the camera")
-                    else:
-                        print("Failed to connect to the camera")
                     break
+        if signal == True:
+            print("Successfully connected to the camera")
+        else:
+            print("Failed to connect to the camera")
+        
                 
             
     

@@ -437,6 +437,11 @@
 
  * generate_circular_motion_profile() added
 
+ **28-Aug-24**
+
+ * Camera checkbox added
+
+
 
 
 
