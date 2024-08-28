@@ -23,6 +23,7 @@ async def main(pipe):#, pipe_msgb):
     
     while True:
         if pipe.poll():
+            val = 0
             while pipe.poll():
                 val = pipe.recv()
                 print(f"val = {val}")

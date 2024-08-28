@@ -441,6 +441,10 @@
 
  * Camera checkbox added
 
+ * Preferences tab reinstated
+
+   * Connect/disconnect camera buttons wired
+
 
 
 

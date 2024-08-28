@@ -1517,7 +1517,17 @@ class Layout(QGridLayout):
 
 
 class PreferencesTab(QWidget):
-    def __init__(self):
+    def __init__(self,
+                 checkbox_camera,
+                 camera_timeout,
+                 textbox_camera_timeout,
+                 camera_button_connect,
+                 camera_button_disconnect,
+                 camera_button_start,
+                 camera_button_stop):
+                 
+                 
+        
         """
                  guirefresh,
                  pipe_guirefresh_output,
@@ -1535,6 +1545,8 @@ class PreferencesTab(QWidget):
                  camera_button_stop):
         """
         super().__init__()
+
+        
         """
         self.pipe_guirefresh_output = pipe_guirefresh_output
         self.pipe_guirefresh_input = pipe_guirefresh_input
@@ -1545,14 +1557,15 @@ class PreferencesTab(QWidget):
         self.textbox_guiresolution = textbox_guiresolution
         self.textbox_guirefresh = textbox_guirefresh
         
-        
+        """
         self.checkbox_camera = checkbox_camera
-        self.textbox_cameratimeout = textbox_cameratimeout
+        self.camera_timeout = camera_timeout
+        self.textbox_camera_timeout = textbox_camera_timeout
         self.camera_button_connect = camera_button_connect
         self.camera_button_disconnect = camera_button_disconnect
         self.camera_button_start = camera_button_start
         self.camera_button_stop = camera_button_stop
-        """
+        
         
         
         
@@ -1563,11 +1576,13 @@ class PreferencesTab(QWidget):
         self.setLayout(layout_main)
         tabwidget = QTabWidget()
         
-        
+        """
         # Create and populate the buffer page
         page_buffer = QWidget()
         layout_buffer = QGridLayout()
         page_buffer.setLayout(layout_buffer)
+        
+        
         
         #self.textbox_ni = QLineEdit(placeholderText="NIDAQmx buffer size per channel")
         label_ni = QLabel("NIDAQmx buffer size per channel")
@@ -1594,9 +1609,16 @@ class PreferencesTab(QWidget):
         
         # Add the buffer page to the tab widget
         tabwidget.addTab(page_buffer, "Buffer")
-        
+        """
         
         ######################################################################
+        
+        
+        
+        
+        
+        #self.textbox_cameratimeout = QLineEdit(str(self.camera_timeout), placeholderText="Camera timeout (s)")
+        
         
         # Create and populate the camera page
         page_camera = QWidget()
@@ -1611,7 +1633,7 @@ class PreferencesTab(QWidget):
         
         label_camera_use = QLabel("Camera timeout (s)")
         layout_camera.addWidget(label_camera_use, 2, 0, 1, 1)
-        layout_camera.addWidget(self.textbox_cameratimeout, 2, 1, 1, 1)
+        layout_camera.addWidget(self.textbox_camera_timeout, 2, 1, 1, 1)
         
         
         #layout_camera.addWidget(self.textbox_ni, 1, 1, 1, 1)
@@ -1622,10 +1644,6 @@ class PreferencesTab(QWidget):
         layout_camera.addWidget(self.camera_button_start, 3, 2, 1, 1)
         layout_camera.addWidget(self.camera_button_stop, 3, 3, 1, 1)
         
-                 #checkbox_camera,
-                # textbox_cameratimeout,
-              #   camera_button_connect,
-               #  camera_button_disconnect
         
         
         # Add the camera page to the tab widget
@@ -1768,11 +1786,16 @@ class MainWindow(QMainWindow):
         self.pipe_camera = Pipe(duplex=True)
         
         
-        # Make init_camera a thread
+        # Make threads for camera_connect, camera_disconnect,
+        #                  camera_start, camera_stop thread
         print(f"main thread id = {int(QThread.currentThreadId())}")
-        self.init_camera_thread = Worker(0, self.init_camera)
+        self.camera_timeout = 4.0 #sec
+        self.camera_connect_thread = Worker(0, self.camera_connect)
+        self.camera_disconnect_thread = Worker(0, self.camera_disconnect)
+        #self.camera_start_thread = Worker(0, self.camera_start)
+        #self.camera_stop_thread = Worker(0, self.camera_stop)
         self.pool = QThreadPool()
-        self.pool.start(self.init_camera_thread)
+        self.pool.start(self.camera_connect_thread)
         #self.supervisor_thread.signals.error.connect(self.thread_error)
         #self.supervisor_thread.signals.result.connect(self.thread_result)
         #self.supervisor_thread.signals.finished.connect(self.thread_complete)
@@ -1780,7 +1803,7 @@ class MainWindow(QMainWindow):
         
         
         
-        #self.init_camera()
+        #self.camera_connect()
         self.init_UI()
         self._createMenuBar()
 
@@ -1801,21 +1824,26 @@ class MainWindow(QMainWindow):
         
         
         # Create all textboxes for the Preferences menu (Camera)
-        self.cameratimeout = 4.0 #sec
         self.checkbox_camera = QCheckBox()
         self.checkbox_camera.setChecked(True)
-        self.textbox_cameratimeout = QLineEdit(str(self.cameratimeout), placeholderText="Camera timeout (sec)")
+        self.textbox_camera_timeout = QLineEdit(str(self.camera_timeout), placeholderText="Camera timeout (sec)")
         self.camera_button_connect = QPushButton("Connect")
         self.camera_button_disconnect = QPushButton("Disconnect")
         self.camera_button_start = QPushButton("Start")
         self.camera_button_stop = QPushButton("Stop")
                 
         
-        
+        """
         self.camera_button_connect.clicked.connect(self.camera_connect_on_click)
         self.camera_button_disconnect.clicked.connect(self.camera_disconnect_on_click)
         self.camera_button_start.clicked.connect(self.camera_start_on_click)
         self.camera_button_stop.clicked.connect(self.camera_stop_on_click)
+        """
+        
+        self.camera_button_connect.clicked.connect(self.camera_connect)
+        self.camera_button_disconnect.clicked.connect(self.camera_disconnect)
+        #self.camera_button_start.clicked.connect(self.camera_start_on_click)
+        #self.camera_button_stop.clicked.connect(self.camera_stop_on_click)
         
         
         
@@ -1823,7 +1851,13 @@ class MainWindow(QMainWindow):
         
         
         # Create the preferences menu
-        #self.menu_preferences = PreferencesTab()
+        self.menu_preferences = PreferencesTab(self.checkbox_camera,
+                                               self.camera_timeout,
+                                               self.textbox_camera_timeout,
+                                               self.camera_button_connect,
+                                               self.camera_button_disconnect,
+                                               self.camera_button_start,
+                                               self.camera_button_stop)
         """
                                                self.guirefresh,
                                                self.pipe_guirefreshb_output,
@@ -1843,16 +1877,16 @@ class MainWindow(QMainWindow):
         
         
         
-    def init_camera(self):
+    def camera_connect(self):
         # Connect to camera
         print(f"camera thread id = {int(QThread.currentThreadId())}")
         
-        self.proc_camera = Process(target=start_camera, args=(self.pipe_camera[0],))# pipe_msgb, ))
-        #self.processlist.append(self.proc_camera)
-        self.proc_camera.start()
+        self.proc_camera_connect = Process(target=start_camera, args=(self.pipe_camera[0],))# pipe_msgb, ))
+        #self.processlist.append(self.proc_camera_connect)
+        self.proc_camera_connect.start()
         self.pipe_camera[1].send(4)
         
-        timeout = 6.0
+        timeout = self.camera_timeout
         time_start = time.time()
         signal = False
         while time.time() < time_start + timeout:
@@ -1860,10 +1894,35 @@ class MainWindow(QMainWindow):
                 while self.pipe_camera[1].poll():
                     signal = self.pipe_camera[1].recv()
                     break
-        if signal == True:
-            print("Successfully connected to the camera")
-        else:
-            print("Failed to connect to the camera")
+        #if signal == True:
+        #    print("Successfully connected to the camera")
+        #else:
+        #    print("Failed to connect to the camera")
+        
+                
+            
+        
+    def camera_disconnect(self):
+        # Disconnect camera
+        print(f"camera thread id = {int(QThread.currentThreadId())}")
+        
+        self.proc_camera_disconnect = Process(target=start_camera, args=(self.pipe_camera[0],))# pipe_msgb, ))
+        #self.processlist.append(self.proc_camera_disconnect)
+        self.proc_camera_disconnect.start()
+        self.pipe_camera[1].send(3)
+        
+        timeout = self.camera_timeout
+        time_start = time.time()
+        signal = False
+        while time.time() < time_start + timeout:
+            if self.pipe_camera[1].poll():
+                while self.pipe_camera[1].poll():
+                    signal = self.pipe_camera[1].recv()
+                    break
+        #if signal == True:
+        #    print("Successfully connected to the camera")
+        #else:
+        #    print("Failed to connect to the camera")
         
                 
             
@@ -1889,7 +1948,7 @@ class MainWindow(QMainWindow):
         toolsMenu.addAction(self.preferencesAction)
         
 
-
+    """
     def camera_connect_on_click(self):
         self.pipe_camb.send(False)
         self.pipe_camb.send(4)
@@ -1908,7 +1967,7 @@ class MainWindow(QMainWindow):
 
     def camera_stop_on_click(self):
         self.pipe_camb.send(False)
-
+    """
 
     def preferences_on_click(self):
         # Show the preferences menu
