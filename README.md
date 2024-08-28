@@ -443,7 +443,7 @@
 
  * Preferences tab reinstated
 
-   * Connect/disconnect camera buttons wired
+   * Connect/disconnect/record/stop camera buttons wired
 
 
 

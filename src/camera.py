@@ -20,8 +20,10 @@ async def main(pipe):#, pipe_msgb):
     
     
 
-    
+    #if True:
     while True:
+        time.sleep(1)
+        print("...")
         if pipe.poll():
             val = 0
             while pipe.poll():
@@ -193,12 +195,20 @@ async def main(pipe):#, pipe_msgb):
                         #pipe_msgb.send("Failed to communicate with the camera")
                     
                     
+                    """
                     print("Closing Bluetooth connection")
                     logging.info("Closing Bluetooth connection")
                     #pipe_msgb.send("Closing Bluetooth connection")
                     logging.info("Exiting camera.py")
                     #pipe_msgb.send("Exiting camera.py")
                     pipe.send(True)
+                    """
+                    
+                    if pipe.poll():
+                        val = 0
+                        while pipe.poll():
+                            pipe.recv()
+                    
                     connected = False
                     
         

@@ -1380,6 +1380,7 @@ class Layout(QGridLayout):
                  coil_dict,
                  pipe_camera,
                  shared_box,
+                 console,
                  parent=None,
                  *args,
                  **kwargs):
@@ -1389,6 +1390,7 @@ class Layout(QGridLayout):
         self.coil_dict = coil_dict
         self.pipe_camera = pipe_camera
         self.shared_box = shared_box
+        self.console = console
         
         """
                  input_channelDict,
@@ -1463,7 +1465,7 @@ class Layout(QGridLayout):
         self.db_textbox = QLineEdit(f"{path}.env")
         
 
-        self.console = Console()
+        #self.console = Console()
         
         
         layout_fsettings = FileSettingsLayout(self.checkbox, self.checkbox_camera,
@@ -1771,6 +1773,8 @@ class MainWindow(QMainWindow):
         self.setGeometry(40, 40, 1200, 625)
         
         
+        
+        
         # Parameters for GUI refresh rate
         self.guirefresh = 10 #ms
         self.pipe_guirefresha_output, self.pipe_guirefreshb_output = Pipe(duplex=False)
@@ -1778,7 +1782,7 @@ class MainWindow(QMainWindow):
         
         
         self.shared_box = SharedGroupBox()
-        
+        self.console = Console()
         
         
         self.init_channels()
@@ -1790,12 +1794,16 @@ class MainWindow(QMainWindow):
         #                  camera_start, camera_stop thread
         print(f"main thread id = {int(QThread.currentThreadId())}")
         self.camera_timeout = 4.0 #sec
+        self.camera_thread = Worker(0, self.camera_on)
         self.camera_connect_thread = Worker(0, self.camera_connect)
         self.camera_disconnect_thread = Worker(0, self.camera_disconnect)
-        #self.camera_start_thread = Worker(0, self.camera_start)
-        #self.camera_stop_thread = Worker(0, self.camera_stop)
+        self.camera_record_thread = Worker(0, self.camera_record)
+        self.camera_stop_thread = Worker(0, self.camera_stop)
         self.pool = QThreadPool()
-        self.pool.start(self.camera_connect_thread)
+        
+        self.pool.start(self.camera_thread)
+        self.start_camera_connect_thread()
+#        self.pool.start(self.camera_connect_thread)
         #self.supervisor_thread.signals.error.connect(self.thread_error)
         #self.supervisor_thread.signals.result.connect(self.thread_result)
         #self.supervisor_thread.signals.finished.connect(self.thread_complete)
@@ -1829,7 +1837,7 @@ class MainWindow(QMainWindow):
         self.textbox_camera_timeout = QLineEdit(str(self.camera_timeout), placeholderText="Camera timeout (sec)")
         self.camera_button_connect = QPushButton("Connect")
         self.camera_button_disconnect = QPushButton("Disconnect")
-        self.camera_button_start = QPushButton("Start")
+        self.camera_button_record = QPushButton("Record")
         self.camera_button_stop = QPushButton("Stop")
                 
         
@@ -1840,10 +1848,11 @@ class MainWindow(QMainWindow):
         self.camera_button_stop.clicked.connect(self.camera_stop_on_click)
         """
         
-        self.camera_button_connect.clicked.connect(self.camera_connect)
-        self.camera_button_disconnect.clicked.connect(self.camera_disconnect)
-        #self.camera_button_start.clicked.connect(self.camera_start_on_click)
-        #self.camera_button_stop.clicked.connect(self.camera_stop_on_click)
+        #self.camera_button_connect.clicked.connect(self.camera_connect)
+        self.camera_button_connect.clicked.connect(self.start_camera_connect_thread)
+        self.camera_button_disconnect.clicked.connect(self.start_camera_disconnect_thread)
+        self.camera_button_record.clicked.connect(self.start_camera_record_thread)
+        self.camera_button_stop.clicked.connect(self.start_camera_stop_thread)
         
         
         
@@ -1856,7 +1865,7 @@ class MainWindow(QMainWindow):
                                                self.textbox_camera_timeout,
                                                self.camera_button_connect,
                                                self.camera_button_disconnect,
-                                               self.camera_button_start,
+                                               self.camera_button_record,
                                                self.camera_button_stop)
         """
                                                self.guirefresh,
@@ -1877,15 +1886,36 @@ class MainWindow(QMainWindow):
         
         
         
-    def camera_connect(self):
-        # Connect to camera
+    def start_camera_connect_thread(self):
+        self.pool.start(self.camera_connect_thread)
+
+        
+    def start_camera_disconnect_thread(self):
+        self.pool.start(self.camera_disconnect_thread)
+
+    def start_camera_record_thread(self):
+        self.pool.start(self.camera_record_thread)
+        
+        
+    def start_camera_stop_thread(self):
+        self.pool.start(self.camera_stop_thread)
+        
+        
+        
+    def camera_on(self):
+        # Start the camera function
         print(f"camera thread id = {int(QThread.currentThreadId())}")
         
-        self.proc_camera_connect = Process(target=start_camera, args=(self.pipe_camera[0],))# pipe_msgb, ))
+        self.proc_camera = Process(target=start_camera, args=(self.pipe_camera[0],))# pipe_msgb, ))
         #self.processlist.append(self.proc_camera_connect)
-        self.proc_camera_connect.start()
-        self.pipe_camera[1].send(4)
+        self.proc_camera.start()
         
+                
+            
+        
+    def camera_connect(self):
+        # Connect to camera
+        self.pipe_camera[1].send(4)
         timeout = self.camera_timeout
         time_start = time.time()
         signal = False
@@ -1904,13 +1934,7 @@ class MainWindow(QMainWindow):
         
     def camera_disconnect(self):
         # Disconnect camera
-        print(f"camera thread id = {int(QThread.currentThreadId())}")
-        
-        self.proc_camera_disconnect = Process(target=start_camera, args=(self.pipe_camera[0],))# pipe_msgb, ))
-        #self.processlist.append(self.proc_camera_disconnect)
-        self.proc_camera_disconnect.start()
         self.pipe_camera[1].send(3)
-        
         timeout = self.camera_timeout
         time_start = time.time()
         signal = False
@@ -1925,7 +1949,68 @@ class MainWindow(QMainWindow):
         #    print("Failed to connect to the camera")
         
                 
+
+    def camera_record(self):
+        self.cameracheckbox_val = self.checkbox_camera.isChecked()
+        if self.cameracheckbox_val:
+            self.console.pipe[1].send("Sending start signal to camera")
+            self.pipe_camera[1].send(True)
+            timeout = self.camera_timeout
+            time_start = time.time()
+            while time.time() < time_start + timeout:
+                if self.pipe_camera[1].poll():
+                    while self.pipe_camera[1].poll():
+                        signal = self.pipe_camera[1].recv()
+                        if signal == True:
+                            print("Recording started")
+                            self.console.pipe[1].send("Recording started")
+                        else:
+                            print("Failed to communicate with the camera")
+                            self.console.pipe[1].send("Failed to communicate with the camera")
+                    break
+        else:
+            print("Camera not enabled")
+            self.console.pipe[1].send("Camera not enabled")
+             
             
+            
+            
+
+    def camera_stop(self):
+        self.console.pipe[1].send("Sending stop signal to camera")
+        self.pipe_camera[1].send(False)
+        timeout = self.camera_timeout
+        time_start = time.time()
+        while time.time() < time_start + timeout:
+            if self.pipe_camera[1].poll():
+                while self.pipe_camera[1].poll():
+                    signal = self.pipe_camera[1].recv()
+                    if signal == True:
+                        print("Recording stopped")
+                        self.console.pipe[1].send("Recording stopped")
+                    else:
+                        print(f"signal = {signal}")
+                        print("Failed to communicate with the camera")
+                        self.console.pipe[1].send("Failed to communicate with the camera")
+                break
+                
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
     
 
     
@@ -2031,7 +2116,8 @@ class MainWindow(QMainWindow):
         self.setWindowIcon(QIcon(self.icon))
         #grid_layout = Layout(self.input_channelDict, self.output_channelDict, self.coil_dict)
         grid_layout = Layout(self.input_channelDict, self.coil_dict,
-                             self.pipe_camera, self.shared_box)
+                             self.pipe_camera, self.shared_box,
+                             self.console)
         """
                              self.input_channelDict,
                              self.output_channelDict,
