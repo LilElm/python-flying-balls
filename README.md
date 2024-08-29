@@ -449,6 +449,8 @@
 
  * Preferences buttons wired
 
+ * Duplicate start/stop camera functions merged
+
 
 
 

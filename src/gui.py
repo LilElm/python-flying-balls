@@ -205,6 +205,8 @@ class RampSettingsLayout(QVBoxLayout):
                  shared_box,
                  checkbox_save,
                  checkbox_camera,
+                 camera_record_fn,
+                 camera_stop_fn,
                  parent=None, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
         self.coil_dict = coil_dict
@@ -215,7 +217,15 @@ class RampSettingsLayout(QVBoxLayout):
         self.shared_box = shared_box
         self.checkbox_save = checkbox_save
         self.checkbox_camera = checkbox_camera
+        
+        self.camera_record_fn = camera_record_fn
+        self.camera_stop_fn = camera_stop_fn
+        
         self.pipe_daq = Pipe(duplex=True)
+        
+        
+        
+        
         
         
         self.init_textboxes()
@@ -370,7 +380,11 @@ class RampSettingsLayout(QVBoxLayout):
     def create_start_camera_thread(self):
         #print(f"number of active threads in self.plot = {self.pool.activeThreadCount()}")
         #print(f"current thread id = {int(QThread.currentThreadId())}, channel = {channel}")
-        self.start_camera_thread = Worker(0, self.send_start_sig_camera)
+        
+#        self.start_camera_thread = Worker(0, self.send_start_sig_camera)
+        self.start_camera_thread = Worker(0, self.camera_record_fn)
+        
+        
         #self.supervisor_thread.signals.error.connect(self.thread_error)
         #self.supervisor_thread.signals.result.connect(self.thread_result)
         self.start_camera_thread.signals.finished.connect(self.start_daq_thread)
@@ -379,7 +393,9 @@ class RampSettingsLayout(QVBoxLayout):
                     
     
     def create_stop_camera_thread(self):
-        self.stop_camera_thread = Worker(0, self.send_stop_sig_camera)
+#        self.stop_camera_thread = Worker(0, self.send_stop_sig_camera)
+        self.stop_camera_thread = Worker(0, self.camera_stop_fn)
+        
     
     def create_stop_daq_thread(self):
         self.stop_daq_thread = Worker(0, self.send_stop_sig_daq)
@@ -391,6 +407,11 @@ class RampSettingsLayout(QVBoxLayout):
         self.pool.start(self.daq_thread)
     
 
+
+
+
+
+    """
     def send_start_sig_camera(self):
         print(f"camera thread id = {int(QThread.currentThreadId())}")
         
@@ -419,8 +440,18 @@ class RampSettingsLayout(QVBoxLayout):
         else:
             print("Camera not enabled")
             self.console.pipe[1].send("Camera not enabled")
-                
+    """
 
+
+
+
+
+
+
+
+
+
+    """
     def send_stop_sig_camera(self):
         print(f"camera thread id = {int(QThread.currentThreadId())}")
         self.console.pipe[1].send("Sending stop signal to camera")
@@ -439,7 +470,7 @@ class RampSettingsLayout(QVBoxLayout):
                         print("Failed to communicate with the camera")
                         self.console.pipe[1].send("Failed to communicate with the camera")
                 break
-                
+    """            
                   
 
     def send_stop_sig_daq(self):
@@ -1382,6 +1413,8 @@ class Layout(QGridLayout):
                  shared_box,
                  console,
                  checkbox_camera,
+                 camera_record_fn,
+                 camera_stop_fn,
                  parent=None,
                  *args,
                  **kwargs):
@@ -1393,6 +1426,8 @@ class Layout(QGridLayout):
         self.shared_box = shared_box
         self.console = console
         self.checkbox_camera = checkbox_camera
+        self.camera_record_fn = camera_record_fn
+        self.camera_stop_fn = camera_stop_fn
         
         """
                  input_channelDict,
@@ -1477,7 +1512,8 @@ class Layout(QGridLayout):
         layout_ramp = RampSettingsLayout(self.coil_dict, self.input_channelDict,
                                          self.console, self.pipe_camera,
                                          self.shared_box, self.checkbox_save,
-                                         self.checkbox_camera)
+                                         self.checkbox_camera, self.camera_record_fn,
+                                         self.camera_stop_fn)
         """    
                                          self.pipe_param,
                                          self.pipe_signal,
@@ -1685,14 +1721,18 @@ class PreferencesTab(QWidget):
 
 
     def update_values(self):
-        self.stable_camera_checkbox = self.checkbox_camera_preferences.isChecked()
-        self.stable_camera_timeout = self.textbox_camera_timeout.text()
+        #self.stable_camera_checkbox = self.checkbox_camera_preferences.isChecked()
+        #self.stable_camera_timeout = self.textbox_camera_timeout.text()
+        
+        self.camera_checkbox_val = self.checkbox_camera_preferences.isChecked()
+        self.camera_timeout = self.textbox_camera_timeout.text()
+        
 
 
 
     def reset_values(self):
-        self.checkbox_camera_preferences.setChecked(self.stable_camera_checkbox)
-        self.textbox_camera_timeout.setText(self.stable_camera_timeout)
+        self.checkbox_camera_preferences.setChecked(self.camera_checkbox_val)
+        self.textbox_camera_timeout.setText(self.camera_timeout)
 
 
 
@@ -1707,8 +1747,8 @@ class PreferencesTab(QWidget):
         #self.val_guiresolution = self.textbox_guiresolution.text()
         #self.val_guirefresh = self.textbox_guirefresh.text()
         
-        self.val_camera_timeout = self.textbox_camera_timeout.text()
-        self.val_camera_checkbox = self.checkbox_camera_preferences.isChecked()
+        #self.val_camera_timeout = self.textbox_camera_timeout.text()
+        #self.val_camera_checkbox = self.checkbox_camera_preferences.isChecked()
         
         # Pipe these somewhere
         #print(f"{self.val_ni} {self.val_ni_checkbox} {self.val_guiresolution} {self.val_guirefresh}")
@@ -1742,8 +1782,8 @@ class PreferencesTab(QWidget):
         #self.val_guiresolution = self.textbox_guiresolution.text()
         #self.val_guirefresh = self.textbox_guirefresh.text()
        
-        self.val_camera_timeout = self.textbox_camera_timeout.text()
-        self.val_camera_checkbox = self.checkbox_camera_preferences.isChecked()
+        #self.val_camera_timeout = self.textbox_camera_timeout.text()
+        #self.val_camera_checkbox = self.checkbox_camera_preferences.isChecked()
         """
         self.val_ni = self.textbox_ni.text()
         self.val_ni_checkbox = self.checkbox_ni.isChecked()
@@ -1808,7 +1848,6 @@ class MainWindow(QMainWindow):
         
         
         self.init_channels()
-        
         self.pipe_camera = Pipe(duplex=True)
         
         
@@ -1955,7 +1994,8 @@ class MainWindow(QMainWindow):
     def camera_connect(self):
         # Connect to camera
         self.pipe_camera[1].send(4)
-        timeout = self.camera_timeout
+#        timeout = self.camera_timeout
+        timeout = float(self.menu_preferences.camera_timeout)
         time_start = time.time()
         signal = False
         while time.time() < time_start + timeout:
@@ -1974,7 +2014,9 @@ class MainWindow(QMainWindow):
     def camera_disconnect(self):
         # Disconnect camera
         self.pipe_camera[1].send(3)
-        timeout = self.camera_timeout
+#        timeout = self.camera_timeout
+        timeout = float(self.menu_preferences.camera_timeout)
+
         time_start = time.time()
         signal = False
         while time.time() < time_start + timeout:
@@ -1994,7 +2036,10 @@ class MainWindow(QMainWindow):
         if self.cameracheckbox_val:
             self.console.pipe[1].send("Sending start signal to camera")
             self.pipe_camera[1].send(True)
-            timeout = self.camera_timeout
+#            timeout = self.camera_timeout
+            timeout = float(self.menu_preferences.camera_timeout)
+
+            self.console.pipe[1].send(f"Camera timeout: {timeout}")
             time_start = time.time()
             while time.time() < time_start + timeout:
                 if self.pipe_camera[1].poll():
@@ -2018,7 +2063,9 @@ class MainWindow(QMainWindow):
     def camera_stop(self):
         self.console.pipe[1].send("Sending stop signal to camera")
         self.pipe_camera[1].send(False)
-        timeout = self.camera_timeout
+#        timeout = self.camera_timeout
+        timeout = float(self.menu_preferences.camera_timeout)
+
         time_start = time.time()
         while time.time() < time_start + timeout:
             if self.pipe_camera[1].poll():
@@ -2156,7 +2203,8 @@ class MainWindow(QMainWindow):
         #grid_layout = Layout(self.input_channelDict, self.output_channelDict, self.coil_dict)
         grid_layout = Layout(self.input_channelDict, self.coil_dict,
                              self.pipe_camera, self.shared_box,
-                             self.console, self.checkbox_camera)
+                             self.console, self.checkbox_camera,
+                             self.camera_record, self.camera_stop)
         """
                              self.input_channelDict,
                              self.output_channelDict,
