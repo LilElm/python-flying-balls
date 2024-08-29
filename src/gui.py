@@ -90,7 +90,7 @@ class MenuLayout(QHBoxLayout):
 
 class FileSettingsLayout(QGridLayout):
     def __init__(self,
-                 checkbox,
+                 checkbox_save,
                  checkbox_camera,
                  path_textbox,
                  db_textbox,
@@ -98,7 +98,7 @@ class FileSettingsLayout(QGridLayout):
                  *args,
                  **kwargs):
         super().__init__(parent, *args, **kwargs)
-        self.checkbox = checkbox
+        self.checkbox_save = checkbox_save
         self.checkbox_camera = checkbox_camera
         self.path_textbox = path_textbox
         self.db_textbox = db_textbox
@@ -126,7 +126,7 @@ class FileSettingsLayout(QGridLayout):
         self.addWidget(QLabel("DB Environment"), 1, 1, 1, 1)
         
         
-        self.addWidget(self.checkbox, 0, 2, 1, 1)
+        self.addWidget(self.checkbox_save, 0, 2, 1, 1)
         self.addWidget(QLabel("Save?"), 1, 2, 1, 1)
         #self.addWidget(QLabel("Save to File?"), 1, 2, 1, 1)
         
@@ -203,7 +203,7 @@ class RampSettingsLayout(QVBoxLayout):
                  console,
                  pipe_camera,
                  shared_box,
-                 checkbox,
+                 checkbox_save,
                  checkbox_camera,
                  parent=None, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
@@ -213,7 +213,7 @@ class RampSettingsLayout(QVBoxLayout):
         #self.console = []
         self.pipe_camera = pipe_camera
         self.shared_box = shared_box
-        self.checkbox = checkbox
+        self.checkbox_save = checkbox_save
         self.checkbox_camera = checkbox_camera
         self.pipe_daq = Pipe(duplex=True)
         
@@ -767,7 +767,7 @@ class RampSettingsLayout(QVBoxLayout):
         #self.path = self.path_textbox.text()
         #self.db_env = self.db_textbox.text()
         
-        #self.save = self.checkbox.isChecked()
+        #self.save = self.checkbox_save.isChecked()
      #   self.sampling_rate = self.textbox_srate.text()
       #  self.f0 = self.textbox_f0.text()
        # self.df = self.textbox_df.text()
@@ -1381,6 +1381,7 @@ class Layout(QGridLayout):
                  pipe_camera,
                  shared_box,
                  console,
+                 checkbox_camera,
                  parent=None,
                  *args,
                  **kwargs):
@@ -1391,6 +1392,7 @@ class Layout(QGridLayout):
         self.pipe_camera = pipe_camera
         self.shared_box = shared_box
         self.console = console
+        self.checkbox_camera = checkbox_camera
         
         """
                  input_channelDict,
@@ -1425,11 +1427,13 @@ class Layout(QGridLayout):
         self.pipe_input = pipe_input
         self.pipe_output = pipe_output
         """
-        self.checkbox = QCheckBox()
-        self.checkbox.setChecked(True)
         
+        self.checkbox_save = QCheckBox()
+        self.checkbox_save.setChecked(True)
+        """
         self.checkbox_camera = QCheckBox()
         self.checkbox_camera.setChecked(True)
+        """
         """
         self.pipe_console = pipe_console
         self.guirefresh = guirefresh
@@ -1468,16 +1472,16 @@ class Layout(QGridLayout):
         #self.console = Console()
         
         
-        layout_fsettings = FileSettingsLayout(self.checkbox, self.checkbox_camera,
+        layout_fsettings = FileSettingsLayout(self.checkbox_save, self.checkbox_camera,
                                               self.path_textbox, self.db_textbox)
         layout_ramp = RampSettingsLayout(self.coil_dict, self.input_channelDict,
                                          self.console, self.pipe_camera,
-                                         self.shared_box, self.checkbox,
+                                         self.shared_box, self.checkbox_save,
                                          self.checkbox_camera)
         """    
                                          self.pipe_param,
                                          self.pipe_signal,
-                                         self.checkbox,
+                                         self.checkbox_save,
                                          self.path_textbox,
                                          self.db_textbox,
                                          self.console,
@@ -1520,7 +1524,7 @@ class Layout(QGridLayout):
 
 class PreferencesTab(QWidget):
     def __init__(self,
-                 checkbox_camera,
+                 checkbox_camera_preferences,
                  camera_timeout,
                  textbox_camera_timeout,
                  camera_button_connect,
@@ -1560,7 +1564,7 @@ class PreferencesTab(QWidget):
         self.textbox_guirefresh = textbox_guirefresh
         
         """
-        self.checkbox_camera = checkbox_camera
+        self.checkbox_camera_preferences = checkbox_camera_preferences
         self.camera_timeout = camera_timeout
         self.textbox_camera_timeout = textbox_camera_timeout
         self.camera_button_connect = camera_button_connect
@@ -1568,6 +1572,12 @@ class PreferencesTab(QWidget):
         self.camera_button_start = camera_button_start
         self.camera_button_stop = camera_button_stop
         
+        
+        
+        
+        # self.checkbox_camera_tab = QCheckBox()
+        # self.checkbox_camera_val = self.checkbox_camera.isChecked()
+        # self.checkbox_camera_tab.setChecked(self.checkbox_camera_val)
         
         
         
@@ -1630,7 +1640,7 @@ class PreferencesTab(QWidget):
         #self.textbox_ni = QLineEdit(placeholderText="NIDAQmx buffer size per channel")
         label_camera_use = QLabel("Record via the camera?")
         layout_camera.addWidget(label_camera_use, 1, 0, 1, 1)
-        layout_camera.addWidget(self.checkbox_camera, 1, 1, 1, 1)
+        layout_camera.addWidget(self.checkbox_camera_preferences, 1, 1, 1, 1)
         
         
         label_camera_use = QLabel("Camera timeout (s)")
@@ -1811,6 +1821,40 @@ class MainWindow(QMainWindow):
         
         
         
+        
+        # Create camera checkboxes for the main window and preferences menu
+        self.checkbox_camera = QCheckBox()
+        self.checkbox_camera_preferences = QCheckBox()
+
+        self.checkbox_camera.setChecked(True)
+        self.checkbox_camera_preferences.setChecked(True)
+        
+        #self.checkbox_camera.toggled.connect(self.checkbox_camera_preferences.toggle)
+        #self.checkbox_camera_preferences.toggled.connect(self.checkbox_camera.toggle)
+        
+        #self.checkbox_camera.toggled.connect(self.toggle_camera_checkboxes)
+        #self.checkbox_camera_preferences.toggled.connect(self.toggle_camera_checkboxes)
+        self.checkbox_camera.toggled.connect(lambda: self.toggle_camera_checkboxes(self.checkbox_camera.isChecked()))
+        self.checkbox_camera_preferences.toggled.connect(lambda: self.toggle_camera_checkboxes(self.checkbox_camera_preferences.isChecked()))
+        
+        #lambda: self.fn(*self.args)
+        
+        
+        
+        self.textbox_camera_timeout = QLineEdit(str(self.camera_timeout), placeholderText="Camera timeout (sec)")
+        self.camera_button_connect = QPushButton("Connect")
+        self.camera_button_disconnect = QPushButton("Disconnect")
+        self.camera_button_record = QPushButton("Record")
+        self.camera_button_stop = QPushButton("Stop")
+                
+        
+        
+        
+        
+        
+        
+        
+        
         #self.camera_connect()
         self.init_UI()
         self._createMenuBar()
@@ -1831,15 +1875,6 @@ class MainWindow(QMainWindow):
         
         
         
-        # Create all textboxes for the Preferences menu (Camera)
-        self.checkbox_camera = QCheckBox()
-        self.checkbox_camera.setChecked(True)
-        self.textbox_camera_timeout = QLineEdit(str(self.camera_timeout), placeholderText="Camera timeout (sec)")
-        self.camera_button_connect = QPushButton("Connect")
-        self.camera_button_disconnect = QPushButton("Disconnect")
-        self.camera_button_record = QPushButton("Record")
-        self.camera_button_stop = QPushButton("Stop")
-                
         
         """
         self.camera_button_connect.clicked.connect(self.camera_connect_on_click)
@@ -1860,30 +1895,22 @@ class MainWindow(QMainWindow):
         
         
         # Create the preferences menu
-        self.menu_preferences = PreferencesTab(self.checkbox_camera,
+        self.menu_preferences = PreferencesTab(self.checkbox_camera_preferences,
                                                self.camera_timeout,
                                                self.textbox_camera_timeout,
                                                self.camera_button_connect,
                                                self.camera_button_disconnect,
                                                self.camera_button_record,
                                                self.camera_button_stop)
-        """
-                                               self.guirefresh,
-                                               self.pipe_guirefreshb_output,
-                                               self.pipe_guirefreshb_input,
-                                               self.textbox_ni,
-                                               self.checkbox_ni,
-                                               self.textbox_guiresolution,
-                                               self.textbox_guirefresh,
-                                               ###############################
-                                               self.checkbox_camera,
-                                               self.textbox_cameratimeout,
-                                               self.camera_button_connect,
-                                               self.camera_button_disconnect,
-                                               self.camera_button_start,
-                                               self.camera_button_stop)
-        """
         
+        
+        
+        
+    def toggle_camera_checkboxes(self, val):
+        self.checkbox_camera.setChecked(val)
+        self.checkbox_camera_preferences.setChecked(val)
+        
+
         
         
     def start_camera_connect_thread(self):
@@ -2117,7 +2144,7 @@ class MainWindow(QMainWindow):
         #grid_layout = Layout(self.input_channelDict, self.output_channelDict, self.coil_dict)
         grid_layout = Layout(self.input_channelDict, self.coil_dict,
                              self.pipe_camera, self.shared_box,
-                             self.console)
+                             self.console, self.checkbox_camera)
         """
                              self.input_channelDict,
                              self.output_channelDict,
