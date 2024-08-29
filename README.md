@@ -445,6 +445,11 @@
 
    * Connect/disconnect/record/stop camera buttons wired
 
+ **29-Aug-24**
+
+ * Preferences buttons wired
+
+
 
 
 

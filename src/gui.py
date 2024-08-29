@@ -1573,11 +1573,10 @@ class PreferencesTab(QWidget):
         self.camera_button_stop = camera_button_stop
         
         
+        self.update_values()
         
         
-        # self.checkbox_camera_tab = QCheckBox()
-        # self.checkbox_camera_val = self.checkbox_camera.isChecked()
-        # self.checkbox_camera_tab.setChecked(self.checkbox_camera_val)
+        
         
         
         
@@ -1663,57 +1662,59 @@ class PreferencesTab(QWidget):
         
         
         
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
         # Add the tab widget to the main layout
         layout_main.addWidget(tabwidget, 0, 0, 1, 6)
         
         # Add buttons to the tab widget
-        button_buffer_ok = QPushButton('OK')
-        button_buffer_cancel = QPushButton('Cancel')
-        button_buffer_apply = QPushButton('Apply')
+        button_ok = QPushButton('OK')
+        button_cancel = QPushButton('Cancel')
+        button_apply = QPushButton('Apply')
         
-        button_buffer_ok.clicked.connect(self.click_okay)
-        button_buffer_cancel.clicked.connect(self.click_cancel)
-        button_buffer_apply.clicked.connect(self.click_apply)
+        button_ok.clicked.connect(self.click_okay)
+        button_cancel.clicked.connect(self.click_cancel)
+        button_apply.clicked.connect(self.click_apply)
         
         
-        layout_main.addWidget(button_buffer_ok, 2, 3, 1, 1)
-        layout_main.addWidget(button_buffer_cancel, 2, 4, 1, 1)
-        layout_main.addWidget(button_buffer_apply, 2, 5, 1, 1)
+        layout_main.addWidget(button_ok, 2, 3, 1, 1)
+        layout_main.addWidget(button_cancel, 2, 4, 1, 1)
+        layout_main.addWidget(button_apply, 2, 5, 1, 1)
         
 
 
     
+
+
+    def update_values(self):
+        self.stable_camera_checkbox = self.checkbox_camera_preferences.isChecked()
+        self.stable_camera_timeout = self.textbox_camera_timeout.text()
+
+
+
+    def reset_values(self):
+        self.checkbox_camera_preferences.setChecked(self.stable_camera_checkbox)
+        self.textbox_camera_timeout.setText(self.stable_camera_timeout)
+
+
+
+
+
     def click_okay(self):
         # Get values, then close
-        self.val_ni = self.textbox_ni.text()
-        self.val_ni_checkbox = self.checkbox_ni.isChecked()
-        self.val_guiresolution = self.textbox_guiresolution.text()
-        self.val_guirefresh = self.textbox_guirefresh.text()
+        self.update_values()
         
-        self.val_cameratimeout = self.textbox_cameratimeout.text()
-        self.val_camera_checkbox = self.checkbox_camera.isChecked()
+        #self.val_ni = self.textbox_ni.text()
+        #self.val_ni_checkbox = self.checkbox_ni.isChecked()
+        #self.val_guiresolution = self.textbox_guiresolution.text()
+        #self.val_guirefresh = self.textbox_guirefresh.text()
+        
+        self.val_camera_timeout = self.textbox_camera_timeout.text()
+        self.val_camera_checkbox = self.checkbox_camera_preferences.isChecked()
         
         # Pipe these somewhere
-        print(f"{self.val_ni} {self.val_ni_checkbox} {self.val_guiresolution} {self.val_guirefresh}")
-        print(f"{self.val_cameratimeout} {self.val_camera_checkbox}")
-        self.pipe_guirefresh_output.send(self.val_guirefresh)
-        self.pipe_guirefresh_input.send(self.val_guirefresh)
+        #print(f"{self.val_ni} {self.val_ni_checkbox} {self.val_guiresolution} {self.val_guirefresh}")
+        #print(f"{self.val_cameratimeout} {self.val_camera_checkbox}")
+        #self.pipe_guirefresh_output.send(self.val_guirefresh)
+        #self.pipe_guirefresh_input.send(self.val_guirefresh)
         
         #self.pipe_buffer.send([self.val_ni, self.val_ni_checkbox, self.val_guiresolution])
         
@@ -1722,10 +1723,11 @@ class PreferencesTab(QWidget):
 
     def click_cancel(self):
         # Reset textbox values and hide the preferences window
-        self.textbox_guirefresh.setText(str(self.val_guirefresh))
+        self.reset_values()
+        #self.textbox_guirefresh.setText(str(self.val_guirefresh))
         #self.textbox_guiresolution.setText(str(self.val_guiresolution))
         #self.textbox_ni.setText(str(self.val_ni))
-        self.textbox_ni.setText("")
+        #self.textbox_ni.setText("")
         #self.checkbox_ni.setChecked(self.val_ni_checkbox)
         self.hide()       
         
@@ -1733,6 +1735,16 @@ class PreferencesTab(QWidget):
 
     def click_apply(self):
         # Get values
+        self.update_values()
+       
+        #self.val_ni = self.textbox_ni.text()
+        #self.val_ni_checkbox = self.checkbox_ni.isChecked()
+        #self.val_guiresolution = self.textbox_guiresolution.text()
+        #self.val_guirefresh = self.textbox_guirefresh.text()
+       
+        self.val_camera_timeout = self.textbox_camera_timeout.text()
+        self.val_camera_checkbox = self.checkbox_camera_preferences.isChecked()
+        """
         self.val_ni = self.textbox_ni.text()
         self.val_ni_checkbox = self.checkbox_ni.isChecked()
         self.val_guiresolution = self.textbox_guiresolution.text()
@@ -1746,7 +1758,7 @@ class PreferencesTab(QWidget):
         print(f"{self.val_cameratimeout} {self.val_camera_checkbox}")
         self.pipe_guirefresh_output.send(self.val_guirefresh)
         self.pipe_guirefresh_input.send(self.val_guirefresh)
-        
+        """
         #self.pipe_buffer.send([self.val_ni, self.val_ni_checkbox, self.val_guiresolution])
         
         
