@@ -1122,10 +1122,11 @@ class RampSettingsLayout(QVBoxLayout):
 
 
 class GraphLayout(QVBoxLayout):
-    def __init__(self, channelDict, pipe_gui_refresh, parent=None, dock=False, *args, **kwargs): #channelDict, pipe_input, pipe_plota, guirefresh, pipe_guirefresha,
+    def __init__(self, channelDict, graph_sampling, pipe_gui_refresh, parent=None, dock=False, *args, **kwargs): #channelDict, pipe_input, pipe_plota, guirefresh, pipe_guirefresha,
         super().__init__(parent, *args, **kwargs)
         self.channelDict = channelDict
         self.pipe_gui_refresh = pipe_gui_refresh
+        self.sampling = graph_sampling
         
         
         if dock:
@@ -1460,8 +1461,10 @@ class Layout(QGridLayout):
                  camera_record_fn,
                  camera_stop_fn,
                  gui_rate,
-                 pipe_gui_refresh,
+                 pipe_gui_refresh_output,
+                 pipe_gui_refresh_input,
                  daq_pipe_rate,
+                 graph_sampling,
                  parent=None,
                  *args,
                  **kwargs):
@@ -1476,7 +1479,8 @@ class Layout(QGridLayout):
         self.camera_record_fn = camera_record_fn
         self.camera_stop_fn = camera_stop_fn
         self.gui_rate = gui_rate
-        self.pipe_gui_refresh = pipe_gui_refresh
+        self.pipe_gui_refresh_output = pipe_gui_refresh_output
+        self.pipe_gui_refresh_input = pipe_gui_refresh_input
         self.daq_pipe_rate = daq_pipe_rate
         
         """
@@ -1588,8 +1592,8 @@ class Layout(QGridLayout):
 
 
         #layout_output = GraphLayout(self.output_channelDict)#self.output_channelDict, self.pipe_output, self.pipe_outputplota, self.guirefresh, self.pipe_guirefresha_output)
-        layout_output = GraphLayout(self.coil_dict, self.pipe_gui_refresh[0])#self.output_channelDict, self.pipe_output, self.pipe_outputplota, self.guirefresh, self.pipe_guirefresha_output)
-        layout_input = GraphLayout(self.input_channelDict, self.pipe_gui_refresh[0])#self.input_channelDict, self.pipe_input, self.pipe_inputplota, self.guirefresh, self.pipe_guirefresha_input)
+        layout_output = GraphLayout(self.coil_dict, graph_sampling, self.pipe_gui_refresh_output[0])#self.output_channelDict, self.pipe_output, self.pipe_outputplota, self.guirefresh, self.pipe_guirefresha_output)
+        layout_input = GraphLayout(self.input_channelDict, graph_sampling, self.pipe_gui_refresh_input[0])#self.input_channelDict, self.pipe_input, self.pipe_inputplota, self.guirefresh, self.pipe_guirefresha_input)
         
        
 
@@ -1620,7 +1624,8 @@ class PreferencesTab(QWidget):
                  gui_rate,
                  textbox_gui_rate,
                  shared_box,
-                 pipe_gui_refresh,
+                 pipe_gui_refresh_output,
+                 pipe_gui_refresh_input,
                  daq_pipe_rate):
                  
                  
@@ -1665,7 +1670,8 @@ class PreferencesTab(QWidget):
         self.gui_rate = gui_rate
         self.textbox_gui_rate = textbox_gui_rate
         self.shared_box = shared_box
-        self.pipe_gui_refresh = pipe_gui_refresh
+        self.pipe_gui_refresh_output = pipe_gui_refresh_output
+        self.pipe_gui_refresh_input = pipe_gui_refresh_input
         self.daq_pipe_rate = daq_pipe_rate
         
         
@@ -1809,25 +1815,20 @@ class PreferencesTab(QWidget):
         
         
         # Evaluate the sampling for the GUI
-        for i in self.shared_box.textboxDict:
-            data_sampling_rate = int(self.shared_box.textboxDict[i].textbox.text())
+        #for i in self.shared_box.textboxDict:
+         #   data_sampling_rate = int(self.shared_box.textboxDict[i].textbox.text())
             #break
         
             
             #sampling = math.floor(data_sampling_rate / float(self.gui_rate) / self.daq_pipe_rate)
-            sampling = math.floor(self.daq_pipe_rate / float(self.gui_rate))
-            
-            
-            
-            print(f"data_sampling_rate = {data_sampling_rate}")
-            print(f"gui_rate = {self.gui_rate}")
-            print(f"daq_pipe_rate = {self.daq_pipe_rate}")
-            print(f"SAMPLING = {sampling}")
-            
-            if sampling <= 0:
-                sampling = 1
-            self.pipe_gui_refresh.send(sampling)
-            break
+        sampling = math.floor(self.daq_pipe_rate / float(self.gui_rate))
+        
+        
+        if sampling <= 0:
+            sampling = 1
+        self.pipe_gui_refresh_output.send(sampling)
+        self.pipe_gui_refresh_input.send(sampling)
+        #break
         
         
 
@@ -1946,8 +1947,16 @@ class MainWindow(QMainWindow):
         
         self.gui_rate = 24 # samples / sec
         self.textbox_gui_rate = QLineEdit(str(self.gui_rate), placeholderText="GUI sampling rate (Hz)")
-        self.pipe_gui_refresh = Pipe(duplex=False)
+        self.pipe_gui_refresh_output = Pipe(duplex=False)
+        self.pipe_gui_refresh_input = Pipe(duplex=False)
         self.daq_pipe_rate = 200 # Samples sent from DAQ to GUI
+        
+        # Evaluate default sampling for the graphs
+        self.graph_sampling = math.floor(self.daq_pipe_rate / float(self.gui_rate))
+        if self.graph_sampling <= 0:
+            self.graph_sampling = 1
+        
+        
         
         self.shared_box = SharedGroupBox()
         self.console = Console()
@@ -1964,7 +1973,8 @@ class MainWindow(QMainWindow):
                                                self.gui_rate,
                                                self.textbox_gui_rate,
                                                self.shared_box,
-                                               self.pipe_gui_refresh[1],
+                                               self.pipe_gui_refresh_output[1],
+                                               self.pipe_gui_refresh_input[1],
                                                self.daq_pipe_rate)
         
         
@@ -2313,8 +2323,9 @@ class MainWindow(QMainWindow):
                              self.pipe_camera, self.shared_box,
                              self.console, self.checkbox_camera,
                              self.camera_record, self.camera_stop,
-                             self.gui_rate, self.pipe_gui_refresh,
-                             self.daq_pipe_rate)
+                             self.gui_rate, self.pipe_gui_refresh_output,
+                             self.pipe_gui_refresh_input, self.daq_pipe_rate,
+                             self.graph_sampling)
         """
                              self.input_channelDict,
                              self.output_channelDict,
