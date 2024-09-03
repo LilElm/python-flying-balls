@@ -31,10 +31,10 @@
      - [X] Custom
    - [ ] Configure output files
    - [ ] Reconnect the database
-   - [ ] Reimplement the 'Preferences' page
+   - [X] Reimplement the 'Preferences' page
    - [ ] Write documentation
    - [ ] Configure error signals for threads
-   - [ ] Assign spring contant box group to the ramp profile
+   - [ ] Assign spring constant box group to the ramp profile
    - [ ] Disable double-clicking of buttons
 
 
