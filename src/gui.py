@@ -51,7 +51,7 @@ from coil_class import CoilChannel, CoilProfileLayout
 from shared_textboxes import SharedGroupBox
 
 from camera import start_camera
-
+import math
 
 
 class MenuLayout(QHBoxLayout):
@@ -207,6 +207,7 @@ class RampSettingsLayout(QVBoxLayout):
                  checkbox_camera,
                  camera_record_fn,
                  camera_stop_fn,
+                 daq_pipe_rate,
                  parent=None, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
         self.coil_dict = coil_dict
@@ -220,6 +221,8 @@ class RampSettingsLayout(QVBoxLayout):
         
         self.camera_record_fn = camera_record_fn
         self.camera_stop_fn = camera_stop_fn
+        
+        self.daq_pipe_rate = daq_pipe_rate
         
         self.pipe_daq = Pipe(duplex=True)
         
@@ -576,7 +579,8 @@ class RampSettingsLayout(QVBoxLayout):
                                  self.input_channelDict,
                                  self.coil_dict,
                                  self.main_thread_id,
-                                 self.pipe_daq[0])
+                                 self.pipe_daq[0],
+                                 self.daq_pipe_rate)
         #self.daq_thread.signals.error.connect(self.thread_error)
         #self.daq_thread.signals.result.connect(self.daq_result)
         self.daq_thread.signals.finished.connect(self.daq_thread_complete)
@@ -1118,10 +1122,10 @@ class RampSettingsLayout(QVBoxLayout):
 
 
 class GraphLayout(QVBoxLayout):
-    def __init__(self, channelDict, sampling_rate=1000, parent=None, dock=False, *args, **kwargs): #channelDict, pipe_input, pipe_plota, guirefresh, pipe_guirefresha,
+    def __init__(self, channelDict, pipe_gui_refresh, parent=None, dock=False, *args, **kwargs): #channelDict, pipe_input, pipe_plota, guirefresh, pipe_guirefresha,
         super().__init__(parent, *args, **kwargs)
         self.channelDict = channelDict
-        self.sampling_rate = sampling_rate
+        self.pipe_gui_refresh = pipe_gui_refresh
         
         
         if dock:
@@ -1161,12 +1165,12 @@ class GraphLayout(QVBoxLayout):
         
         self.init_thread_pool()
         
-        """
+        
         self.timer_refresh = QTimer()
-        self.timer_refresh.setInterval(10) #ms
+        self.timer_refresh.setInterval(100) #ms
         self.timer_refresh.timeout.connect(self.update_refresh_rate)
         self.timer_refresh.start()
-        """
+        
         
         """
         self.timer_update = QTimer()
@@ -1201,10 +1205,10 @@ class GraphLayout(QVBoxLayout):
         if channel:
             if self.channelDict[channel].running == True:
                 
-                #if len(self.channelDict[channel].time) > 20000:
-                 #   self.channelDict[channel].plot.line.setData(self.channelDict[channel].time[::self.sampling_rate],
-                  #                                              self.channelDict[channel].data[::self.sampling_rate])
-                #else:
+                if len(self.channelDict[channel].time) > 1:
+                    self.channelDict[channel].plot.line.setData(self.channelDict[channel].time[::self.sampling],
+                                                                self.channelDict[channel].data[::self.sampling])
+                else:
                     
                     self.channelDict[channel].plot.line.setData(self.channelDict[channel].time,
                                                                 self.channelDict[channel].data)
@@ -1235,6 +1239,43 @@ class GraphLayout(QVBoxLayout):
     
     
     def update_refresh_rate(self):
+        
+        if self.pipe_gui_refresh.poll():
+            while self.pipe_gui_refresh.poll():
+                self.sampling = self.pipe_gui_refresh.recv()
+                print(f"receiving sample: {self.sampling}")
+                
+        """
+        
+        for i in self.shared_box.textboxDict:
+            self.data_sampling_rate = int(self.shared_box.textboxDict[i].textbox.text())
+            break
+        
+        
+        self.sampling_rate = math.floor(self.data_sampling_rate / self.gui_rate)
+        if self.sampling_rate <= 0:
+            self.sampling_rate = 1
+        
+        print(f"self.sampling_rate = {self.sampling_rate}")
+        """
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
         pass
         """
         if self.pipe_guirefresha.poll():
@@ -1267,12 +1308,15 @@ class GraphLayout(QVBoxLayout):
                                 self.channelDict[channel].data.extend(data[1])
                                 
                                 
-                                #if len(self.channelDict[channel].time) > 20000:
-                                    #self.channelDict[channel].plot.line.setData(self.channelDict[channel].time[::self.sampling_rate],
-                                                                                #self.channelDict[channel].data[::self.sampling_rate])
+                                if len(self.channelDict[channel].time) > 1:
+                                    self.channelDict[channel].plot.line.setData(self.channelDict[channel].time[::self.sampling],
+                                                                                self.channelDict[channel].data[::self.sampling])
                                                                                 
                                   #  return channel#"yoy" 
-                               # else:
+                                else:
+                                    
+                                    self.channelDict[channel].plot.line.setData(self.channelDict[channel].time,
+                                                                                self.channelDict[channel].data)
                                    
                                 self.channelDict[channel].thread_plot.signals.result.emit(channel)
                                 #self.update_data(channel)
@@ -1415,6 +1459,9 @@ class Layout(QGridLayout):
                  checkbox_camera,
                  camera_record_fn,
                  camera_stop_fn,
+                 gui_rate,
+                 pipe_gui_refresh,
+                 daq_pipe_rate,
                  parent=None,
                  *args,
                  **kwargs):
@@ -1428,6 +1475,9 @@ class Layout(QGridLayout):
         self.checkbox_camera = checkbox_camera
         self.camera_record_fn = camera_record_fn
         self.camera_stop_fn = camera_stop_fn
+        self.gui_rate = gui_rate
+        self.pipe_gui_refresh = pipe_gui_refresh
+        self.daq_pipe_rate = daq_pipe_rate
         
         """
                  input_channelDict,
@@ -1513,7 +1563,7 @@ class Layout(QGridLayout):
                                          self.console, self.pipe_camera,
                                          self.shared_box, self.checkbox_save,
                                          self.checkbox_camera, self.camera_record_fn,
-                                         self.camera_stop_fn)
+                                         self.camera_stop_fn, self.daq_pipe_rate)
         """    
                                          self.pipe_param,
                                          self.pipe_signal,
@@ -1538,8 +1588,8 @@ class Layout(QGridLayout):
 
 
         #layout_output = GraphLayout(self.output_channelDict)#self.output_channelDict, self.pipe_output, self.pipe_outputplota, self.guirefresh, self.pipe_guirefresha_output)
-        layout_output = GraphLayout(self.coil_dict)#self.output_channelDict, self.pipe_output, self.pipe_outputplota, self.guirefresh, self.pipe_guirefresha_output)
-        layout_input = GraphLayout(self.input_channelDict)#self.input_channelDict, self.pipe_input, self.pipe_inputplota, self.guirefresh, self.pipe_guirefresha_input)
+        layout_output = GraphLayout(self.coil_dict, self.pipe_gui_refresh[0])#self.output_channelDict, self.pipe_output, self.pipe_outputplota, self.guirefresh, self.pipe_guirefresha_output)
+        layout_input = GraphLayout(self.input_channelDict, self.pipe_gui_refresh[0])#self.input_channelDict, self.pipe_input, self.pipe_inputplota, self.guirefresh, self.pipe_guirefresha_input)
         
        
 
@@ -1566,7 +1616,12 @@ class PreferencesTab(QWidget):
                  camera_button_connect,
                  camera_button_disconnect,
                  camera_button_start,
-                 camera_button_stop):
+                 camera_button_stop,
+                 gui_rate,
+                 textbox_gui_rate,
+                 shared_box,
+                 pipe_gui_refresh,
+                 daq_pipe_rate):
                  
                  
         
@@ -1607,6 +1662,11 @@ class PreferencesTab(QWidget):
         self.camera_button_disconnect = camera_button_disconnect
         self.camera_button_start = camera_button_start
         self.camera_button_stop = camera_button_stop
+        self.gui_rate = gui_rate
+        self.textbox_gui_rate = textbox_gui_rate
+        self.shared_box = shared_box
+        self.pipe_gui_refresh = pipe_gui_refresh
+        self.daq_pipe_rate = daq_pipe_rate
         
         
         self.update_values()
@@ -1621,7 +1681,36 @@ class PreferencesTab(QWidget):
         self.setWindowTitle("Preferences")
         layout_main = QGridLayout()
         self.setLayout(layout_main)
-        tabwidget = QTabWidget()
+        self.tabwidget = QTabWidget()
+        
+        self.create_camera_page()
+        self.create_gui_page()
+        
+        
+        
+        
+        
+        
+        
+        # Add the tab widget to the main layout
+        layout_main.addWidget(self.tabwidget, 0, 0, 1, 6)
+        
+        # Add buttons to the tab widget
+        button_ok = QPushButton('OK')
+        button_cancel = QPushButton('Cancel')
+        button_apply = QPushButton('Apply')
+        
+        button_ok.clicked.connect(self.click_okay)
+        button_cancel.clicked.connect(self.click_cancel)
+        button_apply.clicked.connect(self.click_apply)
+        
+        
+        layout_main.addWidget(button_ok, 2, 3, 1, 1)
+        layout_main.addWidget(button_cancel, 2, 4, 1, 1)
+        layout_main.addWidget(button_apply, 2, 5, 1, 1)
+        
+
+        
         
         """
         # Create and populate the buffer page
@@ -1662,60 +1751,46 @@ class PreferencesTab(QWidget):
         
         
         
-        
-        
-        #self.textbox_cameratimeout = QLineEdit(str(self.camera_timeout), placeholderText="Camera timeout (s)")
-        
-        
+    def create_camera_page(self):
         # Create and populate the camera page
         page_camera = QWidget()
         layout_camera = QGridLayout()
         page_camera.setLayout(layout_camera)
         
-        #self.textbox_ni = QLineEdit(placeholderText="NIDAQmx buffer size per channel")
         label_camera_use = QLabel("Record via the camera?")
         layout_camera.addWidget(label_camera_use, 1, 0, 1, 1)
         layout_camera.addWidget(self.checkbox_camera_preferences, 1, 1, 1, 1)
         
-        
         label_camera_use = QLabel("Camera timeout (s)")
         layout_camera.addWidget(label_camera_use, 2, 0, 1, 1)
         layout_camera.addWidget(self.textbox_camera_timeout, 2, 1, 1, 1)
-        
-        
-        #layout_camera.addWidget(self.textbox_ni, 1, 1, 1, 1)
-        
         
         layout_camera.addWidget(self.camera_button_connect, 3, 0, 1, 1)
         layout_camera.addWidget(self.camera_button_disconnect, 3, 1, 1, 1)
         layout_camera.addWidget(self.camera_button_start, 3, 2, 1, 1)
         layout_camera.addWidget(self.camera_button_stop, 3, 3, 1, 1)
         
+        # Add the camera page to the tab widget
+        self.tabwidget.addTab(page_camera, "Camera")
+        
+
+
+
+        
+    def create_gui_page(self):
+        # Create and populate the GUI page
+        page_gui = QWidget()
+        layout_gui = QGridLayout()
+        page_gui.setLayout(layout_gui)
+        
+        label_gui_rate = QLabel("GUI sampling rate (Hz)")
+        layout_gui.addWidget(label_gui_rate, 1, 0, 1, 1)
+        layout_gui.addWidget(self.textbox_gui_rate, 1, 1, 1, 1)
         
         
         # Add the camera page to the tab widget
-        tabwidget.addTab(page_camera, "Camera")
+        self.tabwidget.addTab(page_gui, "GUI")
         
-        
-        
-        # Add the tab widget to the main layout
-        layout_main.addWidget(tabwidget, 0, 0, 1, 6)
-        
-        # Add buttons to the tab widget
-        button_ok = QPushButton('OK')
-        button_cancel = QPushButton('Cancel')
-        button_apply = QPushButton('Apply')
-        
-        button_ok.clicked.connect(self.click_okay)
-        button_cancel.clicked.connect(self.click_cancel)
-        button_apply.clicked.connect(self.click_apply)
-        
-        
-        layout_main.addWidget(button_ok, 2, 3, 1, 1)
-        layout_main.addWidget(button_cancel, 2, 4, 1, 1)
-        layout_main.addWidget(button_apply, 2, 5, 1, 1)
-        
-
 
     
 
@@ -1726,6 +1801,34 @@ class PreferencesTab(QWidget):
         
         self.camera_checkbox_val = self.checkbox_camera_preferences.isChecked()
         self.camera_timeout = self.textbox_camera_timeout.text()
+        self.gui_rate = self.textbox_gui_rate.text()
+        
+        
+        
+        
+        
+        
+        # Evaluate the sampling for the GUI
+        for i in self.shared_box.textboxDict:
+            data_sampling_rate = int(self.shared_box.textboxDict[i].textbox.text())
+            #break
+        
+            
+            #sampling = math.floor(data_sampling_rate / float(self.gui_rate) / self.daq_pipe_rate)
+            sampling = math.floor(self.daq_pipe_rate / float(self.gui_rate))
+            
+            
+            
+            print(f"data_sampling_rate = {data_sampling_rate}")
+            print(f"gui_rate = {self.gui_rate}")
+            print(f"daq_pipe_rate = {self.daq_pipe_rate}")
+            print(f"SAMPLING = {sampling}")
+            
+            if sampling <= 0:
+                sampling = 1
+            self.pipe_gui_refresh.send(sampling)
+            break
+        
         
 
 
@@ -1733,42 +1836,19 @@ class PreferencesTab(QWidget):
     def reset_values(self):
         self.checkbox_camera_preferences.setChecked(self.camera_checkbox_val)
         self.textbox_camera_timeout.setText(self.camera_timeout)
+        self.textbox_gui_rate.setText(self.gui_rate)
 
 
 
 
 
     def click_okay(self):
-        # Get values, then close
         self.update_values()
-        
-        #self.val_ni = self.textbox_ni.text()
-        #self.val_ni_checkbox = self.checkbox_ni.isChecked()
-        #self.val_guiresolution = self.textbox_guiresolution.text()
-        #self.val_guirefresh = self.textbox_guirefresh.text()
-        
-        #self.val_camera_timeout = self.textbox_camera_timeout.text()
-        #self.val_camera_checkbox = self.checkbox_camera_preferences.isChecked()
-        
-        # Pipe these somewhere
-        #print(f"{self.val_ni} {self.val_ni_checkbox} {self.val_guiresolution} {self.val_guirefresh}")
-        #print(f"{self.val_cameratimeout} {self.val_camera_checkbox}")
-        #self.pipe_guirefresh_output.send(self.val_guirefresh)
-        #self.pipe_guirefresh_input.send(self.val_guirefresh)
-        
-        #self.pipe_buffer.send([self.val_ni, self.val_ni_checkbox, self.val_guiresolution])
-        
         self.hide()
 
 
     def click_cancel(self):
-        # Reset textbox values and hide the preferences window
         self.reset_values()
-        #self.textbox_guirefresh.setText(str(self.val_guirefresh))
-        #self.textbox_guiresolution.setText(str(self.val_guiresolution))
-        #self.textbox_ni.setText(str(self.val_ni))
-        #self.textbox_ni.setText("")
-        #self.checkbox_ni.setChecked(self.val_ni_checkbox)
         self.hide()       
         
  
@@ -1837,14 +1917,74 @@ class MainWindow(QMainWindow):
         
         
         
+        
+        # Create camera checkboxes for the main window and preferences menu
+        self.checkbox_camera = QCheckBox()
+        self.checkbox_camera_preferences = QCheckBox()
+
+        self.checkbox_camera.setChecked(True)
+        self.checkbox_camera_preferences.setChecked(True)
+        
+        #self.checkbox_camera.toggled.connect(self.checkbox_camera_preferences.toggle)
+        #self.checkbox_camera_preferences.toggled.connect(self.checkbox_camera.toggle)
+        
+        #self.checkbox_camera.toggled.connect(self.toggle_camera_checkboxes)
+        #self.checkbox_camera_preferences.toggled.connect(self.toggle_camera_checkboxes)
+        self.checkbox_camera.toggled.connect(lambda: self.toggle_camera_checkboxes(self.checkbox_camera.isChecked()))
+        self.checkbox_camera_preferences.toggled.connect(lambda: self.toggle_camera_checkboxes(self.checkbox_camera_preferences.isChecked()))
+        self.camera_timeout = 4.0 #sec
+        
+        
+        
+        
+        self.textbox_camera_timeout = QLineEdit(str(self.camera_timeout), placeholderText="Camera timeout (sec)")
+        self.camera_button_connect = QPushButton("Connect")
+        self.camera_button_disconnect = QPushButton("Disconnect")
+        self.camera_button_record = QPushButton("Record")
+        self.camera_button_stop = QPushButton("Stop")
+                
+        
+        self.gui_rate = 24 # samples / sec
+        self.textbox_gui_rate = QLineEdit(str(self.gui_rate), placeholderText="GUI sampling rate (Hz)")
+        self.pipe_gui_refresh = Pipe(duplex=False)
+        self.daq_pipe_rate = 200 # Samples sent from DAQ to GUI
+        
+        self.shared_box = SharedGroupBox()
+        self.console = Console()
+
+        
+        # Create the preferences menu
+        self.menu_preferences = PreferencesTab(self.checkbox_camera_preferences,
+                                               self.camera_timeout,
+                                               self.textbox_camera_timeout,
+                                               self.camera_button_connect,
+                                               self.camera_button_disconnect,
+                                               self.camera_button_record,
+                                               self.camera_button_stop,
+                                               self.gui_rate,
+                                               self.textbox_gui_rate,
+                                               self.shared_box,
+                                               self.pipe_gui_refresh[1],
+                                               self.daq_pipe_rate)
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        """
         # Parameters for GUI refresh rate
         self.guirefresh = 10 #ms
         self.pipe_guirefresha_output, self.pipe_guirefreshb_output = Pipe(duplex=False)
         self.pipe_guirefresha_input, self.pipe_guirefreshb_input = Pipe(duplex=False)
+        """
         
-        
-        self.shared_box = SharedGroupBox()
-        self.console = Console()
         
         
         self.init_channels()
@@ -1854,7 +1994,6 @@ class MainWindow(QMainWindow):
         # Make threads for camera_connect, camera_disconnect,
         #                  camera_start, camera_stop thread
         print(f"main thread id = {int(QThread.currentThreadId())}")
-        self.camera_timeout = 4.0 #sec
         self.camera_thread = Worker(0, self.camera_on)
         self.camera_connect_thread = Worker(0, self.camera_connect)
         self.camera_disconnect_thread = Worker(0, self.camera_disconnect)
@@ -1872,32 +2011,9 @@ class MainWindow(QMainWindow):
         
         
         
-        
-        # Create camera checkboxes for the main window and preferences menu
-        self.checkbox_camera = QCheckBox()
-        self.checkbox_camera_preferences = QCheckBox()
-
-        self.checkbox_camera.setChecked(True)
-        self.checkbox_camera_preferences.setChecked(True)
-        
-        #self.checkbox_camera.toggled.connect(self.checkbox_camera_preferences.toggle)
-        #self.checkbox_camera_preferences.toggled.connect(self.checkbox_camera.toggle)
-        
-        #self.checkbox_camera.toggled.connect(self.toggle_camera_checkboxes)
-        #self.checkbox_camera_preferences.toggled.connect(self.toggle_camera_checkboxes)
-        self.checkbox_camera.toggled.connect(lambda: self.toggle_camera_checkboxes(self.checkbox_camera.isChecked()))
-        self.checkbox_camera_preferences.toggled.connect(lambda: self.toggle_camera_checkboxes(self.checkbox_camera_preferences.isChecked()))
-        
         #lambda: self.fn(*self.args)
         
         
-        
-        self.textbox_camera_timeout = QLineEdit(str(self.camera_timeout), placeholderText="Camera timeout (sec)")
-        self.camera_button_connect = QPushButton("Connect")
-        self.camera_button_disconnect = QPushButton("Disconnect")
-        self.camera_button_record = QPushButton("Record")
-        self.camera_button_stop = QPushButton("Stop")
-                
         
         
         
@@ -1909,20 +2025,21 @@ class MainWindow(QMainWindow):
         #self.camera_connect()
         self.init_UI()
         self._createMenuBar()
-
+        
+        
         
    
         
         
         
-        
+        """
         # Create all textboxes for the Preferences menu (Buffer)
         self.textbox_ni = QLineEdit(placeholderText="NIDAQmx buffer size per channel")
         self.checkbox_ni = QCheckBox()
         self.checkbox_ni.setChecked(False)
         self.textbox_guiresolution = QLineEdit(placeholderText="GUI resolution (points per sec)")
-        self.textbox_guirefresh = QLineEdit(str(self.guirefresh), placeholderText="GUI refresh rate (ms)")
-        
+        self.textbox_guirefresh = QLineEdit(str(self.gui_rate), placeholderText="GUI refresh rate (ms)")
+        """
         
         
         
@@ -1945,16 +2062,7 @@ class MainWindow(QMainWindow):
         
         
         
-        # Create the preferences menu
-        self.menu_preferences = PreferencesTab(self.checkbox_camera_preferences,
-                                               self.camera_timeout,
-                                               self.textbox_camera_timeout,
-                                               self.camera_button_connect,
-                                               self.camera_button_disconnect,
-                                               self.camera_button_record,
-                                               self.camera_button_stop)
-        
-        
+
         
         
     def toggle_camera_checkboxes(self, val):
@@ -2204,7 +2312,9 @@ class MainWindow(QMainWindow):
         grid_layout = Layout(self.input_channelDict, self.coil_dict,
                              self.pipe_camera, self.shared_box,
                              self.console, self.checkbox_camera,
-                             self.camera_record, self.camera_stop)
+                             self.camera_record, self.camera_stop,
+                             self.gui_rate, self.pipe_gui_refresh,
+                             self.daq_pipe_rate)
         """
                              self.input_channelDict,
                              self.output_channelDict,

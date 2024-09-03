@@ -451,7 +451,13 @@
 
  * Duplicate start/stop camera functions merged
 
+ **03-Sep-24**
 
+ * GUI tab created in preferences menu
+
+ * GUI refresh rate added into preferences menu
+
+   * Evaluates sampling based on textbox entry and number of samples sent to GUI from DAQ
 
 
 

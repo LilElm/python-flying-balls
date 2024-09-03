@@ -84,7 +84,7 @@ def daq_continuous_simple(sampling_rate=1, num_samples=4, input_channels=None):
 def daq_continuous_adv(sampling_rate=1, num_samples=4,
                        input_channel_dict=None, output_channel_dict=None,
                        main_thread_id=None, pipe=None,
-                       directory='../out/'):
+                       pipe_rate=200, directory='../out/'):
     
     timestamp = time.time()
     date = datetime.utcfromtimestamp(timestamp).strftime("%Y-%m-%d")
@@ -94,7 +94,7 @@ def daq_continuous_adv(sampling_rate=1, num_samples=4,
     os.makedirs(directory, exist_ok=True)
     
     
-    pipe_rate = 200 #samples per sec
+    #pipe_rate = 200 #samples per sec
     if sampling_rate > pipe_rate:
         n_sampling = int(sampling_rate / pipe_rate)
     else:
@@ -243,7 +243,8 @@ def daq_continuous_adv(sampling_rate=1, num_samples=4,
                     # Close tasks and exit
                     print("DAQ interrupted by user")
                     pipe.send(True)
-                    sys.exit(1)
+                    #sys.exit(0)
+                    sys.exit("DAQ interrupted by user")
                     
             
             
@@ -294,7 +295,7 @@ def daq_continuous_adv(sampling_rate=1, num_samples=4,
                 is_alive = any([th for th in threading.enumerate() if th.ident == main_thread_id])
                 print(str(is_alive))
                 if not is_alive:
-                    sys.exit(1) #   close
+                    sys.exit(0) #   close
            """
        
         
