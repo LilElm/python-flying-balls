@@ -1122,11 +1122,12 @@ class RampSettingsLayout(QVBoxLayout):
 
 
 class GraphLayout(QVBoxLayout):
-    def __init__(self, channelDict, graph_sampling, pipe_gui_refresh, parent=None, dock=False, *args, **kwargs): #channelDict, pipe_input, pipe_plota, guirefresh, pipe_guirefresha,
+    def __init__(self, channelDict, graph_sampling, graph_max_length, pipe_gui_refresh, parent=None, dock=False, *args, **kwargs): #channelDict, pipe_input, pipe_plota, guirefresh, pipe_guirefresha,
         super().__init__(parent, *args, **kwargs)
         self.channelDict = channelDict
         self.pipe_gui_refresh = pipe_gui_refresh
         self.sampling = graph_sampling
+        self.gui_max_length = graph_max_length
         
         
         if dock:
@@ -1206,6 +1207,25 @@ class GraphLayout(QVBoxLayout):
         if channel:
             if self.channelDict[channel].running == True:
                 
+                
+                
+                
+                
+                
+                if len(self.channelDict[channel].time) > self.gui_max_length:
+                
+                    self.channelDict[channel].plot.line.setData(self.channelDict[channel].time[-self.gui_max_length:-1:self.sampling],
+                                                                self.channelDict[channel].data[-self.gui_max_length:-1:self.sampling])
+                else:
+                    
+                    self.channelDict[channel].plot.line.setData(self.channelDict[channel].time[::self.sampling],
+                                                                self.channelDict[channel].data[::self.sampling])
+                    
+                    
+                    
+                    
+                    
+                """
                 if len(self.channelDict[channel].time) > 1:
                     self.channelDict[channel].plot.line.setData(self.channelDict[channel].time[::self.sampling],
                                                                 self.channelDict[channel].data[::self.sampling])
@@ -1213,6 +1233,13 @@ class GraphLayout(QVBoxLayout):
                     
                     self.channelDict[channel].plot.line.setData(self.channelDict[channel].time,
                                                                 self.channelDict[channel].data)
+                """
+            
+            
+            
+            
+            
+            
             
             
            # self.channelDict[channel].plot.line.setData(self.channelDict[channel].time,
@@ -1243,8 +1270,8 @@ class GraphLayout(QVBoxLayout):
         
         if self.pipe_gui_refresh.poll():
             while self.pipe_gui_refresh.poll():
-                self.sampling = self.pipe_gui_refresh.recv()
-                print(f"receiving sample: {self.sampling}")
+                self.sampling, self.gui_max_length = self.pipe_gui_refresh.recv()
+                print(f"receiving sample, gui_max_length: {self.sampling}, {self.gui_max_length}")
                 
         """
         
@@ -1308,17 +1335,19 @@ class GraphLayout(QVBoxLayout):
                                 self.channelDict[channel].time.extend(data[0])
                                 self.channelDict[channel].data.extend(data[1])
                                 
+                
+                                #print(f"gui_max_length = {self.gui_max_length}")
+                                if len(self.channelDict[channel].time) > self.gui_max_length:
                                 
-                                if len(self.channelDict[channel].time) > 1:
-                                    self.channelDict[channel].plot.line.setData(self.channelDict[channel].time[::self.sampling],
-                                                                                self.channelDict[channel].data[::self.sampling])
-                                                                                
-                                  #  return channel#"yoy" 
+                                    self.channelDict[channel].plot.line.setData(self.channelDict[channel].time[-self.gui_max_length:-1:self.sampling],
+                                                                                self.channelDict[channel].data[-self.gui_max_length:-1:self.sampling])
                                 else:
                                     
-                                    self.channelDict[channel].plot.line.setData(self.channelDict[channel].time,
-                                                                                self.channelDict[channel].data)
+                                    self.channelDict[channel].plot.line.setData(self.channelDict[channel].time[::self.sampling],
+                                                                                self.channelDict[channel].data[::self.sampling])
                                    
+                                    
+                                    
                                 self.channelDict[channel].thread_plot.signals.result.emit(channel)
                                 #self.update_data(channel)
                             #return channel
@@ -1465,6 +1494,7 @@ class Layout(QGridLayout):
                  pipe_gui_refresh_input,
                  daq_pipe_rate,
                  graph_sampling,
+                 gui_max_length,
                  parent=None,
                  *args,
                  **kwargs):
@@ -1592,8 +1622,8 @@ class Layout(QGridLayout):
 
 
         #layout_output = GraphLayout(self.output_channelDict)#self.output_channelDict, self.pipe_output, self.pipe_outputplota, self.guirefresh, self.pipe_guirefresha_output)
-        layout_output = GraphLayout(self.coil_dict, graph_sampling, self.pipe_gui_refresh_output[0])#self.output_channelDict, self.pipe_output, self.pipe_outputplota, self.guirefresh, self.pipe_guirefresha_output)
-        layout_input = GraphLayout(self.input_channelDict, graph_sampling, self.pipe_gui_refresh_input[0])#self.input_channelDict, self.pipe_input, self.pipe_inputplota, self.guirefresh, self.pipe_guirefresha_input)
+        layout_output = GraphLayout(self.coil_dict, graph_sampling, gui_max_length, self.pipe_gui_refresh_output[0])#self.output_channelDict, self.pipe_output, self.pipe_outputplota, self.guirefresh, self.pipe_guirefresha_output)
+        layout_input = GraphLayout(self.input_channelDict, graph_sampling, gui_max_length, self.pipe_gui_refresh_input[0])#self.input_channelDict, self.pipe_input, self.pipe_inputplota, self.guirefresh, self.pipe_guirefresha_input)
         
        
 
@@ -1626,7 +1656,8 @@ class PreferencesTab(QWidget):
                  shared_box,
                  pipe_gui_refresh_output,
                  pipe_gui_refresh_input,
-                 daq_pipe_rate):
+                 daq_pipe_rate,
+                 gui_max_time):
                  
                  
         
@@ -1673,6 +1704,10 @@ class PreferencesTab(QWidget):
         self.pipe_gui_refresh_output = pipe_gui_refresh_output
         self.pipe_gui_refresh_input = pipe_gui_refresh_input
         self.daq_pipe_rate = daq_pipe_rate
+        self.gui_max_time = gui_max_time
+        
+        
+        self.textbox_gui_max_time = QLineEdit(str(self.gui_max_time), placeholderText="Maximum displayed time (s)")
         
         
         self.update_values()
@@ -1794,6 +1829,13 @@ class PreferencesTab(QWidget):
         layout_gui.addWidget(self.textbox_gui_rate, 1, 1, 1, 1)
         
         
+        
+        
+        label_gui_max_time = QLabel("Maximum displayed time (s)")
+        
+        layout_gui.addWidget(label_gui_max_time, 2, 0, 1, 1)
+        layout_gui.addWidget(self.textbox_gui_max_time, 2, 1, 1, 1)
+        
         # Add the camera page to the tab widget
         self.tabwidget.addTab(page_gui, "GUI")
         
@@ -1808,26 +1850,23 @@ class PreferencesTab(QWidget):
         self.camera_checkbox_val = self.checkbox_camera_preferences.isChecked()
         self.camera_timeout = self.textbox_camera_timeout.text()
         self.gui_rate = self.textbox_gui_rate.text()
-        
+        self.gui_max_time = self.textbox_gui_max_time.text()
         
         
         
         
         
         # Evaluate the sampling for the GUI
-        #for i in self.shared_box.textboxDict:
-         #   data_sampling_rate = int(self.shared_box.textboxDict[i].textbox.text())
-            #break
-        
-            
-            #sampling = math.floor(data_sampling_rate / float(self.gui_rate) / self.daq_pipe_rate)
         sampling = math.floor(self.daq_pipe_rate / float(self.gui_rate))
-        
-        
         if sampling <= 0:
             sampling = 1
-        self.pipe_gui_refresh_output.send(sampling)
-        self.pipe_gui_refresh_input.send(sampling)
+            
+            
+        
+        gui_max_length = int(self.daq_pipe_rate * float(self.gui_max_time))
+            
+        self.pipe_gui_refresh_output.send([sampling, gui_max_length])
+        self.pipe_gui_refresh_input.send([sampling, gui_max_length])
         #break
         
         
@@ -1838,6 +1877,7 @@ class PreferencesTab(QWidget):
         self.checkbox_camera_preferences.setChecked(self.camera_checkbox_val)
         self.textbox_camera_timeout.setText(self.camera_timeout)
         self.textbox_gui_rate.setText(self.gui_rate)
+        self.textbox_gui_max_time.setText(self.gui_max_time)
 
 
 
@@ -1945,16 +1985,21 @@ class MainWindow(QMainWindow):
         self.camera_button_stop = QPushButton("Stop")
                 
         
+        self.daq_pipe_rate = 200 # Samples sent from DAQ to GUI
         self.gui_rate = 24 # samples / sec
+        self.gui_max_time = 60 # maximum seconds displayed
+        self.gui_max_length = int(self.daq_pipe_rate * float(self.gui_max_time))
         self.textbox_gui_rate = QLineEdit(str(self.gui_rate), placeholderText="GUI sampling rate (Hz)")
         self.pipe_gui_refresh_output = Pipe(duplex=False)
         self.pipe_gui_refresh_input = Pipe(duplex=False)
-        self.daq_pipe_rate = 200 # Samples sent from DAQ to GUI
         
         # Evaluate default sampling for the graphs
         self.graph_sampling = math.floor(self.daq_pipe_rate / float(self.gui_rate))
         if self.graph_sampling <= 0:
             self.graph_sampling = 1
+        
+        
+        
         
         
         
@@ -1975,7 +2020,8 @@ class MainWindow(QMainWindow):
                                                self.shared_box,
                                                self.pipe_gui_refresh_output[1],
                                                self.pipe_gui_refresh_input[1],
-                                               self.daq_pipe_rate)
+                                               self.daq_pipe_rate,
+                                               self.gui_max_time)
         
         
         
@@ -2325,7 +2371,7 @@ class MainWindow(QMainWindow):
                              self.camera_record, self.camera_stop,
                              self.gui_rate, self.pipe_gui_refresh_output,
                              self.pipe_gui_refresh_input, self.daq_pipe_rate,
-                             self.graph_sampling)
+                             self.graph_sampling, self.gui_max_length)
         """
                              self.input_channelDict,
                              self.output_channelDict,

@@ -459,6 +459,12 @@
 
    * Evaluates sampling based on textbox entry and number of samples sent to GUI from DAQ
 
+ **04-Sep-24**
+
+ * Maximum time window displayed (plot) implemented
+
+   * N.B. Some graphs occasionally freeze. Why?
+
 
 
 
