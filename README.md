@@ -35,7 +35,7 @@
    - [ ] Write documentation
    - [ ] Configure error signals for threads
    - [ ] Assign spring constant box group to the ramp profile
-   - [ ] Disable double-clicking of buttons
+   - [X] Disable double-clicking of buttons
 
 
 </sub>
@@ -465,7 +465,9 @@
 
    * N.B. Some graphs occasionally freeze. Why?
 
+ **05-Sep-24**
 
+ * Start button checks self.daq_running == False before running
 
 
 </sub>

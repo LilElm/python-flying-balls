@@ -229,6 +229,7 @@ class RampSettingsLayout(QVBoxLayout):
         
         
         
+        self.daq_running = False
         
         
         self.init_textboxes()
@@ -406,6 +407,8 @@ class RampSettingsLayout(QVBoxLayout):
     
     
     def start_daq_thread(self):
+        self.daq_running = True
+        print(f"self.daq_running = {self.daq_running}")
         self.console.pipe[1].send("Starting DAQ")
         self.pool.start(self.daq_thread)
     
@@ -595,6 +598,8 @@ class RampSettingsLayout(QVBoxLayout):
         self.console.pipe[1].send("DAQ finished")
         # Stop the camera
         self.pool.start(self.stop_camera_thread)
+        
+        self.daq_running = False
         
         
         
@@ -813,7 +818,8 @@ class RampSettingsLayout(QVBoxLayout):
         self.points = None
         #success, self.points = self.check_input()
         #if success:
-        if True:    
+        #if True:
+        if self.daq_running == False:
             
             
             
@@ -1166,10 +1172,8 @@ class GraphLayout(QVBoxLayout):
             self.addWidget(self.dock)
         
         self.init_thread_pool()
-        
-        
         self.timer_refresh = QTimer()
-        self.timer_refresh.setInterval(100) #ms
+        self.timer_refresh.setInterval(500) #ms
         self.timer_refresh.timeout.connect(self.update_refresh_rate)
         self.timer_refresh.start()
         
@@ -1203,15 +1207,14 @@ class GraphLayout(QVBoxLayout):
         
     
     def update_data(self, channel=None):
-        #print(f"update_data thread = {int(QThread.currentThreadId())}")
+        
+        
+        print(f"self.channelDict[channel].channel = {self.channelDict[channel].channel}")
+        
+        
+        
         if channel:
             if self.channelDict[channel].running == True:
-                
-                
-                
-                
-                
-                
                 if len(self.channelDict[channel].time) > self.gui_max_length:
                 
                     self.channelDict[channel].plot.line.setData(self.channelDict[channel].time[-self.gui_max_length:-1:self.sampling],
@@ -1267,7 +1270,7 @@ class GraphLayout(QVBoxLayout):
     
     
     def update_refresh_rate(self):
-        
+        pass
         if self.pipe_gui_refresh.poll():
             while self.pipe_gui_refresh.poll():
                 self.sampling, self.gui_max_length = self.pipe_gui_refresh.recv()
@@ -1325,8 +1328,13 @@ class GraphLayout(QVBoxLayout):
         while True:
             time.sleep(0.1)
             if self.channelDict[channel].running:
+                
+                
+                
+                
                 if self.channelDict[channel].pipe[0].poll():
                     while self.channelDict[channel].pipe[0].poll():
+                        
                         try:
                             data = self.channelDict[channel].pipe[0].recv()
                             if data == False:
