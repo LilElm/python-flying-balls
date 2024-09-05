@@ -1209,12 +1209,16 @@ class GraphLayout(QVBoxLayout):
     def update_data(self, channel=None):
         
         
-        print(f"self.channelDict[channel].channel = {self.channelDict[channel].channel}")
+        #print(f"self.channelDict[channel].channel = {self.channelDict[channel].channel}")
         
         
         
         if channel:
             if self.channelDict[channel].running == True:
+                
+                print(f"self.channelDict[channel].channel = {self.channelDict[channel].channel}")
+                
+                
                 if len(self.channelDict[channel].time) > self.gui_max_length:
                 
                     self.channelDict[channel].plot.line.setData(self.channelDict[channel].time[-self.gui_max_length:-1:self.sampling],
@@ -1270,7 +1274,7 @@ class GraphLayout(QVBoxLayout):
     
     
     def update_refresh_rate(self):
-        pass
+        #pass
         if self.pipe_gui_refresh.poll():
             while self.pipe_gui_refresh.poll():
                 self.sampling, self.gui_max_length = self.pipe_gui_refresh.recv()
@@ -1343,7 +1347,7 @@ class GraphLayout(QVBoxLayout):
                                 self.channelDict[channel].time.extend(data[0])
                                 self.channelDict[channel].data.extend(data[1])
                                 
-                
+                                """ ####05/09/2024
                                 #print(f"gui_max_length = {self.gui_max_length}")
                                 if len(self.channelDict[channel].time) > self.gui_max_length:
                                 
@@ -1353,7 +1357,7 @@ class GraphLayout(QVBoxLayout):
                                     
                                     self.channelDict[channel].plot.line.setData(self.channelDict[channel].time[::self.sampling],
                                                                                 self.channelDict[channel].data[::self.sampling])
-                                   
+                                """   
                                     
                                     
                                 self.channelDict[channel].thread_plot.signals.result.emit(channel)

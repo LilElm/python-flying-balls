@@ -469,5 +469,11 @@
 
  * Start button checks self.daq_running == False before running
 
+ * line.setData() removed from receive_data() in GraphLayout
+
+   * This seems to have fixed the freezing
+
+   * Occasionally, graphs are wiped once the plotting has finished
+
 
 </sub>
