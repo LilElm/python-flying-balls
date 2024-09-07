@@ -1223,10 +1223,15 @@ class GraphLayout(QVBoxLayout):
                 
                     self.channelDict[channel].plot.line.setData(self.channelDict[channel].time[-self.gui_max_length:-1:self.sampling],
                                                                 self.channelDict[channel].data[-self.gui_max_length:-1:self.sampling])
-                else:
+                elif len(self.channelDict[channel].time) > 1:
                     
                     self.channelDict[channel].plot.line.setData(self.channelDict[channel].time[::self.sampling],
                                                                 self.channelDict[channel].data[::self.sampling])
+                    
+                # else:
+                    
+                #     self.channelDict[channel].plot.line.setData(self.channelDict[channel].time[::self.sampling],
+                #                                                 self.channelDict[channel].data[::self.sampling])
                     
                     
                     

@@ -475,5 +475,11 @@
 
    * Occasionally, graphs are wiped once the plotting has finished
 
+ **07-Sep-24**
+
+ * Plots only plot if len(data) > 1
+
+   * This prevents graphs from being wiped early
+
 
 </sub>
