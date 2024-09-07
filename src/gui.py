@@ -237,19 +237,7 @@ class RampSettingsLayout(QVBoxLayout):
         self.init_thread_pool()
         
       
-        
-      
-        
-      
-        
-        
-        print("ooooooga")
-        print(f"self.checkbox_camera.isChecked() = {self.checkbox_camera.isChecked()}")
-        
-      
-        
-      
-        
+       
       
         
       
@@ -611,21 +599,7 @@ class RampSettingsLayout(QVBoxLayout):
     def thread_complete(self):
         print("Thread done")
         #self.console_plot.append("Finished!")
-    """        
-        def thread_result(self, parameters):
-        coil, force_profile = parameters
-        
-        self.coil_dict[coil].fp = force_profile
-        
-        print("ahahahah")
-        print(f"coil = {coil}, force_profile = {force_profile}")
-        #self.console_plot.append("Finished!")
-        
-        
-        
-        print("Complete!")
-        
-    """        
+     
         
         
     def generate_force_profile(self, coil, *args):
@@ -1218,7 +1192,7 @@ class GraphLayout(QVBoxLayout):
         if channel:
             if self.channelDict[channel].running == True:
                 
-                print(f"self.channelDict[channel].channel = {self.channelDict[channel].channel}")
+                #print(f"self.channelDict[channel].channel = {self.channelDict[channel].channel}")
                 
                 
                 if len(self.channelDict[channel].time) > self.gui_max_length:
