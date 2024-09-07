@@ -481,5 +481,9 @@
 
    * This prevents graphs from being wiped early
 
+ * Save checkbox rewired
+
+   * If != True: path = os.devnull
+
 
 </sub>

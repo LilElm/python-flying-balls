@@ -576,6 +576,7 @@ class RampSettingsLayout(QVBoxLayout):
     
     def create_daq_thread(self):
         
+        self.save = self.checkbox_save.isChecked()
         self.daq_thread = Worker(0, daq_continuous_adv,
                                  self.sampling_rate,
                                  self.num_samples,
@@ -583,7 +584,8 @@ class RampSettingsLayout(QVBoxLayout):
                                  self.coil_dict,
                                  self.main_thread_id,
                                  self.pipe_daq[0],
-                                 self.daq_pipe_rate)
+                                 self.daq_pipe_rate,
+                                 self.save)
         #self.daq_thread.signals.error.connect(self.thread_error)
         #self.daq_thread.signals.result.connect(self.daq_result)
         self.daq_thread.signals.finished.connect(self.daq_thread_complete)
@@ -1566,6 +1568,8 @@ class Layout(QGridLayout):
         
         self.checkbox_save = QCheckBox()
         self.checkbox_save.setChecked(True)
+        
+        
         """
         self.checkbox_camera = QCheckBox()
         self.checkbox_camera.setChecked(True)
